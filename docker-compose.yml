@@ -1,0 +1,19 @@
+
+services:
+  nuxt:
+    build: ./examples/nuxt
+    container_name: nuxt
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_PUBLIC_MESSTICK_API_URL=https://example.com/api
+      - NUXT_PUBLIC_LINBIK_URL=https://example.com/api
+      - LINBIK_APP_ID=01956070-9f16-7791-a93e-c09c3735f3ae
+      - LINBIK_APP_SECRET=MIICITANBgkqhkiG9w0BAQEFAAOCAg4AMIICCQKCAgBp6ADswC7ZoDYMOyoFRC/cGTx4naAQ+gih2PQTVHVrC3YXRUzxYJwVkdCfuWQkZ3P/FTmpITWENa8OryAJUGAwuFqwgbhH0T0m+lUBLBa49/bJ2KVxjooN3FTQCp1fHS+wmpjIw/yCqDtSih3ylcdLcuhRJCKyj8aSYuY1Y9y1oKmhJvDNc6TrfS/i02Q5oFWu8PF96tQV4MAqKzdKSaytg19AEqv3SV+sPYLoacj3oCnAb7J05W7poBmdFuTXcmbfVc+MZYFoSiyzWk35PyqbPGLKYsq0RYzfoGeLFWVsZ8QOS0tf/P7z1J15rb58PMIyRrcbTqiNJ3MR3EGvCW3dgli0yS8mI2ynD9OKi5xgu6txlAZIKENegmwji9e87uj7SnNxGD7JPSqAW0VaLq4rDKZwnu7WMa6uL/Y83hVRAew19ouTpH50lW7XRaGJu6H8siKRfSa+di/erzev6ppmnpmFBeCzaaSBMLS8gpN/l4rQoI49lbSjzYiipjSusynxVlPvoabx1iH3Ngep7cYR994W7/MhHvbcaziMN4NoeiLbfmiFVDKqEEmRZkId18fyLSkmONBRdwkoovrEr0bNSOjobLrSiXSVZn7eeSZUH7aDRkD/oUVKH0KiSkxnFZr6CiaJep9hykCJyLLzQIzKaCFNcfWTxfguD9lMDEBniQIDAQAB
+      - NUXT_PUBLIC_API_URL=https://example.com/api
+      - SECRET_KEY=your_secret_key_here
+    volumes:
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:

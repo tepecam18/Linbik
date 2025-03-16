@@ -1,0 +1,15 @@
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.YARP.deps.json
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.YARP.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.YARP.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.csproj.AssemblyReference.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.AssemblyInfoInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.AssemblyInfo.cs
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.csproj.CoreCompileInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.Y.0E16BA6D.Up2Date
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\refint\Linbik.YARP.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\Linbik.YARP.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\obj\Debug\net9.0\ref\Linbik.YARP.dll

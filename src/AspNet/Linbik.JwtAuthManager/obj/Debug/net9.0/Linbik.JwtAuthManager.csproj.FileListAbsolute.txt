@@ -1,0 +1,15 @@
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\bin\Debug\net9.0\Linbik.JwtAuthManager.deps.json
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\bin\Debug\net9.0\Linbik.JwtAuthManager.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\bin\Debug\net9.0\Linbik.JwtAuthManager.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\bin\Debug\net9.0\Linbik.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\bin\Debug\net9.0\Linbik.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.csproj.AssemblyReference.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.AssemblyInfoInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.AssemblyInfo.cs
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.csproj.CoreCompileInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.J.761B0EAC.Up2Date
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\refint\Linbik.JwtAuthManager.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\Linbik.JwtAuthManager.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\obj\Debug\net9.0\ref\Linbik.JwtAuthManager.dll

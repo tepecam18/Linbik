@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNet", "..\..\..\..\..\..\source\repos\tepecam18\Linbik\examples\AspNet\AspNet\AspNet.csproj", "{60EBE4E8-D357-4018-B58F-6A85B169EBAA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik", "..\..\..\..\..\..\source\repos\tepecam18\Linbik\src\AspNet\Linbik\Linbik.csproj", "{5D633FB9-E112-4009-8FE0-36439B3ECEBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.JwtAuthManager", "..\..\..\..\..\..\source\repos\tepecam18\Linbik\src\AspNet\Linbik.JwtAuthManager\Linbik.JwtAuthManager.csproj", "{04D69CD1-7369-458A-9189-72E969983CF6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.YARP", "..\..\..\..\..\..\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\Linbik.YARP.csproj", "{B1B4DC5E-6722-4B95-8398-50123317436A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{60EBE4E8-D357-4018-B58F-6A85B169EBAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60EBE4E8-D357-4018-B58F-6A85B169EBAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60EBE4E8-D357-4018-B58F-6A85B169EBAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60EBE4E8-D357-4018-B58F-6A85B169EBAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D633FB9-E112-4009-8FE0-36439B3ECEBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D633FB9-E112-4009-8FE0-36439B3ECEBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D633FB9-E112-4009-8FE0-36439B3ECEBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D633FB9-E112-4009-8FE0-36439B3ECEBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04D69CD1-7369-458A-9189-72E969983CF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04D69CD1-7369-458A-9189-72E969983CF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04D69CD1-7369-458A-9189-72E969983CF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04D69CD1-7369-458A-9189-72E969983CF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1B4DC5E-6722-4B95-8398-50123317436A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1B4DC5E-6722-4B95-8398-50123317436A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1B4DC5E-6722-4B95-8398-50123317436A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1B4DC5E-6722-4B95-8398-50123317436A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {931D3B9D-BD5B-4927-BD65-4AD347ECC129}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<PackageOutputPath>C:\Users\tpcm1\source\repos\tepecam18\npkg</PackageOutputPath>
+		<PackageVersion>1.0.5</PackageVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!--<PackageReference Include="Linbik" Version="1.0.5" />-->
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Linbik\Linbik.csproj" />
+	</ItemGroup>
+</Project>
