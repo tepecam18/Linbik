@@ -5,7 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<PackageOutputPath>C:\Users\tpcm1\source\repos\tepecam18\npkg</PackageOutputPath>
-		<PackageVersion>1.0.5</PackageVersion>
+		<PackageVersion>1.0.0</PackageVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -13,6 +13,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Linbik\Linbik.csproj" />
+	  <ProjectReference Include="..\Linbik\Linbik.Core.csproj" />
 	</ItemGroup>
 </Project>

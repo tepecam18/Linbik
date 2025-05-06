@@ -27,19 +27,19 @@ public static class JwtAuthManagerExtensions
         configureOptions(optionsInstance);
 
         // IOptions haline getiriyoruz.
-        var options = Options.Create(optionsInstance);
+        var jwtOptions = Options.Create(optionsInstance);
 
-        builder.Services
-            .AddAuthentication()
-            .AddLinbikScheme(options);
+        AddCommonAuthServices(builder.Services, jwtOptions);
 
         return builder;
     }
 
-    public static ILinbikBuilder AddJwtAuth(this ILinbikBuilder builder, IConfiguration configuration, bool useInMemory = false)
+    public static ILinbikBuilder AddJwtAuth(this ILinbikBuilder builder, bool useInMemory = false)
     {
-        builder.Services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
+        var serviceProvider = builder.Services.BuildServiceProvider();
+        var configuration = serviceProvider.GetService<IConfiguration>();
 
+        builder.Services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
 
         if (useInMemory)
         {
@@ -48,13 +48,19 @@ public static class JwtAuthManagerExtensions
 
         var jwtOptions = Options.Create(configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>());
 
-        builder.Services
-            .AddAuthentication()
-                .AddLinbikScheme(jwtOptions);
+        AddCommonAuthServices(builder.Services, jwtOptions);
 
         return builder;
     }
 
+    private static void AddCommonAuthServices(IServiceCollection services, IOptions<JwtAuthOptions> jwtOptions)
+    {
+        services.AddSingleton<IAuthService, JwtAuthService>();
+
+        services
+            .AddAuthentication()
+            .AddLinbikScheme(jwtOptions);
+    }
     public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
     {
         app.UseRouting();
@@ -86,6 +92,9 @@ public static class JwtAuthManagerExtensions
 
                     await repository.CreateRefresToken(result.UserGuid, result.Name, out refreshToken, out claims)
                     .ConfigureAwait(false);
+
+                    claims.Add(new Claim(ClaimTypes.Name, result.Name));
+                    claims.Add(new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString()));
 
                     var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.Value.privateKey));
 
@@ -136,6 +145,9 @@ public static class JwtAuthManagerExtensions
 
                 await repository.CreateRefresToken(result.UserGuid, result.Name, out refreshToken, out claims)
                 .ConfigureAwait(false);
+
+                claims.Add(new Claim(ClaimTypes.Name, result.Name));
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString()));
 
                 var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.Value.privateKey));
 

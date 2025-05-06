@@ -21,29 +21,33 @@ public static class YARPManagerExtensions
         // IOptions haline getiriyoruz.
         var yarpOptions = Options.Create(optionsInstance);
 
-        AddCommonAuthServices(builder.Services, yarpOptions);
+        AddCommonYarpServices(builder.Services, yarpOptions);
 
         return builder;
     }
 
-    public static ILinbikBuilder AddProxy(this ILinbikBuilder builder, IConfiguration configuration)
+    public static ILinbikBuilder AddProxy(this ILinbikBuilder builder)
     {
+        var serviceProvider = builder.Services.BuildServiceProvider();
+        var configuration = serviceProvider.GetService<IConfiguration>();
+
         builder.Services.Configure<List<YARPOptions>>(configuration.GetSection("Linbik:Yarp"));
 
         var yarpOptions = Options.Create(configuration.GetSection("Linbik:Yarp").Get<List<YARPOptions>>());
 
-        AddCommonAuthServices(builder.Services, yarpOptions);
+        if (yarpOptions.Value is not null)
+            AddCommonYarpServices(builder.Services, yarpOptions);
 
         return builder;
     }
 
     // Ortak servis kayıtlarını tek bir yerde topladık.
-    private static void AddCommonAuthServices(IServiceCollection services, IOptions<List<YARPOptions>> yarpOptions)
+    private static void AddCommonYarpServices(IServiceCollection services, IOptions<List<YARPOptions>?> yarpOptions)
     {
         var routes = new List<RouteConfig>();
         var clusters = new List<ClusterConfig>();
 
-        yarpOptions.Value.ForEach(option =>
+        yarpOptions.Value?.ForEach(option =>
         {
             // In-memory route konfigürasyonu
             var route = new RouteConfig
@@ -79,7 +83,6 @@ public static class YARPManagerExtensions
             });
         });
 
-
         services.AddReverseProxy()
             .LoadFromMemory(routes, clusters)
             .AddTransforms(builderContext =>
@@ -87,8 +90,60 @@ public static class YARPManagerExtensions
                 // Ek olarak, transform pipeline üzerinden header'lar üzerinde daha fazla kontrol sağlayabilirsiniz.
                 builderContext.AddRequestTransform(async transformContext =>
                 {
-                    //TODO: userId koy buraya
-                        transformContext.ProxyRequest.Headers.Add("X-User-Id", "user1");
+                    // DI'dan IAuthService örneğini alıyoruz.
+                    var authService = transformContext.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+
+                    // IAuthService üzerinden kullanıcı id'sini alacak metodu çağırıyoruz.
+                    // Bu örnekte metot asenkron kabul edilmiştir. (Kendi implementasyonunuza göre düzenleyebilirsiniz.)
+                    var userId = await authService.GetUserIdAsync(transformContext.HttpContext);
+
+                    // Saklanacak header'ları belirleyelim.
+                    var headersToKeep = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "X-Private-Key"
+                    };
+
+                    // Silinmesi gereken header isimlerini listeleyelim.
+                    var headersToRemove = transformContext.ProxyRequest.Headers
+                        .Where(header => !headersToKeep.Contains(header.Key))
+                        .Select(header => header.Key)
+                        .ToList();
+
+                    // Seçilen header'ları sil.
+                    foreach (var headerKey in headersToRemove)
+                    {
+                        transformContext.ProxyRequest.Headers.Remove(headerKey);
+                    }
+
+                    //if (!string.IsNullOrEmpty(userId))
+                    //{
+                    //    transformContext.ProxyRequest.Headers.Add("X-User-Id", userId);
+                    //}
+
+                    //// Cookie adınızı "YourJwtCookieName" ile değiştirin.
+                    //var jwt = transformContext.HttpContext.Request.Cookies["YourJwtCookieName"];
+                    //if (!string.IsNullOrEmpty(jwt))
+                    //{
+                    //    var handler = new JwtSecurityTokenHandler();
+                    //    var token = handler.ReadJwtToken(jwt);
+                    //    // Token içerisindeki "id" ya da "sub" claim'ini çekebilirsiniz.
+                    //    var userIdClaim = token.Claims.FirstOrDefault(c => c.Type == "id" || c.Type == "sub");
+                    //    if (userIdClaim != null)
+                    //    {
+                    //        transformContext.ProxyRequest.Headers.Add("X-User-Id", userIdClaim.Value);
+                    //    }
+                    //}
+
+
+                    //var authService = transformContext.HttpContext.RequestServices.GetRequiredService<IAuthService>();
+                    //var userId = await authService.GetUserIdAsync(transformContext.HttpContext);
+
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        transformContext.ProxyRequest.Headers.Add("X-User-Id", userId);
+                    }
+
+
                 });
             });
     }

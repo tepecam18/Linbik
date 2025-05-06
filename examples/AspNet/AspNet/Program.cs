@@ -8,9 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-builder.Services.AddLinbik(builder.Configuration)
-    .AddJwtAuth(builder.Configuration, true)
-    .AddProxy(builder.Configuration);
+builder.Services.AddLinbik()
+    .AddJwtAuth(true)
+    .AddProxy();
 
 //builder.Services.AddLinbik(conf =>
 //{

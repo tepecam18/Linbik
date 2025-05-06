@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik.JwtAuthManager\\Linbik.JwtAuthManager.csproj": {
-      "version": "1.0.5",
+      "version": "1.0.0",
       "restore": {
         "projectUniqueName": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik.JwtAuthManager\\Linbik.JwtAuthManager.csproj",
         "projectName": "Linbik.JwtAuthManager",
@@ -33,8 +33,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.csproj": {
-                "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.csproj"
+              "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj": {
+                "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj"
               }
             }
           }
@@ -83,16 +83,16 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.csproj": {
-      "version": "1.0.5",
+    "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj": {
+      "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.csproj",
-        "projectName": "Linbik",
-        "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.csproj",
+        "projectUniqueName": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj",
+        "projectName": "Linbik.Core",
+        "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj",
         "packagesPath": "C:\\Users\\tpcm1\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\obj\\",
         "projectStyle": "PackageReference",
@@ -134,21 +134,21 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Http.Abstractions": {
+              "target": "Package",
+              "version": "[2.3.0, )"
+            },
             "Microsoft.Extensions.Configuration.Abstractions": {
               "target": "Package",
-              "version": "[9.0.2, )"
+              "version": "[9.0.3, )"
             },
-            "Microsoft.Extensions.DependencyInjection.Abstractions": {
+            "Microsoft.Extensions.DependencyInjection": {
               "target": "Package",
-              "version": "[9.0.2, )"
-            },
-            "Microsoft.Extensions.Options": {
-              "target": "Package",
-              "version": "[9.0.2, )"
+              "version": "[9.0.3, )"
             },
             "Microsoft.Extensions.Options.ConfigurationExtensions": {
               "target": "Package",
-              "version": "[9.0.2, )"
+              "version": "[9.0.3, )"
             },
             "System.IdentityModel.Tokens.Jwt": {
               "target": "Package",
@@ -171,7 +171,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

@@ -9,13 +9,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!--<PackageReference Include="Linbik" Version="1.0.5" />-->
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.3" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.3" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.3" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.1" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <ProjectReference Include="..\Linbik\Linbik.Core.csproj" />
-	</ItemGroup>
 </Project>

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Linbik.YARP</id>
+    <version>1.0.7.1</version>
+    <authors>Linbik.YARP</authors>
+    <description>Package Description</description>
+    <repository type="git" commit="9735598fe92df5afcafbeaced55003082454e827" />
+    <dependencies>
+      <group targetFramework="net9.0">
+        <dependency id="Linbik" version="1.0.7" exclude="Build,Analyzers" />
+        <dependency id="Yarp.ReverseProxy" version="2.3.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.YARP\bin\Debug\net9.0\Linbik.YARP.dll" target="lib\net9.0\Linbik.YARP.dll" />
+  </files>
+</package>
