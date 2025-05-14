@@ -1,20 +1,20 @@
-﻿using Linbik.Interfaces;
+﻿using Linbik.Core.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Linbik;
+namespace Linbik.Core;
 
 public static class LinbikServiceCollectionExtensions
 {
 
-    public static ILinbikBuilder AddLinbik(this IServiceCollection services, Action<LinbikOptions> configureOptions)
+    public static LinbikBuilder AddLinbik(this IServiceCollection services, Action<LinbikOptions> configureOptions)
     {
         services.Configure(configureOptions);
         AddCommonAuthServices(services);
         return new LinbikBuilder(services);
     }
 
-    public static ILinbikBuilder AddLinbik(this IServiceCollection services)
+    public static LinbikBuilder AddLinbik(this IServiceCollection services)
     {
         var serviceProvider = services.BuildServiceProvider();
         var configuration = serviceProvider.GetService<IConfiguration>();

@@ -1,4 +1,5 @@
-﻿using Linbik.Interfaces;
+﻿using Linbik.Core;
+using Linbik.Core.Interfaces;
 using Linbik.JwtAuthManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;

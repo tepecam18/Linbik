@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 
-namespace Linbik.Interfaces;
+namespace Linbik.Core.Interfaces;
 
 public interface IAuthService
 {

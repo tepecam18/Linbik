@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using Linbik.Core;
+using System.Security.Claims;
 
 namespace Linbik.JwtAuthManager.Interfaces;
 

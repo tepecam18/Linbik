@@ -1,4 +1,5 @@
-﻿using Linbik.Interfaces;
+﻿using Linbik.Core;
+using Linbik.Core.Interfaces;
 using Linbik.JwtAuthManager.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -63,6 +64,7 @@ public static class JwtAuthManagerExtensions
     }
     public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
     {
+        //TODO: bagimsiz DI lari kaldir
         app.UseRouting();
 
         app.UseAuthentication();
@@ -70,7 +72,7 @@ public static class JwtAuthManagerExtensions
 
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapPost("linbik/login", async (HttpContext context, [FromServices] IOptions<JwtAuthOptions> options, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
+            endpoints.MapPost("/linbik/login", async (HttpContext context, [FromServices] IOptions<JwtAuthOptions> options, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
             {
                 try
                 {
@@ -121,7 +123,7 @@ public static class JwtAuthManagerExtensions
                 }
             }).WithTags("Linbik");
 
-            endpoints.MapPost("linbik/refresh-login", async (HttpContext context, [FromServices] IOptions<JwtAuthOptions> options, [FromServices] ILinbikRepository repository) =>
+            endpoints.MapPost("/linbik/refresh-login", async (HttpContext context, [FromServices] IOptions<JwtAuthOptions> options, [FromServices] ILinbikRepository repository) =>
             {
                 string currentRefreshToken = context.Request.Cookies["refreshToken"];
 

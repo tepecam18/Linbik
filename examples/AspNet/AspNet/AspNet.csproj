@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\AspNet\Linbik.JwtAuthManager\Linbik.JwtAuthManager.csproj" />
-    <ProjectReference Include="..\..\..\src\AspNet\Linbik.YARP\Linbik.YARP.csproj" />
+    <ProjectReference Include="..\..\..\src\AspNet\Linbik.Server\Linbik.Server.csproj" />
+	  <ProjectReference Include="..\..\..\src\AspNet\Linbik.YARP\Linbik.YARP.csproj" />
   </ItemGroup>
 </Project>

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Linbik.YARP")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9735598fe92df5afcafbeaced55003082454e827")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d699b7ee5a17c72cea83dc79dd219f27be0ca954")]
 [assembly: System.Reflection.AssemblyProductAttribute("Linbik.YARP")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Linbik.YARP")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

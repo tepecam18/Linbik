@@ -1,5 +1,6 @@
-using Linbik;
+using Linbik.Core;
 using Linbik.JwtAuthManager;
+using Linbik.Server;
 using Linbik.YARP;
 using Scalar.AspNetCore;
 
@@ -8,9 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-builder.Services.AddLinbik()
-    .AddJwtAuth(true)
-    .AddProxy();
+builder.Services
+    .AddLinbik() // Add core Linbik services
+    .AddJwtAuth(true) // Enable JWT authentication for Linbik users
+    .AddLinbikServer() // Enable server services for Linbik applications
+    .AddProxy();// Add proxy services for Linbik applications
 
 //builder.Services.AddLinbik(conf =>
 //{

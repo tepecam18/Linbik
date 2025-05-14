@@ -1,4 +1,5 @@
-﻿using Linbik.JwtAuthManager.Interfaces;
+﻿using Linbik.Core;
+using Linbik.JwtAuthManager.Interfaces;
 using System.Security.Claims;
 using System.Security.Cryptography;
 

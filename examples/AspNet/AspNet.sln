@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.YARP", "..\..\src\As
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.Core", "..\..\src\AspNet\Linbik.Core\Linbik.Core.csproj", "{D04F1E09-B3E1-EBAD-2112-22A093ED0E26}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.Server", "..\..\src\AspNet\Linbik.Server\Linbik.Server.csproj", "{5C9DFF9F-B893-41C8-9996-799942572F13}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{D04F1E09-B3E1-EBAD-2112-22A093ED0E26}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D04F1E09-B3E1-EBAD-2112-22A093ED0E26}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D04F1E09-B3E1-EBAD-2112-22A093ED0E26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C9DFF9F-B893-41C8-9996-799942572F13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C9DFF9F-B893-41C8-9996-799942572F13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C9DFF9F-B893-41C8-9996-799942572F13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C9DFF9F-B893-41C8-9996-799942572F13}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

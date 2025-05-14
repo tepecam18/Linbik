@@ -905,8 +905,8 @@
     },
     "Linbik.Core/1.0.0": {
       "type": "project",
-      "path": "../Linbik/Linbik.Core.csproj",
-      "msbuildProject": "../Linbik/Linbik.Core.csproj"
+      "path": "../Linbik.Core/Linbik.Core.csproj",
+      "msbuildProject": "../Linbik.Core/Linbik.Core.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -949,8 +949,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj": {
-              "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik\\Linbik.Core.csproj"
+            "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik.Core\\Linbik.Core.csproj": {
+              "projectPath": "C:\\Users\\tpcm1\\source\\repos\\tepecam18\\Linbik\\src\\AspNet\\Linbik.Core\\Linbik.Core.csproj"
             }
           }
         }

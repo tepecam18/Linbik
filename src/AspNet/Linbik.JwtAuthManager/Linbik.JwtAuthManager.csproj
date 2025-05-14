@@ -16,6 +16,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Linbik\Linbik.Core.csproj" />
+	  <ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
 	</ItemGroup>
 </Project>

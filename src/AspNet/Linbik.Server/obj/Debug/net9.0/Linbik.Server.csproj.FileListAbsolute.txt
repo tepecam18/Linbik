@@ -1,0 +1,15 @@
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\bin\Debug\net9.0\Linbik.Server.deps.json
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\bin\Debug\net9.0\Linbik.Server.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\bin\Debug\net9.0\Linbik.Server.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\bin\Debug\net9.0\Linbik.Core.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\bin\Debug\net9.0\Linbik.Core.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.csproj.AssemblyReference.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.AssemblyInfoInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.AssemblyInfo.cs
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.csproj.CoreCompileInputs.cache
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.S.3CAC6D25.Up2Date
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\refint\Linbik.Server.dll
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\Linbik.Server.pdb
+C:\Users\tpcm1\source\repos\tepecam18\Linbik\src\AspNet\Linbik.Server\obj\Debug\net9.0\ref\Linbik.Server.dll

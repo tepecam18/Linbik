@@ -1,4 +1,4 @@
-﻿using Linbik.Interfaces;
+﻿using Linbik.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
@@ -19,7 +19,7 @@ class JwtAuthService : IAuthService
             }
         }
 
-        // Eğer kullanıcı doğrulanmamışsa veya id bulunamazsa null dönebilirsiniz.
+        // Eğer kullanıcı doğrulanmamışsa veya id bulunamazsa null döner.
         return null;
     }
 }

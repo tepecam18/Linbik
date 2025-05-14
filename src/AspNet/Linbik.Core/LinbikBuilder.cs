@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace Linbik;
+namespace Linbik.Core;
 public interface ILinbikBuilder
 {
     IServiceCollection Services { get; }

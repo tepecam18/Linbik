@@ -1,10 +1,10 @@
-﻿using Linbik.Interfaces;
+﻿using Linbik.Core.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 
-namespace Linbik;
+namespace Linbik.Core;
 
 public class TokenValidator(IOptions<LinbikOptions> options) : ITokenValidator
 {
