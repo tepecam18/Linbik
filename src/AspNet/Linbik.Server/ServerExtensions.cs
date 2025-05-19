@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Linbik.Server;
 
@@ -46,16 +49,41 @@ public static class ServerExtensions
     {
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapPost("/linbik/app-login", async (HttpContext context, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginRequest request) =>
+            endpoints.MapPost("/linbik/app-login", async (HttpContext context, [FromServices] IOptions<ServerOptions> options, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginRequest request) =>
             {
 
+                var validator = await serverRepository.AppLoginValidationsAsync(request);
 
-                if (await serverRepository.AppLoginValidations(request.appId, request.key))
+
+                if (!validator.success)
                 {
-
+                    LBaseResponse<AppLoginResponse> badResponse = new("AppLoginFailed", "App login failed");
+                    return Results.BadRequest(badResponse);
                 }
 
-                LBaseResponse<AppLoginResponse> response = new();
+
+                validator.claims.Add(new Claim(ClaimTypes.Name, request.appId.ToString()));
+
+
+                var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.Value.privateKey));
+
+                var cred = new SigningCredentials(key, options.Value.algorithm);
+
+                var securityToken = new JwtSecurityToken(
+                    claims: validator.claims,
+                    expires: DateTime.Now.AddMinutes(options.Value.accessTokenExpiration),
+                    signingCredentials: cred);
+
+                var jwt = new JwtSecurityTokenHandler();
+
+                var jwtToken = jwt.WriteToken(securityToken);
+
+
+                LBaseResponse<AppLoginResponse> response = new(new AppLoginResponse()
+                {
+                    token = jwtToken,
+                });
+
                 return Results.Ok(response);
 
             }).WithTags("Linbik").WithName("Linbik App Login");

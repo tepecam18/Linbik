@@ -1,5 +1,4 @@
-﻿
-namespace Linbik.Core;
+﻿namespace Linbik.Core.Responses;
 
 public class TokenValidatorResponse
 {

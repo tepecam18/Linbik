@@ -1,4 +1,6 @@
-﻿namespace Linbik.Core.Interfaces;
+﻿using Linbik.Core.Responses;
+
+namespace Linbik.Core.Interfaces;
 
 public interface ITokenValidator
 {

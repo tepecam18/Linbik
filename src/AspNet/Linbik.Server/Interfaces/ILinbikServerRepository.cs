@@ -1,9 +1,8 @@
-﻿
-using Linbik.Server.Models;
+﻿using Linbik.Server.Responses;
 
 namespace Linbik.Server.Interfaces;
 
 public interface ILinbikServerRepository
 {
-    Task<LinbikAppModel> GetAppByGuid(Guid appGuid, string key);
+    Task<AppValidatorResponse> AppLoginValidationsAsync(AppLoginRequest request);
 }
