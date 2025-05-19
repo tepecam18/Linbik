@@ -1,6 +1,10 @@
 ﻿using Linbik.Core;
+using Linbik.Core.Responses;
+using Linbik.Server.Interfaces;
+using Linbik.Server.Responses;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -42,12 +46,18 @@ public static class ServerExtensions
     {
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapPost("/linbik/app-login", async context =>
+            endpoints.MapPost("/linbik/app-login", async (HttpContext context, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginRequest request) =>
             {
-                var request = context.Request;
-                var response = context.Response;
-                // Handle the request and send a response
-                await response.WriteAsync("Linbik Server is running.");
+
+
+                if (await serverRepository.AppLoginValidations(request.appId, request.key))
+                {
+
+                }
+
+                LBaseResponse<AppLoginResponse> response = new();
+                return Results.Ok(response);
+
             }).WithTags("Linbik").WithName("Linbik App Login");
         });
 
