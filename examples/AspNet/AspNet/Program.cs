@@ -1,6 +1,8 @@
+using AspNet.Repositories;
 using Linbik.Core;
 using Linbik.JwtAuthManager;
 using Linbik.Server;
+using Linbik.Server.Interfaces;
 using Linbik.YARP;
 using Scalar.AspNetCore;
 
@@ -20,6 +22,8 @@ builder.Services
 //    conf.appIds = new string[] { "1", "2" };
 //});
 
+builder.Services.AddSingleton<ILinbikServerRepository, LinbikServerRepository>();
+
 builder.Services
     .AddAuthentication()
     .AddLinbikScheme(builder.Configuration)
@@ -34,9 +38,11 @@ app.MapScalarApiReference(options =>
     options.Title = "Custom API";
 });
 
+
 app.UseHttpsRedirection();
 app.UseRouting();
 //add this line
+app.UseLinbikServer(); // Enable Linbik server endpoints
 app.UseJwtAuth();
 app.UseProxy();
 
