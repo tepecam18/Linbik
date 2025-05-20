@@ -20,6 +20,11 @@ builder.Services
 //    conf.appIds = new string[] { "1", "2" };
 //});
 
+builder.Services
+    .AddAuthentication()
+    .AddLinbikScheme(builder.Configuration)
+    .AddLinbikAppScheme(builder.Configuration);
+
 var app = builder.Build();
 
 app.MapOpenApi();

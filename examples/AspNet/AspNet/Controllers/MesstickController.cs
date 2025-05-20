@@ -1,14 +1,14 @@
-using Microsoft.AspNetCore.Authorization;
+using Linbik.Server;
 using Microsoft.AspNetCore.Mvc;
 
-namespace asp.net.Controllers;
+namespace AspNet.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class MesstickController(ILogger<LoginController> logger) : ControllerBase
 {
     [HttpGet]
+    [LinbikAppAuthorize]
     public async Task<ActionResult> Get()
     {
         return Ok();

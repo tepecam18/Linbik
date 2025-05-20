@@ -57,10 +57,6 @@ public static class JwtAuthManagerExtensions
     private static void AddCommonAuthServices(IServiceCollection services, IOptions<JwtAuthOptions> jwtOptions)
     {
         services.AddSingleton<IAuthService, JwtAuthService>();
-
-        services
-            .AddAuthentication()
-            .AddLinbikScheme(jwtOptions);
     }
     public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
     {

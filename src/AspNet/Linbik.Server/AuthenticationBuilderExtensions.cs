@@ -1,32 +1,23 @@
 ﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace Linbik.JwtAuthManager;
+namespace Linbik.Server;
 
 public static class AuthenticationBuilderExtensions
 {
-    public static AuthenticationBuilder AddLinbikScheme(this AuthenticationBuilder builder, IConfiguration config)
+    public static AuthenticationBuilder AddLinbikAppScheme(this AuthenticationBuilder builder, IConfiguration config)
     {
-        var options = config.GetSection("Linbik:Server").Get<JwtAuthOptions>();
+        var options = config.GetSection("Linbik:Server").Get<ServerOptions>();
 
-        return builder.AddJwtBearer("LinbikScheme", opt =>
+
+        return builder.AddJwtBearer("LinbikAppScheme", opt =>
         {
             if (!string.IsNullOrEmpty(options?.privateKey))
             {
-                opt.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        context.Token = context.Request.Cookies["AuthToken"];
-                        return Task.CompletedTask;
-                    }
-                };
-
                 opt.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
@@ -40,10 +31,10 @@ public static class AuthenticationBuilderExtensions
     }
 }
 
-public class LinbikAuthorizeAttribute : AuthorizeAttribute
+public class LinbikAppAuthorizeAttribute : AuthorizeAttribute
 {
-    public LinbikAuthorizeAttribute()
+    public LinbikAppAuthorizeAttribute()
     {
-        AuthenticationSchemes = "LinbikScheme";
+        AuthenticationSchemes = "LinbikAppScheme";
     }
 }

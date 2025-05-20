@@ -7,7 +7,7 @@ public class YARPOptions
     public string privateKey { get; set; }
     public List<ClusterOptions> clusters { get; set; }
     public string prefixPath { get; set; } = "";
-    
+
 }
 
 

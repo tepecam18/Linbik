@@ -31,9 +31,9 @@ public static class ServerExtensions
     public static ILinbikBuilder AddLinbikServer(this ILinbikBuilder builder)
     {
         var serviceProvider = builder.Services.BuildServiceProvider();
-        var configuration = serviceProvider.GetService<IConfiguration>();
-        builder.Services.Configure<ServerOptions>(configuration.GetSection("Linbik:Server"));
-        var serverOptions = Options.Create(configuration.GetSection("Linbik:Server").Get<ServerOptions>());
+        var config = serviceProvider.GetService<IConfiguration>();
+        builder.Services.Configure<ServerOptions>(config.GetSection("Linbik:Server"));
+        var serverOptions = Options.Create(config.GetSection("Linbik:Server").Get<ServerOptions>());
 
         AddCommonServerServices(builder.Services, serverOptions);
 

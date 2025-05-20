@@ -11,8 +11,7 @@
 	<ItemGroup>
 		<!--<PackageReference Include="Linbik" Version="1.0.5" />-->
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.5" />
 	</ItemGroup>
 
 	<ItemGroup>
