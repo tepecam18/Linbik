@@ -1,10 +1,13 @@
 ﻿using Linbik.Core;
 using Linbik.Core.Interfaces;
 using Linbik.JwtAuthManager;
+using Linbik.YARP.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
+using System.Security.Cryptography.Xml;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Transforms;
 
@@ -50,6 +53,10 @@ public static class YARPManagerExtensions
 
         yarpOptions.Value?.ForEach(option =>
         {
+
+            var tokenProvider = services.BuildServiceProvider().GetRequiredService<ITokenProvider>();
+            var auth = new AuthTransform(tokenProvider, option.clusters, option.privateKey).ApplyAsync;
+
             // In-memory route konfigürasyonu
             var route = new RouteConfig
             {
@@ -61,9 +68,9 @@ public static class YARPManagerExtensions
                     // Private key'i içeren yeni bir header ekliyoruz.
                     new Dictionary<string, string>
                     {
-                        { "RequestHeader", "X-Private-Key" }, // Eklemek istediğiniz header adını belirleyin.
-                        { "Set", option.privateKey } // Buraya private key değeriniz gelecek.
-                    }
+                        { "RequestHeader", "preo" }, // Eklemek istediğiniz header adını belirleyin.
+                        { "Set", option.privateKey} // Buraya private key değeriniz gelecek.
+                    },
                 }
             };
             routes.Add(route);
@@ -83,6 +90,8 @@ public static class YARPManagerExtensions
                 clusters.Add(clusterConfig);
             });
         });
+
+        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
         services.AddReverseProxy()
             .LoadFromMemory(routes, clusters)
@@ -114,6 +123,26 @@ public static class YARPManagerExtensions
                     foreach (var headerKey in headersToRemove)
                     {
                         transformContext.ProxyRequest.Headers.Remove(headerKey);
+                    }
+
+
+                    var tokenProvider = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenProvider>();
+
+
+
+                    var uri = transformContext.ProxyRequest.RequestUri;
+                    if (uri == null) return;
+
+                    var baseUrl = $"{uri.Scheme}://{uri.Host}".TrimEnd('/');
+
+                    var option = clusterOptions.FirstOrDefault(x =>
+                        x.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
+
+                    if (option is not null)
+                    {
+                        var token = await tokenProvider.GetTokenAsync(baseUrl, option.name, privateKey);
+
+                        transformContext.ProxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                     }
 
                     //if (!string.IsNullOrEmpty(userId))
