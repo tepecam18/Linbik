@@ -7,7 +7,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
-using System.Security.Cryptography.Xml;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Transforms;
 
@@ -48,6 +47,9 @@ public static class YARPManagerExtensions
     // Ortak servis kayıtlarını tek bir yerde topladık.
     private static void AddCommonYarpServices(IServiceCollection services, IOptions<List<YARPOptions>?> yarpOptions)
     {
+        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
+        services.AddHttpClient();
+
         var routes = new List<RouteConfig>();
         var clusters = new List<ClusterConfig>();
 
@@ -55,7 +57,6 @@ public static class YARPManagerExtensions
         {
 
             var tokenProvider = services.BuildServiceProvider().GetRequiredService<ITokenProvider>();
-            var auth = new AuthTransform(tokenProvider, option.clusters, option.privateKey).ApplyAsync;
 
             // In-memory route konfigürasyonu
             var route = new RouteConfig
@@ -135,12 +136,16 @@ public static class YARPManagerExtensions
 
                     var baseUrl = $"{uri.Scheme}://{uri.Host}".TrimEnd('/');
 
-                    var option = clusterOptions.FirstOrDefault(x =>
+                    var option = yarpOptions.Value?.FirstOrDefault(x =>
+                        x.clusters.Any(c => c.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase)));
+
+
+                    var cluster = option.clusters.FirstOrDefault(x =>
                         x.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
 
                     if (option is not null)
                     {
-                        var token = await tokenProvider.GetTokenAsync(baseUrl, option.name, privateKey);
+                        var token = await tokenProvider.GetTokenAsync(baseUrl, cluster.name, option.privateKey);
 
                         transformContext.ProxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                     }
