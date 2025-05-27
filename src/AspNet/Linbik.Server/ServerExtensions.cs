@@ -82,6 +82,7 @@ public static class ServerExtensions
                 LBaseResponse<AppLoginResponse> response = new(new AppLoginResponse()
                 {
                     token = jwtToken,
+                    expiresIn = options.Value.accessTokenExpiration
                 });
 
                 return Results.Ok(response);

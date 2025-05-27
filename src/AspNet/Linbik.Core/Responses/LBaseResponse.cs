@@ -49,4 +49,9 @@ public class LBaseResponse<T> where T : class
     {
         isSuccess = _isSuccess;
     }
+
+    public LBaseResponse()
+    {
+        isSuccess = true;
+    }
 }

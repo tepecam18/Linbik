@@ -4,8 +4,8 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<PackageOutputPath>C:\Users\tpcm1\source\repos\tepecam18\npkg</PackageOutputPath>
-		<PackageVersion>1.0.0</PackageVersion>
+		<PackageOutputPath>C:\ptts\npkg</PackageOutputPath>
+		<PackageVersion>0.0.1</PackageVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -13,7 +13,7 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.5" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />
 		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.5" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.11.0" />
 	</ItemGroup>
 
 </Project>

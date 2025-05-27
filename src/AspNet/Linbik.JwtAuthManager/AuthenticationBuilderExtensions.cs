@@ -35,6 +35,7 @@ public static class AuthenticationBuilderExtensions
                     ValidateIssuer = false,
                     ValidateAudience = false,
                 };
+
             }
         });
     }

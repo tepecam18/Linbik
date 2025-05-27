@@ -1,4 +1,5 @@
-﻿using Linbik.YARP.Interfaces;
+﻿using Linbik.Core.Responses;
+using Linbik.YARP.Interfaces;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
@@ -50,16 +51,16 @@ internal class MultiJwtTokenProvider : ITokenProvider
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            var tokenResult = JsonSerializer.Deserialize<TokenResponse>(json);
+            var tokenResult = JsonSerializer.Deserialize<LBaseResponse<TokenResponse>>(json);
 
-            var expiry = DateTime.UtcNow.AddSeconds(tokenResult.ExpiresIn - 60);
+            var expiry = DateTime.UtcNow.AddMinutes(tokenResult.data.expiresIn - 1);
             _tokenCache[baseUrl] = new TokenCacheItem
             {
-                Token = tokenResult.AccessToken,
+                Token = tokenResult.data.token,
                 Expiry = expiry
             };
 
-            return tokenResult.AccessToken;
+            return tokenResult.data.token;
         }
         finally
         {
@@ -69,7 +70,7 @@ internal class MultiJwtTokenProvider : ITokenProvider
 
     private class TokenResponse
     {
-        public string AccessToken { get; set; }
-        public int ExpiresIn { get; set; }
+        public string token { get; set; }
+        public int expiresIn { get; set; }
     }
 }

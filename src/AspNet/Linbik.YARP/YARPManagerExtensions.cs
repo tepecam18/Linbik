@@ -64,14 +64,17 @@ public static class YARPManagerExtensions
                 RouteId = option.RouteId,
                 ClusterId = option.ClusterId,
                 Match = new RouteMatch { Path = option.prefixPath + "/{**catch-all}" },
+                AuthorizationPolicy = "LinbikProxyPolicy",
                 Transforms = new List<Dictionary<string, string>>
                 {
-                    // Private key'i içeren yeni bir header ekliyoruz.
                     new Dictionary<string, string>
                     {
-                        { "RequestHeader", "preo" }, // Eklemek istediğiniz header adını belirleyin.
-                        { "Set", option.privateKey} // Buraya private key değeriniz gelecek.
+                        { "PathRemovePrefix", option.prefixPath } // örn: "app"
                     },
+                    new Dictionary<string, string>
+                    {
+                        { "PathPrefix", "/api" }
+                    }
                 }
             };
             routes.Add(route);
@@ -126,28 +129,25 @@ public static class YARPManagerExtensions
                         transformContext.ProxyRequest.Headers.Remove(headerKey);
                     }
 
-
-                    var tokenProvider = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenProvider>();
-
-
-
-                    var uri = transformContext.ProxyRequest.RequestUri;
-                    if (uri == null) return;
-
-                    var baseUrl = $"{uri.Scheme}://{uri.Host}".TrimEnd('/');
+                    var baseUrl = transformContext.DestinationPrefix;
+                    if (string.IsNullOrEmpty(baseUrl)) return;
 
                     var option = yarpOptions.Value?.FirstOrDefault(x =>
                         x.clusters.Any(c => c.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase)));
-
-
-                    var cluster = option.clusters.FirstOrDefault(x =>
-                        x.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
-
-                    if (option is not null)
+                    
+                    if (!string.IsNullOrEmpty(option.privateKey))
                     {
-                        var token = await tokenProvider.GetTokenAsync(baseUrl, cluster.name, option.privateKey);
+                        var tokenProvider = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenProvider>();
 
-                        transformContext.ProxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        var cluster = option.clusters.FirstOrDefault(x =>
+                            x.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
+
+                        if (option is not null)
+                        {
+                            var token = await tokenProvider.GetTokenAsync(baseUrl, cluster.name, option.privateKey);
+
+                            transformContext.ProxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        }
                     }
 
                     //if (!string.IsNullOrEmpty(userId))
