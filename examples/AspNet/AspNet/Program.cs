@@ -13,6 +13,7 @@ builder.Services.AddOpenApi();
 
 builder.Services
     .AddLinbik() // Add core Linbik services
+     //TODO: true olmadýgý zaman daha anlaþýlýr hata mesajý ver
     .AddJwtAuth(true) // Enable JWT authentication for Linbik users
     .AddLinbikServer() // Enable server services for Linbik applications
     .AddProxy();// Add proxy services for Linbik applications

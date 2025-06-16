@@ -10,9 +10,9 @@
 
   <ItemGroup>
     <!--<PackageReference Include="Linbik.JwtAuthManager" Version="1.0.5" />-->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.4.3" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.4.16" />
   </ItemGroup>
 
   <ItemGroup>

@@ -12,6 +12,7 @@ public static class AuthenticationBuilderExtensions
 {
     public static AuthenticationBuilder AddLinbikScheme(this AuthenticationBuilder builder, IConfiguration config)
     {
+
         var options = config.GetSection("Linbik:Server").Get<JwtAuthOptions>();
 
         return builder.AddJwtBearer("LinbikScheme", opt =>
