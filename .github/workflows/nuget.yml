@@ -29,13 +29,13 @@ jobs:
       uses: GitTools/actions/gitversion/execute@v0.9.14
 
     - name: Restore
-      run: dotnet restore ./examples/AspNet/ptts.sln
+      run: dotnet restore ./examples/AspNet/AspNet.sln
 
     - name: Build
-      run: dotnet build ./examples/AspNet/ptts.sln --configuration Release --no-restore
+      run: dotnet build ./examples/AspNet/AspNet.sln --configuration Release --no-restore
 
     - name: Test
-      run: dotnet test ./examples/AspNet/ptts.sln --no-restore --verbosity normal
+      run: dotnet test ./examples/AspNet/AspNet.sln --no-restore --verbosity normal
 
     - name: Pack Linbik.Core
       run: dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
