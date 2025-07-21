@@ -32,7 +32,7 @@ jobs:
       run: dotnet restore ./examples/AspNet/AspNet.sln
 
     - name: Build
-      run: dotnet build ./examples/AspNet/AspNet.sln --configuration Release --no-restore
+      run: dotnet build ./examples/AspNet/AspNet.sln --configuration Debug --no-restore
 
     - name: Test
       run: dotnet test ./examples/AspNet/AspNet.sln --no-restore --verbosity normal
