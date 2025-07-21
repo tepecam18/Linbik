@@ -14,11 +14,11 @@
 		<PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(UseLocalProjects)' == 'true'">
+	<ItemGroup Condition="'$(Configuration)' == 'Debug'">
 		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
+	<ItemGroup Condition="'$(Configuration)' != 'Debug'">
 		<PackageReference Include="Linbik.Core" Version="0.0.1" />
 	</ItemGroup>
 
