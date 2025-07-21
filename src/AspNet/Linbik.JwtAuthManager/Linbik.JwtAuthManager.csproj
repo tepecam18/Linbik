@@ -16,12 +16,8 @@
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.7" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(Configuration)' == 'Debug'">
+	<ItemGroup>
 		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
-	</ItemGroup>
-
-	<ItemGroup Condition="'$(Configuration)' != 'Debug'">
-		<PackageReference Include="Linbik.Core" Version="0.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
