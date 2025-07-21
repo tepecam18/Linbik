@@ -6,13 +6,23 @@
 		<Nullable>enable</Nullable>
 		<PackageOutputPath>C:\ptts\npkg</PackageOutputPath>
 		<PackageVersion>0.0.1</PackageVersion>
+		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
 	</ItemGroup>
 
+	<ItemGroup Condition="'$(UseLocalProjects)' == 'true'">
+		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
+		<PackageReference Include="Linbik.Core" Version="0.0.1" />
+	</ItemGroup>
+
 	<ItemGroup>
-	  <ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
+		<None Include="README.md" Pack="true" PackagePath="" />
 	</ItemGroup>
 </Project>

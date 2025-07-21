@@ -6,8 +6,10 @@ public class JwtAuthOptions
 {
     public string privateKey { get; set; }
     public string algorithm { get; set; } = SecurityAlgorithms.HmacSha512Signature;
-    public string loginPath { get; set; } = "linbik/login";
-    public string refreshLoginPath { get; set; } = "linbik/refresh";
+    public string loginPath { get; set; } = "/linbik/login";
+    public string refreshLoginPath { get; set; } = "/linbik/refresh-login";
+    public string exitPath { get; set; } = "/linbik/logout";
+
     public bool refreshLoginPathEnabled { get; set; } = true;
 
     //public string redirectUrl { get; set; }
@@ -19,7 +21,7 @@ public class JwtAuthOptions
     /// </summary>
     public int accessTokenExpiration { get; set; } = 15;
     /// <summary>
-    /// Default 30 days
+    /// Default 15 days
     /// </summary>
     public int refreshTokenExpiration { get; set; } = 15;
     //public bool allowMultipleLoginsFromTheSameUser { get; set; } = false;
@@ -34,4 +36,6 @@ public class JwtAuthOptions
     //public bool requireAudience { get; set; } = false;
     //public bool requireIssuer { get; set; } = false;
     //public bool requireHttpsMetadata { get; set; } = false;
+
+    public Dictionary<string, string> routes { get; set; }
 }

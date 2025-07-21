@@ -6,15 +6,25 @@
 		<Nullable>enable</Nullable>
 		<PackageOutputPath>C:\ptts\npkg</PackageOutputPath>
 		<PackageVersion>0.0.1</PackageVersion>
+		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!--<PackageReference Include="Linbik" Version="1.0.5" />-->
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.6" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.7" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(UseLocalProjects)' == 'true'">
+		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(UseLocalProjects)' != 'true'">
+		<PackageReference Include="Linbik.Core" Version="0.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
+		<None Include="README.md" Pack="true" PackagePath="" />
 	</ItemGroup>
 </Project>

@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "DotNetWatch",
+      "request": "launch",
+      "name": ".NET Core Watch",
+      "project": "examples/AspNet/AspNet/AspNet.csproj",
+      "env": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    }
+  ]
+}
