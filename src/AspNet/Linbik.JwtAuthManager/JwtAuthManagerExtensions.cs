@@ -1,5 +1,6 @@
 ﻿using Linbik.Core;
 using Linbik.Core.Interfaces;
+using Linbik.Core.Responses;
 using Linbik.JwtAuthManager.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -129,12 +130,11 @@ public static class JwtAuthManagerExtensions
                     });
 
                     var route = options.routes[context.Request.Query["route"].FirstOrDefault() ?? ""];
-                    var returnUrl = options.routes[context.Request.Query["returnUrl"].FirstOrDefault() ?? ""];
+                    var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault() ?? "";
 
                     if (string.IsNullOrEmpty(route))
                         route = options.routes.FirstOrDefault().Value;
 
-                    //TODO: returnUrl kontrolü
                     if (returnUrl.ToLower().Contains(route.ToLower()))
                         return Results.Redirect(returnUrl);
 
@@ -192,7 +192,13 @@ public static class JwtAuthManagerExtensions
                     SameSite = SameSiteMode.None
                 });
 
-                return Results.Ok("Refresh Token");
+                var response = new LBaseResponse<object>()
+                {
+                    isSuccess = true,
+                    data = null
+                };
+
+                return Results.Ok(response);
             }).WithTags("Linbik");
 
             endpoints.MapPost(options.exitPath, async (HttpContext context) =>
@@ -201,7 +207,13 @@ public static class JwtAuthManagerExtensions
                 context.Response.Cookies.Delete("refreshToken");
                 context.Response.Cookies.Delete("userName");
 
-                return Results.Ok("Logged out successfully");
+                var response = new LBaseResponse<object>()
+                {
+                    isSuccess = true,
+                    data = null
+                };
+
+                return Results.Ok(response);
             }).WithTags("Linbik");
         });
 
