@@ -1,3 +1,4 @@
+assembly-versioning-scheme: MajorMinorPatch
 mode: ContinuousDeployment
 branches:
   main:
@@ -5,8 +6,8 @@ branches:
     increment: Patch
     tag: ''
     prevent-increment-of-merged-branch-version: true
-  develop:
-    regex: ^develop$
+  dev:
+    regex: ^dev$
     increment: Minor
     tag: beta
   feature:
