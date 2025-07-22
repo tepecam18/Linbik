@@ -125,18 +125,26 @@ public static class JwtAuthManagerExtensions
                     context.Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
                     context.Response.Cookies.Append("userName", result.Name, new()
                     {
+                        Secure = true,
                         Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
                         SameSite = SameSiteMode.None
                     });
 
-                    var route = options.routes[context.Request.Query["route"].FirstOrDefault() ?? ""];
+                    var route = options.routes?[context.Request.Query["route"].FirstOrDefault() ?? ""];
                     var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault() ?? "";
 
                     if (string.IsNullOrEmpty(route))
-                        route = options.routes.FirstOrDefault().Value;
+                        route = options.routes?.FirstOrDefault().Value ?? "";
 
                     if (returnUrl.ToLower().Contains(route.ToLower()))
                         return Results.Redirect(returnUrl);
+
+                    if( string.IsNullOrEmpty(route))
+                        return Results.Ok(new LBaseResponse<object>
+                        {
+                            isSuccess = true,
+                            data = null
+                        });
 
                     return Results.Redirect(route);
                 }
@@ -188,6 +196,7 @@ public static class JwtAuthManagerExtensions
                 context.Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
                 context.Response.Cookies.Append("userName", result.Name, new()
                 {
+                    Secure = true,
                     Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
                     SameSite = SameSiteMode.None
                 });
