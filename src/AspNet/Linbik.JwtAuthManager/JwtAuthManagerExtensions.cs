@@ -61,11 +61,6 @@ public static class JwtAuthManagerExtensions
     }
     public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
     {
-        //TODO: bagimsiz DI lari kaldir
-        app.UseRouting();
-
-        app.UseAuthentication();
-        app.UseAuthorization();
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
         var cookieOptions = new CookieOptions
@@ -212,9 +207,9 @@ public static class JwtAuthManagerExtensions
 
             endpoints.MapPost(options.exitPath, async (HttpContext context) =>
             {
-                context.Response.Cookies.Delete("authToken");
-                context.Response.Cookies.Delete("refreshToken");
-                context.Response.Cookies.Delete("userName");
+                context.Response.Cookies.Delete("authToken", cookieOptions);
+                context.Response.Cookies.Delete("refreshToken", cookieOptions);
+                context.Response.Cookies.Delete("userName", cookieOptions);
 
                 var response = new LBaseResponse<object>()
                 {

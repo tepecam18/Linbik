@@ -7,6 +7,7 @@
 		<PackageVersion>0.0.2</PackageVersion>
 		<IncludeSymbols>true</IncludeSymbols>
 		<IncludeSource>true</IncludeSource>
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>

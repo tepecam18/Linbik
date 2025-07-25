@@ -47,9 +47,11 @@ public static class ServerExtensions
 
     public static IApplicationBuilder UseLinbikServer(this IApplicationBuilder app)
     {
+        var options = app.ApplicationServices.GetRequiredService<IOptions<ServerOptions>>().Value;
+
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapPost("/linbik/app-login", async (HttpContext context, [FromServices] IOptions<ServerOptions> options, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginRequest request) =>
+            endpoints.MapPost(options.loginPath, async (HttpContext context, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginRequest request) =>
             {
 
                 var validator = await serverRepository.AppLoginValidationsAsync(request);
@@ -65,13 +67,13 @@ public static class ServerExtensions
                 validator.claims.Add(new Claim(ClaimTypes.Name, request.appId.ToString()));
 
 
-                var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.Value.privateKey));
+                var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.privateKey));
 
-                var cred = new SigningCredentials(key, options.Value.algorithm);
+                var cred = new SigningCredentials(key, options.algorithm);
 
                 var securityToken = new JwtSecurityToken(
                     claims: validator.claims,
-                    expires: DateTime.Now.AddMinutes(options.Value.accessTokenExpiration),
+                    expires: DateTime.Now.AddMinutes(options.accessTokenExpiration),
                     signingCredentials: cred);
 
                 var jwt = new JwtSecurityTokenHandler();
@@ -82,7 +84,7 @@ public static class ServerExtensions
                 LBaseResponse<AppLoginResponse> response = new(new AppLoginResponse()
                 {
                     token = jwtToken,
-                    expiresIn = options.Value.accessTokenExpiration
+                    expiresIn = options.accessTokenExpiration
                 });
 
                 return Results.Ok(response);

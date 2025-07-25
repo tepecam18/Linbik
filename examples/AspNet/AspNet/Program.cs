@@ -32,12 +32,18 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("LinbikProxyPolicy", policy =>
+    // Add policies for Yarp Linbik applications
+    options.AddPolicy("LinbikAppProxyPolicy", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.AddAuthenticationSchemes("LinbikScheme");
+        policy.AddAuthenticationSchemes("LinbikAppScheme");
     });
 });
+
+//for test
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 var app = builder.Build();
 
@@ -48,6 +54,11 @@ app.MapScalarApiReference(options =>
     options.Title = "Custom API";
 });
 
+// for test
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
 
 app.UseHttpsRedirection();
 
