@@ -9,7 +9,7 @@ namespace Linbik.Core;
 
 public class TokenValidator(IOptions<LinbikOptions> options) : ITokenValidator
 {
-    public async Task<TokenValidatorResponse> ValidateToken(string token)
+    public async Task<TokenValidatorResponse> ValidateToken(string token, string verifier)
     {
         // JWT'yi doğrula
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -35,24 +35,29 @@ public class TokenValidator(IOptions<LinbikOptions> options) : ITokenValidator
         {
             var claimsPrincipal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var validatedToken);
 
-            var userGuidStr = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var userGuid = Guid.Parse(userGuidStr);
             var appId = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "app")?.Value;
-            var name = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+            var code = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "code")?.Value ?? "";
 
             if (!options.Value.appIds.Contains(appId) || options.Value.allowAllApp)
                 return new()
                 {
                     Success = false,
-                    Message = $"AppId {appId} is not allowed"
+                    Message = $"AppId {appId} is not allowed."
                 };
 
-            return new TokenValidatorResponse
+            var pkceStatus = PkceService.VerifyChallengeMatches(verifier, code);
+
+            if (!pkceStatus)
+                return new()
+                {
+                    Success = false,
+                    Message = $"The login process is invalid. Please try again."
+                };
+
+            return new()
             {
                 Success = true,
-                UserGuid = userGuid,
-                AppId = appId,
-                Name = name,
+                Claims = claimsPrincipal.Claims,
             };
         }
         catch (SecurityTokenValidationException ex)

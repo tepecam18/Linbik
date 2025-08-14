@@ -1,4 +1,4 @@
-﻿namespace Linbik.JwtAuthManager;
+﻿namespace Linbik.YARP;
 
 public class YARPOptions
 {

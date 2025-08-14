@@ -9,6 +9,7 @@ public class JwtAuthOptions
     public string loginPath { get; set; } = "/linbik/login";
     public string refreshLoginPath { get; set; } = "/linbik/refresh-login";
     public string exitPath { get; set; } = "/linbik/logout";
+    public string pkceStartPath { get; set; } = "/linbik/pkce-start";
 
     public bool refreshLoginPathEnabled { get; set; } = true;
 
@@ -38,4 +39,6 @@ public class JwtAuthOptions
     //public bool requireHttpsMetadata { get; set; } = false;
 
     public Dictionary<string, string> routes { get; set; }
+
+    public bool EmitPkceOn401 { get; init; } = false; // 401/403'te otomatik PKCE üret
 }

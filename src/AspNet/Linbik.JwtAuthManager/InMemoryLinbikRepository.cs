@@ -1,7 +1,6 @@
 ﻿using Linbik.Core.Responses;
 using Linbik.JwtAuthManager.Interfaces;
 using Microsoft.Extensions.Options;
-using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace Linbik.JwtAuthManager;
@@ -60,7 +59,7 @@ class InMemoryLinbikRepository(IOptions<JwtAuthOptions> jwtOptions) : ILinbikRep
 
 
 public class TokenModel
-    {
+{
     public string refreshToken { get; set; }
     public DateTime expiration { get; set; }
     public Guid userGuid { get; set; }

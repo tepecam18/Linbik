@@ -63,6 +63,9 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
+        if(options.EmitPkceOn401)
+            app.UseMiddleware<UnauthorizedPayloadMiddleware>();
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
@@ -77,31 +80,40 @@ public static class JwtAuthManagerExtensions
             {
                 try
                 {
+                    #region Token Validetions
+
                     var token = context.Request.Form["token"].FirstOrDefault();
 
                     if (string.IsNullOrEmpty(token))
                         return Results.BadRequest("Invalid Token");
 
-                    var result = await validator.ValidateToken(token)
+                    var verifier = PkceService.GetVerifier(context.Request) ?? "";
+                    var validate = await validator.ValidateToken(token, verifier)
                         .ConfigureAwait(false);
 
-                    if (result is null)
+                    if (validate is null)
                         return Results.BadRequest("Invalid Token");
 
-                    if (!result.Success)
+                    if (!validate.Success)
                     {
-                        return Results.BadRequest(result.Message);
+                        return Results.BadRequest(validate.Message);
                         //return Results.Redirect("https://localhost:7020?error=" + result.Message);
                     }
+
+
+                    var userGuidStr = validate.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+                    var userGuid = Guid.Parse(userGuidStr);
+                    var name = validate.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                    #endregion
 
                     string refreshToken = "";
                     var claims = new List<Claim>();
 
-                    await repository.CreateRefresToken(result.UserGuid, result.Name, out refreshToken)
+                    await repository.CreateRefresToken(userGuid, name, out refreshToken)
                     .ConfigureAwait(false);
 
-                    claims.Add(new Claim(ClaimTypes.Name, result.Name));
-                    claims.Add(new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString()));
+                    claims.Add(new Claim(ClaimTypes.Name, name));
+                    claims.Add(new Claim(ClaimTypes.NameIdentifier, userGuidStr));
 
                     var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.privateKey));
 
@@ -118,7 +130,7 @@ public static class JwtAuthManagerExtensions
 
                     context.Response.Cookies.Append("authToken", jwtToken, cookieOptions);
                     context.Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-                    context.Response.Cookies.Append("userName", result.Name, new()
+                    context.Response.Cookies.Append("userName", name, new()
                     {
                         Secure = true,
                         Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
@@ -134,7 +146,7 @@ public static class JwtAuthManagerExtensions
                     if (returnUrl.ToLower().Contains(route.ToLower()))
                         return Results.Redirect(returnUrl);
 
-                    if( string.IsNullOrEmpty(route))
+                    if (string.IsNullOrEmpty(route))
                         return Results.Ok(new LBaseResponse<object>
                         {
                             isSuccess = true,
@@ -219,6 +231,15 @@ public static class JwtAuthManagerExtensions
 
                 return Results.Ok(response);
             }).WithTags("Linbik");
+
+            endpoints.MapPost(options.pkceStartPath, (HttpContext ctx) =>
+            {
+                var result = PkceService.BuildAuthorizeBody(ctx.Response);
+
+                var response = new LBaseResponse<object>(result);
+
+                return Results.Ok(response);
+            }).WithTags("Linbik").AllowAnonymous();
         });
 
         return app;

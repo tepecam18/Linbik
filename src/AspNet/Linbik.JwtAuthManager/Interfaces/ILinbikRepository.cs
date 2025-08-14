@@ -1,5 +1,4 @@
 ﻿using Linbik.Core.Responses;
-using System.Security.Claims;
 
 namespace Linbik.JwtAuthManager.Interfaces;
 
