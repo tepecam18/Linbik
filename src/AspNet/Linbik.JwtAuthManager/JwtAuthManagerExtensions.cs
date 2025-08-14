@@ -73,7 +73,7 @@ public static class JwtAuthManagerExtensions
 
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapPost(options.loginPath, async (HttpContext context, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
+            endpoints.MapGet(options.loginPath, async (HttpContext context, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
             {
                 try
                 {
