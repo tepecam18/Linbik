@@ -40,5 +40,6 @@ public class JwtAuthOptions
 
     public Dictionary<string, string> routes { get; set; }
 
-    public bool EmitPkceOn401 { get; init; } = false; // 401/403'te otomatik PKCE üret
+    //public bool emitPkceOn401 { get; set; } = false; // 401/403'te otomatik PKCE üret
+    public bool refererControl { get; set; } = false;
 }

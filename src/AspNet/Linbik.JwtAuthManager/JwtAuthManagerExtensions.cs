@@ -63,9 +63,6 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
-        if(options.EmitPkceOn401)
-            app.UseMiddleware<UnauthorizedPayloadMiddleware>();
-
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
@@ -80,9 +77,17 @@ public static class JwtAuthManagerExtensions
             {
                 try
                 {
+                    if (options.refererControl)
+                    {
+                        var referer = context.Request.Headers["Referer"].ToString();
+
+                        if (referer != "https://linbik.com/")
+                            return Results.BadRequest("invalid_referer");
+                    }
+
                     #region Token Validetions
 
-                    var token = context.Request.Form["token"].FirstOrDefault();
+                    var token = context.Request.Query["token"].FirstOrDefault();
 
                     if (string.IsNullOrEmpty(token))
                         return Results.BadRequest("Invalid Token");
@@ -166,13 +171,28 @@ public static class JwtAuthManagerExtensions
                 string currentRefreshToken = context.Request.Cookies["refreshToken"];
 
                 if (currentRefreshToken is null)
-                    return Results.BadRequest("Invalid Token");
+                {
+                    var response2 = new LBaseResponse<object>(
+                        title: "refresh_token_error",
+                        message: "Refresh Token is null, please login again.",
+                        _isSuccess: false
+                        );
+
+                    return Results.BadRequest(response2);
+                }
 
                 var result = await repository.UseRefresToken(currentRefreshToken)
                    .ConfigureAwait(false);
 
                 if (!result.Success)
-                    return Results.BadRequest(result.Message);
+                {
+                    var response2 = new LBaseResponse<object>(
+                        title: "refresh_token_error",
+                        message: result.Message ?? "Refresh Token is invalid, please login again.",
+                        _isSuccess: false
+                        );
+                    return Results.BadRequest(response2);
+                }
 
                 await repository.LoggedInUser(result.UserGuid, result.Name)
                     .ConfigureAwait(false);
@@ -234,9 +254,9 @@ public static class JwtAuthManagerExtensions
 
             endpoints.MapPost(options.pkceStartPath, (HttpContext ctx) =>
             {
-                var result = PkceService.BuildAuthorizeBody(ctx.Response);
+                var authorize = PkceService.BuildAuthorizeBody(ctx.Response);
 
-                var response = new LBaseResponse<object>(result);
+                var response = new LBaseResponse<object>(authorize);
 
                 return Results.Ok(response);
             }).WithTags("Linbik").AllowAnonymous();
