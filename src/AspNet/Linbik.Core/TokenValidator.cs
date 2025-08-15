@@ -38,7 +38,7 @@ public class TokenValidator(IOptions<LinbikOptions> options) : ITokenValidator
             var appId = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "app")?.Value;
             var code = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "code")?.Value ?? "";
 
-            if (!options.Value.appIds.Contains(appId) || options.Value.allowAllApp)
+            if (!options.Value.appIds.Contains(appId) && !options.Value.allowAllApp)
                 return new()
                 {
                     Success = false,

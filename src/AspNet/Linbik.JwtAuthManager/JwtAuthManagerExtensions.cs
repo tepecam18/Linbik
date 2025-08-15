@@ -63,6 +63,18 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
+        try
+        {
+            app.ApplicationServices.GetRequiredService<ILinbikRepository>();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "Please register ILinbikRepository in the DI container, " +
+                "or use AddJwtAuth(true) in Program.cs."
+            );
+        }
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
@@ -82,7 +94,7 @@ public static class JwtAuthManagerExtensions
                         var referer = context.Request.Headers["Referer"].ToString();
 
                         if (referer != "https://linbik.com/")
-                            return Results.BadRequest("invalid_referer");
+                            return Results.BadRequest(new LBaseResponse<object>("Invalid Referer"));
                     }
 
                     #region Token Validetions
@@ -90,18 +102,18 @@ public static class JwtAuthManagerExtensions
                     var token = context.Request.Query["token"].FirstOrDefault();
 
                     if (string.IsNullOrEmpty(token))
-                        return Results.BadRequest("Invalid Token");
+                        return Results.BadRequest(new LBaseResponse<object>("Invalid Token"));
 
                     var verifier = PkceService.GetVerifier(context.Request) ?? "";
                     var validate = await validator.ValidateToken(token, verifier)
                         .ConfigureAwait(false);
 
                     if (validate is null)
-                        return Results.BadRequest("Invalid Token");
+                        return Results.BadRequest(new LBaseResponse<object>("Invalid Token"));
 
                     if (!validate.Success)
                     {
-                        return Results.BadRequest(validate.Message);
+                        return Results.BadRequest(new LBaseResponse<object>(validate.Message ?? "Something went wrong with validation"));
                         //return Results.Redirect("https://localhost:7020?error=" + result.Message);
                     }
 
@@ -141,15 +153,12 @@ public static class JwtAuthManagerExtensions
                         Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
                         SameSite = SameSiteMode.None
                     });
-
-                    var route = options.routes?[context.Request.Query["route"].FirstOrDefault() ?? ""];
+                    var routeKey = context.Request.Query["route"].FirstOrDefault() ?? "default";
+                    options.routes.TryGetValue(routeKey, out var route);
                     var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault() ?? "";
 
                     if (string.IsNullOrEmpty(route))
                         route = options.routes?.FirstOrDefault().Value ?? "";
-
-                    if (returnUrl.ToLower().Contains(route.ToLower()))
-                        return Results.Redirect(returnUrl);
 
                     if (string.IsNullOrEmpty(route))
                         return Results.Ok(new LBaseResponse<object>
@@ -158,11 +167,14 @@ public static class JwtAuthManagerExtensions
                             data = null
                         });
 
+                    if (returnUrl.ToLower().Contains(route.ToLower()))
+                        return Results.Redirect(returnUrl);
+
                     return Results.Redirect(route);
                 }
                 catch (Exception ex)
                 {
-                    return Results.BadRequest(ex.Message);
+                    return Results.BadRequest(new LBaseResponse<object>(ex.Message));
                 }
             }).WithTags("Linbik");
 
