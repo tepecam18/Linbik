@@ -1,14 +1,16 @@
 ﻿using Microsoft.AspNetCore.Http;
 
-namespace Linbik.Core;
+namespace Linbik.Core.Services;
 
 public static class PkceService
 {
     private const string PkceCookie = "pkce_verifier";
+    private const int DefaultVerifierBytes = 32;
+    private const int VerifierExpirationMinutes = 5;
 
     public static (string Verifier, string Challenge) Generate()
     {
-        var verifier = NewVerifier();
+        var verifier = NewVerifier(DefaultVerifierBytes);
         var challenge = ChallengeS256(verifier);
         return (verifier, challenge);
     }
@@ -20,13 +22,13 @@ public static class PkceService
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.None,
-            Expires = DateTimeOffset.UtcNow.AddMinutes(5)
+            Expires = DateTimeOffset.UtcNow.AddMinutes(VerifierExpirationMinutes)
         });
     }
 
     public static string? GetVerifier(HttpRequest request)
     {
-        return request.Cookies.TryGetValue(PkceCookie, out var v) ? v : null;
+        return request.Cookies.TryGetValue(PkceCookie, out var verifier) ? verifier : null;
     }
 
     public static void DeleteVerifier(HttpResponse response)
@@ -36,7 +38,6 @@ public static class PkceService
 
     public static object BuildAuthorizeBody(HttpResponse response)
     {
-
         var (verifier, challenge) = Generate();
         SaveVerifier(response, verifier);
 
@@ -48,21 +49,27 @@ public static class PkceService
 
     public static bool VerifyChallengeMatches(string verifier, string expectedChallenge)
     {
+        if (string.IsNullOrEmpty(verifier) || string.IsNullOrEmpty(expectedChallenge))
+            return false;
+
         var actual = ChallengeS256(verifier);
         return FixedTimeEquals(actual, expectedChallenge);
     }
 
     private static bool FixedTimeEquals(string a, string b)
     {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+            return false;
+
         var ba = System.Text.Encoding.ASCII.GetBytes(a);
         var bb = System.Text.Encoding.ASCII.GetBytes(b);
         return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(ba, bb);
     }
 
-    private static string NewVerifier(int bytes = 32)
+    private static string NewVerifier(int bytes = DefaultVerifierBytes)
     {
-        var rng = System.Security.Cryptography.RandomNumberGenerator.GetBytes(bytes);
-        return Base64Url(rng);
+        var randomBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(bytes);
+        return Base64Url(randomBytes);
     }
 
     private static string ChallengeS256(string verifier)

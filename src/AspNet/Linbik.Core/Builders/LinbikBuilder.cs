@@ -1,10 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Linbik.Core.Interfaces;
 
-namespace Linbik.Core;
-public interface ILinbikBuilder
-{
-    IServiceCollection Services { get; }
-}
+namespace Linbik.Core.Builders;
 
 public class LinbikBuilder : ILinbikBuilder
 {
@@ -12,6 +9,6 @@ public class LinbikBuilder : ILinbikBuilder
 
     public LinbikBuilder(IServiceCollection services)
     {
-        Services = services;
+        Services = services ?? throw new ArgumentNullException(nameof(services));
     }
 }

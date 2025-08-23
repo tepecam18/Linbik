@@ -2,56 +2,55 @@
 
 public class LBaseResponse<T> where T : class
 {
-    public bool isSuccess { get; set; }
-    public LFriendlyMessageResponse? friendlyMessage { get; set; }
-    public long serverTime { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-    public T? data { get; set; }
+    public bool IsSuccess { get; set; }
+    public LFriendlyMessageResponse? FriendlyMessage { get; set; }
+    public long ServerTime { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    public T? Data { get; set; }
 
-    public LBaseResponse(T _data, bool _isSuccess = true)
+    public LBaseResponse(T data, bool isSuccess = true)
     {
-        isSuccess = _isSuccess;
-        data = _data;
+        IsSuccess = isSuccess;
+        Data = data;
     }
 
-    public LBaseResponse(string title, string message, bool _isSuccess = false)
+    public LBaseResponse(string title, string message, bool isSuccess = false)
     {
-        friendlyMessage = new()
+        FriendlyMessage = new()
         {
-            title = title,
-            message = message
+            Title = title,
+            Message = message
         };
-        isSuccess = _isSuccess;
+        IsSuccess = isSuccess;
     }
 
-
-    public LBaseResponse(string title, string message, T _data, bool _isSuccess = true)
+    public LBaseResponse(string title, string message, T data, bool isSuccess = true)
     {
-        friendlyMessage = new()
+        FriendlyMessage = new()
         {
-            title = title,
-            message = message
+            Title = title,
+            Message = message
         };
-        data = data;
-        isSuccess = _isSuccess;
+        Data = data; // Bug düzeltildi: data = data yerine Data = data
+        IsSuccess = isSuccess;
     }
 
-    public LBaseResponse(string message, bool _isSuccess = false)
+    public LBaseResponse(string message, bool isSuccess = false)
     {
-        friendlyMessage = new()
+        FriendlyMessage = new()
         {
-            title = "throw",
-            message = message
+            Title = "throw",
+            Message = message
         };
-        isSuccess = _isSuccess;
+        IsSuccess = isSuccess;
     }
 
-    public LBaseResponse(bool _isSuccess = true)
+    public LBaseResponse(bool isSuccess = true)
     {
-        isSuccess = _isSuccess;
+        IsSuccess = isSuccess;
     }
 
     public LBaseResponse()
     {
-        isSuccess = true;
+        IsSuccess = true;
     }
 }

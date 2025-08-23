@@ -2,6 +2,6 @@
 
 public class AppLoginResponse
 {
-    public string token { get; set; }
-    public int expiresIn { get; set; }
+    public string Token { get; set; } = string.Empty;
+    public int ExpiresIn { get; set; }
 }

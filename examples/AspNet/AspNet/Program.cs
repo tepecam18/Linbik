@@ -1,9 +1,9 @@
 using AspNet.Repositories;
-using Linbik.Core;
-using Linbik.JwtAuthManager;
-using Linbik.Server;
+using Linbik.Core.Extensions;
+using Linbik.JwtAuthManager.Extensions;
+using Linbik.Server.Extensions;
 using Linbik.Server.Interfaces;
-using Linbik.YARP;
+using Linbik.YARP.Extensions;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);

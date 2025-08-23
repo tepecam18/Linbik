@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
-namespace Linbik.JwtAuthManager;
+namespace Linbik.JwtAuthManager.Services;
 
 class JwtAuthService : IAuthService
 {

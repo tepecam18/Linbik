@@ -1,5 +1,5 @@
-using Linbik.JwtAuthManager;
-using Linbik.Server;
+using Linbik.JwtAuthManager.Extensions;
+using Linbik.Server.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AspNet.Controllers;
@@ -8,15 +8,15 @@ namespace AspNet.Controllers;
 [Route("api/[controller]")]
 public class TestController(ILogger<TestController> logger) : ControllerBase
 {
-    [HttpGet]
+    [HttpGet("user")]
     [LinbikAuthorize]
     public async Task<ActionResult> Get()
     {
-        return Ok("ok");
+        return Ok("ok user");
     }
 
     //app test
-    [HttpGet("test")]
+    [HttpGet("app")]
     [LinbikAppAuthorize]
     public async Task<ActionResult> GetApp()
     {

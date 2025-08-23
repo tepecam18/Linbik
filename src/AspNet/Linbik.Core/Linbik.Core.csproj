@@ -5,6 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<PackageVersion>0.0.2</PackageVersion>
+		<Description>This package is for testing purposes only. Not available for public use.</Description>
 		<IncludeSymbols>true</IncludeSymbols>
 		<IncludeSource>true</IncludeSource>
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>

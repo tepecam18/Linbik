@@ -1,12 +1,14 @@
-﻿using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Builders;
+using Linbik.Core.Configuration;
+using Linbik.Core.Interfaces;
+using Linbik.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Linbik.Core;
+namespace Linbik.Core.Extensions;
 
 public static class LinbikServiceCollectionExtensions
 {
-
     public static LinbikBuilder AddLinbik(this IServiceCollection services, Action<LinbikOptions> configureOptions)
     {
         services.Configure(configureOptions);

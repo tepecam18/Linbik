@@ -1,6 +1,7 @@
-﻿using Linbik.Core;
-using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Interfaces;
+using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
+using Linbik.YARP.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,7 +10,7 @@ using System.Net.Http.Headers;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Transforms;
 
-namespace Linbik.YARP;
+namespace Linbik.YARP.Extensions;
 
 public static class YARPManagerExtensions
 {
@@ -62,13 +63,13 @@ public static class YARPManagerExtensions
             {
                 RouteId = option.RouteId,
                 ClusterId = option.ClusterId,
-                Match = new RouteMatch { Path = option.prefixPath + "/{**catch-all}" },
+                Match = new RouteMatch { Path = option.PrefixPath + "/{**catch-all}" },
                 AuthorizationPolicy = "LinbikAppProxyPolicy",
                 Transforms = new List<Dictionary<string, string>>
                 {
                     new Dictionary<string, string>
                     {
-                        { "PathRemovePrefix", option.prefixPath } // örn: "app"
+                        { "PathRemovePrefix", option.PrefixPath } // örn: "app"
                     },
                     new Dictionary<string, string>
                     {
@@ -79,7 +80,7 @@ public static class YARPManagerExtensions
             routes.Add(route);
 
 
-            option.clusters.ForEach(cluster =>
+            option.Clusters.ForEach(cluster =>
             {
                 // In-memory cluster konfigürasyonu
                 var clusterConfig = new ClusterConfig
@@ -87,7 +88,7 @@ public static class YARPManagerExtensions
                     ClusterId = option.ClusterId,
                     Destinations = new Dictionary<string, DestinationConfig>
                     {
-                        { cluster.name, new DestinationConfig { Address = cluster.address } }
+                        { cluster.Name, new DestinationConfig { Address = cluster.Address } }
                     }
                 };
                 clusters.Add(clusterConfig);
@@ -132,18 +133,18 @@ public static class YARPManagerExtensions
                     if (string.IsNullOrEmpty(baseUrl)) return;
 
                     var option = yarpOptions.Value?.FirstOrDefault(x =>
-                        x.clusters.Any(c => c.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase)));
-                    
-                    if (!string.IsNullOrEmpty(option.privateKey))
+                        x.Clusters.Any(c => c.Address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase)));
+
+                    if (!string.IsNullOrEmpty(option.PrivateKey))
                     {
                         var tokenProvider = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenProvider>();
 
-                        var cluster = option.clusters.FirstOrDefault(x =>
-                            x.address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
+                        var cluster = option.Clusters.FirstOrDefault(x =>
+                            x.Address.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase));
 
                         if (option is not null)
                         {
-                            var token = await tokenProvider.GetTokenAsync(baseUrl, cluster.name, option.privateKey);
+                            var token = await tokenProvider.GetTokenAsync(baseUrl, cluster.Name, option.PrivateKey);
 
                             transformContext.ProxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                         }

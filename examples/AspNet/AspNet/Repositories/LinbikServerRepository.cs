@@ -1,17 +1,17 @@
-﻿using Linbik.Server;
-using Linbik.Server.Interfaces;
+﻿using Linbik.Server.Interfaces;
+using Linbik.Server.Models;
 using Linbik.Server.Responses;
 
 namespace AspNet.Repositories
 {
     public class LinbikServerRepository : ILinbikServerRepository
     {
-        public Task<AppValidatorResponse> AppLoginValidationsAsync(AppLoginRequest request)
+        public Task<AppLoginValidationResponse> AppLoginValidationsAsync(AppLoginModel request)
         {
-            return Task.FromResult(new AppValidatorResponse
+            return Task.FromResult(new AppLoginValidationResponse
             {
-                success = true,
-                claims = new()
+                Success = true,
+                Claims = new()
             });
         }
     }

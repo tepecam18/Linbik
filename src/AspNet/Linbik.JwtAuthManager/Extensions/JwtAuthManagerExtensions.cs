@@ -1,7 +1,9 @@
-﻿using Linbik.Core;
-using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Interfaces;
 using Linbik.Core.Responses;
+using Linbik.Core.Services;
+using Linbik.JwtAuthManager.Configuration;
 using Linbik.JwtAuthManager.Interfaces;
+using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +14,17 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
-namespace Linbik.JwtAuthManager;
+namespace Linbik.JwtAuthManager.Extensions;
 
 public static class JwtAuthManagerExtensions
 {
+    private const string IdClaimType = "user_id";
+    private const string NameClaimType = "first_name";
+    private const string AuthTokenCookie = "authToken";
+    private const string RefreshTokenCookie = "refreshToken";
+    private const string UserNameCookie = "userName";
+    private const string DefaultRoute = "default";
+
     public static ILinbikBuilder AddJwtAuth(this ILinbikBuilder builder, Action<JwtAuthOptions> configureOptions, bool useInMemory = false)
     {
         builder.Services.Configure(configureOptions);
@@ -42,7 +51,7 @@ public static class JwtAuthManagerExtensions
         var configuration = serviceProvider.GetService<IConfiguration>();
 
         builder.Services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
-
+        
         if (useInMemory)
         {
             builder.Services.AddSingleton<ILinbikRepository, InMemoryLinbikRepository>();
@@ -59,6 +68,7 @@ public static class JwtAuthManagerExtensions
     {
         services.AddSingleton<IAuthService, JwtAuthService>();
     }
+
     public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
@@ -78,18 +88,18 @@ public static class JwtAuthManagerExtensions
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = true, // HTTP olduğu için secure bayrağı false
+            Secure = true,
             SameSite = SameSiteMode.None,
-            Expires = DateTime.UtcNow.AddDays(options.refreshTokenExpiration)
+            Expires = DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
         };
 
         app.UseEndpoints(endpoints =>
         {
-            endpoints.MapGet(options.loginPath, async (HttpContext context, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
+            endpoints.MapGet(options.LoginPath, async (HttpContext context, [FromServices] ITokenValidator validator, [FromServices] ILinbikRepository repository) =>
             {
                 try
                 {
-                    if (options.refererControl)
+                    if (options.RefererControl)
                     {
                         var referer = context.Request.Headers["Referer"].ToString();
 
@@ -97,7 +107,7 @@ public static class JwtAuthManagerExtensions
                             return Results.BadRequest(new LBaseResponse<object>("Invalid Referer"));
                     }
 
-                    #region Token Validetions
+                    #region Token Validations
 
                     var token = context.Request.Query["token"].FirstOrDefault();
 
@@ -105,7 +115,7 @@ public static class JwtAuthManagerExtensions
                         return Results.BadRequest(new LBaseResponse<object>("Invalid Token"));
 
                     var verifier = PkceService.GetVerifier(context.Request) ?? "";
-                    var validate = await validator.ValidateToken(token, verifier)
+                    var validate = await validator.ValidateToken(token, verifier, options.PkceEnabled)
                         .ConfigureAwait(false);
 
                     if (validate is null)
@@ -114,57 +124,59 @@ public static class JwtAuthManagerExtensions
                     if (!validate.Success)
                     {
                         return Results.BadRequest(new LBaseResponse<object>(validate.Message ?? "Something went wrong with validation"));
-                        //return Results.Redirect("https://localhost:7020?error=" + result.Message);
                     }
 
+                    var userGuidStr = validate.Claims?.FirstOrDefault(c => c.Type == IdClaimType)?.Value;
+                    if (string.IsNullOrEmpty(userGuidStr) || !Guid.TryParse(userGuidStr, out var userGuid))
+                        return Results.BadRequest(new LBaseResponse<object>("Invalid user ID"));
 
-                    var userGuidStr = validate.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-                    var userGuid = Guid.Parse(userGuidStr);
-                    var name = validate.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                    var firstName = validate.Claims?.FirstOrDefault(c => c.Type == NameClaimType)?.Value ?? "Unknown";
                     #endregion
 
-                    string refreshToken = "";
-                    var claims = new List<Claim>();
+                    var (refreshToken, success) = await repository.CreateRefresToken(userGuid, firstName)
+                        .ConfigureAwait(false);
 
-                    await repository.CreateRefresToken(userGuid, name, out refreshToken)
-                    .ConfigureAwait(false);
+                    if (!success)
+                        return Results.BadRequest(new LBaseResponse<object>("Failed to create refresh token"));
 
-                    claims.Add(new Claim(ClaimTypes.Name, name));
-                    claims.Add(new Claim(ClaimTypes.NameIdentifier, userGuidStr));
+                    var claims = new List<Claim>
+                    {
+                        new Claim("first_name", firstName),
+                        new Claim("user_id", userGuidStr)
+                    };
 
-                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.privateKey));
-
-                    var cred = new SigningCredentials(key, options.algorithm);
+                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
+                    var cred = new SigningCredentials(key, options.Algorithm);
 
                     var securityToken = new JwtSecurityToken(
                         claims: claims,
-                        expires: DateTime.Now.AddMinutes(options.accessTokenExpiration),
+                        expires: DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration),
                         signingCredentials: cred);
 
                     var jwt = new JwtSecurityTokenHandler();
-
                     var jwtToken = jwt.WriteToken(securityToken);
 
-                    context.Response.Cookies.Append("authToken", jwtToken, cookieOptions);
-                    context.Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-                    context.Response.Cookies.Append("userName", name, new()
+                    context.Response.Cookies.Append(AuthTokenCookie, jwtToken, cookieOptions);
+                    context.Response.Cookies.Append(RefreshTokenCookie, refreshToken, cookieOptions);
+                    context.Response.Cookies.Append(UserNameCookie, firstName, new()
                     {
                         Secure = true,
-                        Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
+                        Expires = DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration - 1),
                         SameSite = SameSiteMode.None
                     });
-                    var routeKey = context.Request.Query["route"].FirstOrDefault() ?? "default";
-                    options.routes.TryGetValue(routeKey, out var route);
+
+                    var routeKey = context.Request.Query["route"].FirstOrDefault() ?? DefaultRoute;
+                    options.Routes.TryGetValue(routeKey, out var route);
                     var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault() ?? "";
 
                     if (string.IsNullOrEmpty(route))
-                        route = options.routes?.FirstOrDefault().Value ?? "";
+                        route = options.Routes?.FirstOrDefault().Value ?? "";
 
                     if (string.IsNullOrEmpty(route))
                         return Results.Ok(new LBaseResponse<object>
                         {
-                            isSuccess = true,
-                            data = null
+                            IsSuccess = true,
+                            Data = null
                         });
 
                     if (returnUrl.ToLower().Contains(route.ToLower()))
@@ -178,16 +190,16 @@ public static class JwtAuthManagerExtensions
                 }
             }).WithTags("Linbik");
 
-            endpoints.MapPost(options.refreshLoginPath, async (HttpContext context, [FromServices] ILinbikRepository repository) =>
+            endpoints.MapPost(options.RefreshLoginPath, async (HttpContext context, [FromServices] ILinbikRepository repository) =>
             {
-                string currentRefreshToken = context.Request.Cookies["refreshToken"];
+                string? currentRefreshToken = context.Request.Cookies[RefreshTokenCookie];
 
-                if (currentRefreshToken is null)
+                if (string.IsNullOrEmpty(currentRefreshToken))
                 {
                     var response2 = new LBaseResponse<object>(
                         title: "refresh_token_error",
                         message: "Refresh Token is null, please login again.",
-                        _isSuccess: false
+                        isSuccess: false
                         );
 
                     return Results.BadRequest(response2);
@@ -201,7 +213,7 @@ public static class JwtAuthManagerExtensions
                     var response2 = new LBaseResponse<object>(
                         title: "refresh_token_error",
                         message: result.Message ?? "Refresh Token is invalid, please login again.",
-                        _isSuccess: false
+                        isSuccess: false
                         );
                     return Results.BadRequest(response2);
                 }
@@ -209,69 +221,73 @@ public static class JwtAuthManagerExtensions
                 await repository.LoggedInUser(result.UserGuid, result.Name)
                     .ConfigureAwait(false);
 
-                string refreshToken = "";
-                var claims = new List<Claim>();
+                var (refreshToken, success) = await repository.CreateRefresToken(result.UserGuid, result.Name)
+                    .ConfigureAwait(false);
 
-                await repository.CreateRefresToken(result.UserGuid, result.Name, out refreshToken)
-                .ConfigureAwait(false);
+                if (!success)
+                    return Results.BadRequest(new LBaseResponse<object>("Failed to create refresh token"));
 
-                claims.Add(new Claim(ClaimTypes.Name, result.Name));
-                claims.Add(new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString()));
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, result.Name ?? "Unknown"),
+                    new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString())
+                };
 
-                var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.privateKey));
-
-                var cred = new SigningCredentials(key, options.algorithm);
+                var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
+                var cred = new SigningCredentials(key, options.Algorithm);
 
                 var securityToken = new JwtSecurityToken(
                     claims: claims,
-                    expires: DateTime.Now.AddMinutes(options.accessTokenExpiration),
+                    expires: DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration),
                     signingCredentials: cred);
 
                 var jwt = new JwtSecurityTokenHandler();
-
                 var jwtToken = jwt.WriteToken(securityToken);
 
-                context.Response.Cookies.Append("authToken", jwtToken, cookieOptions);
-                context.Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-                context.Response.Cookies.Append("userName", result.Name, new()
+                context.Response.Cookies.Append(AuthTokenCookie, jwtToken, cookieOptions);
+                context.Response.Cookies.Append(RefreshTokenCookie, refreshToken, cookieOptions);
+                context.Response.Cookies.Append(UserNameCookie, result.Name ?? "Unknown", new()
                 {
                     Secure = true,
-                    Expires = DateTime.Now.AddMinutes(options.accessTokenExpiration - 1),
+                    Expires = DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration - 1),
                     SameSite = SameSiteMode.None
                 });
 
                 var response = new LBaseResponse<object>()
                 {
-                    isSuccess = true,
-                    data = null
+                    IsSuccess = true,
+                    Data = null
                 };
 
                 return Results.Ok(response);
             }).WithTags("Linbik");
 
-            endpoints.MapPost(options.exitPath, async (HttpContext context) =>
+            endpoints.MapPost(options.ExitPath, async (HttpContext context) =>
             {
-                context.Response.Cookies.Delete("authToken", cookieOptions);
-                context.Response.Cookies.Delete("refreshToken", cookieOptions);
-                context.Response.Cookies.Delete("userName", cookieOptions);
+                context.Response.Cookies.Delete(AuthTokenCookie, cookieOptions);
+                context.Response.Cookies.Delete(RefreshTokenCookie, cookieOptions);
+                context.Response.Cookies.Delete(UserNameCookie, cookieOptions);
 
                 var response = new LBaseResponse<object>()
                 {
-                    isSuccess = true,
-                    data = null
+                    IsSuccess = true,
+                    Data = null
                 };
 
                 return Results.Ok(response);
             }).WithTags("Linbik");
 
-            endpoints.MapPost(options.pkceStartPath, (HttpContext ctx) =>
+            if (options.PkceEnabled)
             {
-                var authorize = PkceService.BuildAuthorizeBody(ctx.Response);
+                endpoints.MapPost(options.PkceStartPath, (HttpContext ctx) =>
+                {
+                    var authorize = PkceService.BuildAuthorizeBody(ctx.Response);
 
-                var response = new LBaseResponse<object>(authorize);
+                    var response = new LBaseResponse<object>(authorize);
 
-                return Results.Ok(response);
-            }).WithTags("Linbik").AllowAnonymous();
+                    return Results.Ok(response);
+                }).WithTags("Linbik").AllowAnonymous();
+            }
         });
 
         return app;

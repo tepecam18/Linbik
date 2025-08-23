@@ -2,6 +2,6 @@
 
 public class LFriendlyMessageResponse
 {
-    public string title { get; set; }
-    public string message { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
 }
