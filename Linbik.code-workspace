@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "src/AspNet/Linbik.Core"
+		},
+		{
+			"path": "src/AspNet/Linbik.JwtAuthManager"
+		},
+		{
+			"path": "src/AspNet/Linbik.Server"
+		},
+		{
+			"path": "src/AspNet/Linbik.YARP"
+		},
+		{
+			"path": "examples/AspNet/AspNet"
+		}
+	],
+	"settings": {}
+}
