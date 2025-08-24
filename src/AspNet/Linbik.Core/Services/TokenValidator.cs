@@ -11,7 +11,7 @@ namespace Linbik.Core.Services;
 
 public class TokenValidator(IOptions<LinbikOptions> options, ILogger<TokenValidator> logger) : ITokenValidator
 {
-    private const string AppIdClaimType = "app_id";
+    private const string AppIdClaimType = "appId";
     private const string CodeClaimType = "code";
 
     public Task<TokenValidatorResponse> ValidateToken(string token, string verifier, bool pkceEnabled)

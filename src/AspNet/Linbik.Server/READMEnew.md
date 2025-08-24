@@ -112,7 +112,7 @@ The generated JWT token includes the following claims:
 
 ```json
 {
-  "app_id": "123e4567-e89b-12d3-a456-426614174000",
+  "appId": "123e4567-e89b-12d3-a456-426614174000",
   "user_type": "App",
   "tenant_id": "default",
   "name": "App 123e4567-e89b-12d3-a456-426614174000",
@@ -183,7 +183,7 @@ public class SqlServerLinbikServerRepository : ILinbikServerRepository
         // Generate claims
         var claims = new List<Claim>
         {
-            new Claim("app_id", app.AppId.ToString()),
+            new Claim("appId", app.AppId.ToString()),
             new Claim("app_name", app.Name),
             new Claim("tenant_id", app.TenantId)
         };

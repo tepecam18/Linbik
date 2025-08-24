@@ -18,10 +18,11 @@ namespace Linbik.JwtAuthManager.Extensions;
 
 public static class JwtAuthManagerExtensions
 {
-    private const string IdClaimType = "user_id";
-    private const string NameClaimType = "first_name";
+    private const string IdClaimType = "userId";
+    private const string NameClaimType = "firstName";
     private const string AuthTokenCookie = "authToken";
     private const string RefreshTokenCookie = "refreshToken";
+    private const string UserTypeClaimType = "userType";
     private const string UserNameCookie = "userName";
     private const string DefaultRoute = "default";
 
@@ -141,8 +142,9 @@ public static class JwtAuthManagerExtensions
 
                     var claims = new List<Claim>
                     {
-                        new Claim("first_name", firstName),
-                        new Claim("user_id", userGuidStr)
+                        new Claim(NameClaimType, firstName),
+                        new Claim(IdClaimType, userGuidStr),
+                        new Claim(UserTypeClaimType, "User")
                     };
 
                     var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
@@ -229,8 +231,9 @@ public static class JwtAuthManagerExtensions
 
                 var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, result.Name ?? "Unknown"),
-                    new Claim(ClaimTypes.NameIdentifier, result.UserGuid.ToString())
+                    new Claim(NameClaimType, result.Name ?? "Unknown"),
+                    new Claim(IdClaimType, result.UserGuid.ToString()),
+                    new Claim(UserTypeClaimType, "User")
                 };
 
                 var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));

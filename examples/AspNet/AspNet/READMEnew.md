@@ -1,31 +1,31 @@
-# Linbik Kütüphaneleri Kullanım Kılavuzu - AspNet Projesi
+# Linbik Libraries Usage Guide - AspNet Project
 
-Bu doküman, AspNet projesinde Linbik kütüphanelerinin nasıl kullanılacağını açıklar.
+This document explains how to use Linbik libraries in the AspNet project.
 
-## 📋 İçindekiler
+## 📋 Table of Contents
 
-- [Proje Yapısı](#proje-yapısı)
-- [Kurulum](#kurulum)
-- [Konfigürasyon](#konfigürasyon)
-- [Servis Ekleme](#servis-ekleme)
-- [Kimlik Doğrulama](#kimlik-doğrulama)
-- [Yetkilendirme](#yetkilendirme)
-- [Middleware Kullanımı](#middleware-kullanımı)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Service Registration](#service-registration)
+- [Authentication](#authentication)
+- [Authorization](#authorization)
+- [Middleware Usage](#middleware-usage)
 - [API Endpoints](#api-endpoints)
-- [Örnekler](#örnekler)
+- [Examples](#examples)
 
-## 🏗️ Proje Yapısı
+## 🏗️ Project Structure
 
-AspNet projesi aşağıdaki Linbik kütüphanelerini kullanır:
+The AspNet project uses the following Linbik libraries:
 
-- **Linbik.Core**: Temel servisler ve middleware
-- **Linbik.JwtAuthManager**: JWT tabanlı kimlik doğrulama
-- **Linbik.Server**: Sunucu tarafı uygulama kimlik doğrulaması
-- **Linbik.YARP**: Reverse proxy ve yönlendirme
+- **Linbik.Core**: Core services and middleware
+- **Linbik.JwtAuthManager**: JWT-based authentication
+- **Linbik.Server**: Server-side application authentication
+- **Linbik.YARP**: Reverse proxy and routing
 
-## 📦 Kurulum
+## 📦 Installation
 
-### 1. Proje Referansları
+### 1. Project References
 
 ```xml
 <ItemGroup>
@@ -35,7 +35,7 @@ AspNet projesi aşağıdaki Linbik kütüphanelerini kullanır:
 </ItemGroup>
 ```
 
-### 2. Using Direktifleri
+### 2. Using Directives
 
 ```csharp
 using Linbik.Core.Extensions;
@@ -45,7 +45,7 @@ using Linbik.Server.Interfaces;
 using Linbik.YARP.Extensions;
 ```
 
-## ⚙️ Konfigürasyon
+## ⚙️ Configuration
 
 ### appsettings.json
 
@@ -87,23 +87,23 @@ using Linbik.YARP.Extensions;
 }
 ```
 
-## 🔧 Servis Ekleme
+## 🔧 Service Registration
 
-### 1. Temel Linbik Servisleri
+### 1. Basic Linbik Services
 
 ```csharp
-// Program.cs - Servis Ekleme Bölümü
+// Program.cs - Service Registration Section
 builder.Services
-    .AddLinbik() // Temel Linbik servisleri
-    .AddJwtAuth(true) // JWT kimlik doğrulama (PKCE etkin)
-    .AddLinbikServer() // Sunucu servisleri
-    .AddProxy(); // Proxy servisleri
+    .AddLinbik() // Core Linbik services
+    .AddJwtAuth(true) // JWT authentication (PKCE enabled)
+    .AddLinbikServer() // Server services
+    .AddProxy(); // Proxy services
 ```
 
-### 2. Özel Konfigürasyon ile Servis Ekleme
+### 2. Custom Configuration Service Registration
 
 ```csharp
-// Alternatif: Özel konfigürasyon ile
+// Alternative: With custom configuration
 builder.Services.AddLinbik(conf =>
 {
     conf.AppIds = new string[] { "app1", "app2" };
@@ -112,39 +112,39 @@ builder.Services.AddLinbik(conf =>
 });
 ```
 
-### 3. Repository Ekleme
+### 3. Repository Registration
 
 ```csharp
-// Repository servisini ekle
+// Register repository service
 builder.Services.AddSingleton<ILinbikServerRepository, LinbikServerRepository>();
 ```
 
-## 🔐 Kimlik Doğrulama
+## 🔐 Authentication
 
-### 1. Authentication Şemaları Ekleme
+### 1. Authentication Schemes Registration
 
 ```csharp
-// Program.cs - Authentication Bölümü
+// Program.cs - Authentication Section
 builder.Services
     .AddAuthentication()
-    .AddLinbikScheme(builder.Configuration) // Linbik kullanıcı şeması
-    .AddLinbikAppScheme(builder.Configuration); // Linbik uygulama şeması
+    .AddLinbikScheme(builder.Configuration) // Linbik user scheme
+    .AddLinbikAppScheme(builder.Configuration); // Linbik application scheme
 ```
 
-### 2. Authentication Şemaları Açıklaması
+### 2. Authentication Schemes Description
 
-- **LinbikScheme**: Kullanıcı kimlik doğrulaması için
-- **LinbikAppScheme**: Uygulama kimlik doğrulaması için
+- **LinbikScheme**: For user authentication
+- **LinbikAppScheme**: For application authentication
 
-## 🛡️ Yetkilendirme
+## 🛡️ Authorization
 
-### 1. Authorization Politikaları
+### 1. Authorization Policies
 
 ```csharp
-// Program.cs - Authorization Bölümü
+// Program.cs - Authorization Section
 builder.Services.AddAuthorization(options =>
 {
-    // YARP Linbik uygulamaları için politika
+    // Policy for YARP Linbik applications
     options.AddPolicy("LinbikAppProxyPolicy", policy =>
     {
         policy.RequireAuthenticatedUser();
@@ -153,64 +153,64 @@ builder.Services.AddAuthorization(options =>
 });
 ```
 
-### 2. Politika Kullanımı
+### 2. Policy Usage
 
 ```csharp
-// Controller'da kullanım
+// Usage in Controller
 [Authorize(Policy = "LinbikAppProxyPolicy")]
 public class SecureController : ControllerBase
 {
-    // Güvenli endpoint'ler
+    // Secure endpoints
 }
 ```
 
-## 🔄 Middleware Kullanımı
+## 🔄 Middleware Usage
 
-### 1. Middleware Sıralaması
+### 1. Middleware Order
 
 ```csharp
-// Program.cs - Middleware Bölümü
+// Program.cs - Middleware Section
 var app = builder.Build();
 
-// Middleware sırası önemli!
+// Middleware order is important!
 app.UseRouting();
-app.UseAuthentication(); // Önce kimlik doğrulama
-app.UseAuthorization();  // Sonra yetkilendirme
+app.UseAuthentication(); // First authentication
+app.UseAuthorization();  // Then authorization
 
-// Linbik middleware'leri
-app.UseLinbikServer(); // Linbik sunucu endpoint'leri
-app.UseJwtAuth();      // JWT kimlik doğrulama
+// Linbik middleware
+app.UseLinbikServer(); // Linbik server endpoints
+app.UseJwtAuth();      // JWT authentication
 app.UseProxy();        // YARP proxy
 ```
 
-### 2. Middleware Açıklamaları
+### 2. Middleware Descriptions
 
-- **UseLinbikServer()**: `/linbik/app-login` gibi sunucu endpoint'lerini etkinleştirir
-- **UseJwtAuth()**: JWT kimlik doğrulama endpoint'lerini etkinleştirir
-- **UseProxy()**: YARP reverse proxy'i etkinleştirir
+- **UseLinbikServer()**: Enables server endpoints like `/linbik/app-login`
+- **UseJwtAuth()**: Enables JWT authentication endpoints
+- **UseProxy()**: Enables YARP reverse proxy
 
 ## 🌐 API Endpoints
 
-### JWT Kimlik Doğrulama Endpoint'leri
+### JWT Authentication Endpoints
 
-- `POST /linbik/login` - Kullanıcı girişi
-- `POST /linbik/refresh-token` - Token yenileme
-- `POST /linbik/logout` - Çıkış
-- `GET /linbik/pkce-start` - PKCE başlatma (etkinse)
+- `POST /linbik/login` - User login
+- `POST /linbik/refresh-token` - Token refresh
+- `POST /linbik/logout` - Logout
+- `GET /linbik/pkce-start` - PKCE start (if enabled)
 
-### Sunucu Kimlik Doğrulama Endpoint'leri
+### Server Authentication Endpoints
 
-- `POST /linbik/app-login` - Uygulama girişi
+- `POST /linbik/app-login` - Application login
 
-### YARP Proxy Endpoint'leri
+### YARP Proxy Endpoints
 
-- `/{prefixPath}/*` - Yapılandırılan proxy rotaları
-  - `/webhook/*` → Webhook servisleri
-  - `/app/*` → Uygulama servisleri
+- `/{prefixPath}/*` - Configured proxy routes
+  - `/webhook/*` → Webhook services
+  - `/app/*` → Application services
 
-## 📝 Örnekler
+## 📝 Examples
 
-### 1. Controller Örneği
+### 1. Controller Example
 
 ```csharp
 [ApiController]
@@ -222,12 +222,12 @@ public class TestController : ControllerBase
     public IActionResult Get()
     {
         var user = User.Identity?.Name;
-        return Ok($"Merhaba {user}!");
+        return Ok($"Hello {user}!");
     }
 }
 ```
 
-### 2. Repository Örneği
+### 2. Repository Example
 
 ```csharp
 // Repositories/LinbikServerRepository.cs
@@ -235,38 +235,38 @@ public class LinbikServerRepository : ILinbikServerRepository
 {
     public async Task<bool> ValidateAppAsync(string appId, string token)
     {
-        // Uygulama doğrulama mantığı
-        // Burada veritabanı kontrolü yapılabilir
+        // Application validation logic
+        // Database checks can be performed here
         return true;
     }
 }
 ```
 
-### 3. Özel Middleware Ekleme
+### 3. Custom Middleware Example
 
 ```csharp
-// Program.cs'de ek middleware ekleme
+// Add custom middleware in Program.cs
 app.UseMiddleware<UnauthorizedPayloadMiddleware>();
 ```
 
-## 🔒 Güvenlik
+## 🔒 Security
 
-### 1. Anahtar Güvenliği
+### 1. Key Security
 
-- **PrivateKey**: En az 64 karakter uzunluğunda güçlü anahtarlar kullanın
-- **AppIds**: Sadece gerekli uygulama ID'lerini ekleyin
-- **AllowAllApp**: Production'da `false` olarak ayarlayın
+- **PrivateKey**: Use strong keys with at least 64 characters
+- **AppIds**: Only add necessary application IDs
+- **AllowAllApp**: Set to `false` in production
 
-### 2. Token Yönetimi
+### 2. Token Management
 
-- Access token'lar kısa süreli (varsayılan 15 dakika)
-- Refresh token'lar uzun süreli (varsayılan 15 gün)
-- PKCE desteği ile güvenli kod değişimi
+- Access tokens are short-lived (default 15 minutes)
+- Refresh tokens are long-lived (default 15 days)
+- Secure code exchange with PKCE support
 
-### 3. CORS ve Referer Kontrolü
+### 3. CORS and Referer Control
 
 ```csharp
-// JWT konfigürasyonunda
+// In JWT configuration
 "JwtAuth": {
   "RefererControl": true,
   "Routes": {
@@ -275,9 +275,9 @@ app.UseMiddleware<UnauthorizedPayloadMiddleware>();
 }
 ```
 
-## 🚨 Hata Ayıklama
+## 🚨 Troubleshooting
 
-### 1. Log Seviyeleri
+### 1. Log Levels
 
 ```json
 {
@@ -291,50 +291,50 @@ app.UseMiddleware<UnauthorizedPayloadMiddleware>();
 }
 ```
 
-### 2. Yaygın Hatalar ve Çözümleri
+### 2. Common Errors and Solutions
 
-1. **Configuration Binding Hatası**
-   - Property isimlerinin doğru olduğundan emin olun
-   - PascalCase kullanın (AllowAllApp, AppIds, PrivateKey)
+1. **Configuration Binding Error**
+   - Ensure property names are correct
+   - Use PascalCase (AllowAllApp, AppIds, PrivateKey)
 
-2. **Authentication Scheme Hatası**
-   - Şemaların doğru sırada eklendiğini kontrol edin
-   - UseAuthentication() önce, UseAuthorization() sonra
+2. **Authentication Scheme Error**
+   - Check that schemes are added in correct order
+   - UseAuthentication() first, UseAuthorization() second
 
-3. **Private Key Hatası**
-   - Anahtarların yeterli uzunlukta olduğunu doğrulayın
-   - En az 64 karakter olmalı
+3. **Private Key Error**
+   - Verify keys are long enough
+   - Minimum 64 characters required
 
-4. **Middleware Sırası Hatası**
-   - UseRouting() → UseAuthentication() → UseAuthorization() → Linbik Middleware'leri
+4. **Middleware Order Error**
+   - UseRouting() → UseAuthentication() → UseAuthorization() → Linbik Middleware
 
-## 🔧 Gelişmiş Konfigürasyon
+## 🔧 Advanced Configuration
 
-### 1. PKCE Ayarları
+### 1. PKCE Settings
 
 ```csharp
-// PKCE etkinleştirme/devre dışı bırakma
-builder.Services.AddJwtAuth(true);  // PKCE etkin
-builder.Services.AddJwtAuth(false); // PKCE devre dışı
+// Enable/disable PKCE
+builder.Services.AddJwtAuth(true);  // PKCE enabled
+builder.Services.AddJwtAuth(false); // PKCE disabled
 ```
 
-### 2. Token Süreleri
+### 2. Token Expiration
 
 ```json
 {
   "Linbik": {
     "JwtAuth": {
-      "AccessTokenExpiration": 15,    // 15 dakika
-      "RefreshTokenExpiration": 15    // 15 gün
+      "AccessTokenExpiration": 15,    // 15 minutes
+      "RefreshTokenExpiration": 15    // 15 days
     },
     "Server": {
-      "AccessTokenExpiration": 60     // 60 dakika
+      "AccessTokenExpiration": 60     // 60 minutes
     }
   }
 }
 ```
 
-### 3. YARP Proxy Ayarları
+### 3. YARP Proxy Configuration
 
 ```json
 {
@@ -361,21 +361,21 @@ builder.Services.AddJwtAuth(false); // PKCE devre dışı
 }
 ```
 
-## 📚 Ek Kaynaklar
+## 📚 Additional Resources
 
 - [Linbik.Core Documentation](../Linbik.Core/README.md)
 - [Linbik.JwtAuthManager Documentation](../Linbik.JwtAuthManager/README.md)
 - [Linbik.Server Documentation](../Linbik.Server/README.md)
 - [Linbik.YARP Documentation](../Linbik.YARP/README.md)
 
-## 🤝 Destek
+## 🤝 Support
 
-Sorunlarınız için:
-1. GitHub Issues kullanın
-2. Bu dokümantasyonu kontrol edin
-3. Log dosyalarını inceleyin
-4. Middleware sırasını kontrol edin
+For issues:
+1. Use GitHub Issues
+2. Check this documentation
+3. Review log files
+4. Verify middleware order
 
 ---
 
-**Not**: Bu doküman AspNet projesinde Linbik kütüphanelerinin kullanımını kapsar. Gelişmiş özellikler için ilgili proje README dosyalarını inceleyin.
+**Note**: This document covers the usage of Linbik libraries in the AspNet project. For advanced features, refer to the respective project README files.

@@ -20,8 +20,8 @@ public static class ServerExtensions
 {
     private const string LinbikTag = "Linbik";
     private const string AppLoginEndpointName = "Linbik App Login";
-    private const string AppIdClaimType = "app_id";
-    private const string UserTypeClaimType = "user_type";
+    private const string AppIdClaimType = "appId";
+    private const string UserTypeClaimType = "userType";
 
     public static ILinbikBuilder AddLinbikServer(this ILinbikBuilder builder, Action<ServerOptions> configureOptions)
     {
