@@ -9,7 +9,7 @@ branches:
     regex: ^main$
     increment: Patch       # main merge → patch artsın
     tag: ''
-  dev:
+  develop:
     regex: ^dev$
     increment: Minor       # develop merge → minor artsın
     tag: ''
