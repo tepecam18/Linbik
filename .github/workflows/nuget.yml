@@ -44,17 +44,18 @@ jobs:
     - name: Test
       run: dotnet test ./examples/AspNet/AspNet.sln --no-restore --verbosity normal
 
+      #  /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
     - name: Pack Linbik.Core
-      run: dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+      run: dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
 
     - name: Pack Linbik.JwtAuthManager (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+      run: dotnet pack ./src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
 
     - name: Pack Linbik.YARP (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.YARP/Linbik.YARP.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+      run: dotnet pack ./src/AspNet/Linbik.YARP/Linbik.YARP.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
 
     - name: Pack Linbik.Server (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+      run: dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} 
 
         # dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --symbol-source https://api.nuget.org/v3/index.json
     - name: Publish all packages
