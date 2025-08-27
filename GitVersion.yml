@@ -1,5 +1,4 @@
 mode: Mainline
-next-version: 0.46.0
 tag-prefix: ''
 
 assembly-versioning-scheme: MajorMinorPatch
