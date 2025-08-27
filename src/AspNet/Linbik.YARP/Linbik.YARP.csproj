@@ -4,24 +4,34 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		
 		<PackageVersion>0.0.2</PackageVersion>
+		<Version>$(GitVersion_NuGetVersionV2)</Version>
+		
 		<Description>This package is for testing purposes only. Not available for public use.</Description>
-		<IncludeSymbols>true</IncludeSymbols>
-		<IncludeSource>true</IncludeSource>
-		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<!-- kaynak kodu PDB’ye göm -->
-		<DebugType>embedded</DebugType>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		
+		<IncludeSource>true</IncludeSource>
 
-		<!-- deterministic build için -->
+		<!-- deterministic/CI -->
 		<Deterministic>true</Deterministic>
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 
-		<!-- PDB’yi paket içine dahil et -->
-		<AllowedOutputExtensionsInPackageBuildOutputFolder>
-			$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb
-		</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+		<!-- Debug bilgisi DLL içine göm -->
+		<DebugType>embedded</DebugType>
+		<EmbedAllSources>true</EmbedAllSources>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		
+
+		<!-- SourceLink’i KAPAT veya paket referansını kaldır -->
+		<PublishRepositoryUrl>false</PublishRepositoryUrl>
+
+		<!-- sourcelink için -->
+		<!--<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>-->
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -1,9 +1,15 @@
 mode: Mainline
+next-version: 0.0.0
+tag-prefix: ''
+
+assembly-versioning-scheme: MajorMinorPatch
+
 branches:
   main:
-    increment: Minor
-    prevent-increment-of-merged-branch-version: true
-    tag: ''
-    regex: ^main$
-    track-merge-target: false
-    source-branches: ['main']
+    increment: Patch       # main merge → patch artsın
+  dev:
+    increment: Minor       # develop merge → minor artsın
+  feature:
+    increment: Inherit     # default davranış (istersen Patch de diyebilirsin)
+  release:
+    increment: Major
