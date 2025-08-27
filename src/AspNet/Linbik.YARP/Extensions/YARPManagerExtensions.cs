@@ -64,7 +64,7 @@ public static class YARPManagerExtensions
                 RouteId = option.RouteId,
                 ClusterId = option.ClusterId,
                 Match = new RouteMatch { Path = option.PrefixPath + "/{**catch-all}" },
-                AuthorizationPolicy = "LinbikAppProxyPolicy",
+                AuthorizationPolicy = "LinbikProxyPolicy",
                 Transforms = new List<Dictionary<string, string>>
                 {
                     new Dictionary<string, string>

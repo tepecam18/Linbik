@@ -64,7 +64,11 @@ public class MultiJwtTokenProvider : ITokenProvider
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            var tokenResult = JsonSerializer.Deserialize<LBaseResponse<TokenResponse>>(json);
+            var tokenResult = JsonSerializer.Deserialize<LBaseResponse<TokenResponse>>(json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
             if (tokenResult?.Data == null)
                 throw new InvalidOperationException("Failed to deserialize token response");

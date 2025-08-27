@@ -34,7 +34,13 @@ public class TokenValidator(IOptions<LinbikOptions> options, ILogger<TokenValida
             ValidateLifetime = true, // Tokenın süresini doğrula
             ValidateIssuerSigningKey = true, // Sunucu tarafından kullanılan anahtarı doğrula
             ClockSkew = TimeSpan.Zero,
-            IssuerSigningKey = new RsaSecurityKey(rsa),
+            IssuerSigningKey = new RsaSecurityKey(rsa)//fix to cache problem(problem from Microsoft.IdentityModel.Tokens)
+            {
+                CryptoProviderFactory = new CryptoProviderFactory()
+                {
+                    CacheSignatureProviders = false
+                }
+            },
         };
 
         try

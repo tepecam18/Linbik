@@ -27,15 +27,15 @@ builder.Services.AddSingleton<ILinbikServerRepository, LinbikServerRepository>()
 builder.Services
     .AddAuthentication()
     .AddLinbikScheme(builder.Configuration)
-    .AddLinbikAppScheme(builder.Configuration);
+    .AddLinbikAppScheme(builder.Configuration);//for server
 
 builder.Services.AddAuthorization(options =>
 {
-    // Add policies for Yarp Linbik applications
-    options.AddPolicy("LinbikAppProxyPolicy", policy =>
+    // Add policies for Use Yarp authorize attribute
+    options.AddPolicy("LinbikProxyPolicy", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.AddAuthenticationSchemes("LinbikAppScheme");
+        policy.AddAuthenticationSchemes("LinbikScheme");
     });
 });
 

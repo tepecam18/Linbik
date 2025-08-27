@@ -55,6 +55,17 @@ public static class ServerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<ServerOptions>>().Value;
 
+        try
+        {
+            app.ApplicationServices.GetRequiredService<ILinbikServerRepository>();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "Please register ILinbikServerRepository in the DI container"
+            );
+        }
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapPost(options.LoginPath, async (HttpContext context, [FromServices] ILinbikServerRepository serverRepository, [FromBody] AppLoginModel request) =>

@@ -11,6 +11,17 @@
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<!-- kaynak kodu PDB’ye göm -->
+		<DebugType>embedded</DebugType>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+		<!-- deterministic build için -->
+		<Deterministic>true</Deterministic>
+
+		<!-- PDB’yi paket içine dahil et -->
+		<AllowedOutputExtensionsInPackageBuildOutputFolder>
+			$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb
+		</AllowedOutputExtensionsInPackageBuildOutputFolder>
 	</PropertyGroup>
 
 	<ItemGroup>
