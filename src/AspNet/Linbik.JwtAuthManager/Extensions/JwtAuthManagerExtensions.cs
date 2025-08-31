@@ -52,7 +52,7 @@ public static class JwtAuthManagerExtensions
         var configuration = serviceProvider.GetService<IConfiguration>();
 
         builder.Services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
-        
+
         if (useInMemory)
         {
             builder.Services.AddSingleton<ILinbikRepository, InMemoryLinbikRepository>();
@@ -74,11 +74,9 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
-        try
-        {
-            app.ApplicationServices.GetRequiredService<ILinbikRepository>();
-        }
-        catch (Exception ex)
+        var service = app.ApplicationServices.GetService<ILinbikRepository>();
+
+        if (service == null)
         {
             throw new InvalidOperationException(
                 "Please register ILinbikRepository in the DI container, " +
@@ -113,23 +111,23 @@ public static class JwtAuthManagerExtensions
                     var token = context.Request.Query["token"].FirstOrDefault();
 
                     if (string.IsNullOrEmpty(token))
-                        return Results.BadRequest(new LBaseResponse<object>("Invalid Token"));
+                        return Results.Json(new LBaseResponse<object>("Invalid Token"), statusCode: StatusCodes.Status406NotAcceptable);
 
                     var verifier = PkceService.GetVerifier(context.Request) ?? "";
                     var validate = await validator.ValidateToken(token, verifier, options.PkceEnabled)
                         .ConfigureAwait(false);
 
                     if (validate is null)
-                        return Results.BadRequest(new LBaseResponse<object>("Invalid Token"));
+                        return Results.Json(new LBaseResponse<object>("Invalid Token"), statusCode: StatusCodes.Status406NotAcceptable);
 
                     if (!validate.Success)
                     {
-                        return Results.BadRequest(new LBaseResponse<object>(validate.Message ?? "Something went wrong with validation"));
+                        return Results.Json(new LBaseResponse<object>(validate.Message ?? "Something went wrong with validation"), statusCode: StatusCodes.Status406NotAcceptable);
                     }
 
                     var userGuidStr = validate.Claims?.FirstOrDefault(c => c.Type == IdClaimType)?.Value;
                     if (string.IsNullOrEmpty(userGuidStr) || !Guid.TryParse(userGuidStr, out var userGuid))
-                        return Results.BadRequest(new LBaseResponse<object>("Invalid user ID"));
+                        return Results.Json(new LBaseResponse<object>("Invalid user ID"), statusCode: StatusCodes.Status406NotAcceptable);
 
                     var firstName = validate.Claims?.FirstOrDefault(c => c.Type == NameClaimType)?.Value ?? "Unknown";
                     #endregion
