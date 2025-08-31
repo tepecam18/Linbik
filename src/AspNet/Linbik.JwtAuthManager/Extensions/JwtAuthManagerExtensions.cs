@@ -74,14 +74,20 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
-        var service = app.ApplicationServices.GetService<ILinbikRepository>();
-
-        if (service == null)
+        try
         {
-            throw new InvalidOperationException(
-                "Please register ILinbikRepository in the DI container, " +
-                "or use AddJwtAuth(true) in Program.cs."
-            );
+            var service = app.ApplicationServices.GetService<ILinbikRepository>();
+
+            if (service == null)
+            {
+                throw new InvalidOperationException(
+                    "Please register ILinbikRepository in the DI container, " +
+                    "or use AddJwtAuth(true) in Program.cs."
+                );
+            }
+        }
+        catch (Exception)
+        {
         }
 
         var cookieOptions = new CookieOptions
