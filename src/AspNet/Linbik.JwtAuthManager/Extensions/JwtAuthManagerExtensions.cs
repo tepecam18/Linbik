@@ -74,7 +74,7 @@ public static class JwtAuthManagerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
 
-        try
+        using (var scope = app.ApplicationServices.CreateScope())
         {
             var service = app.ApplicationServices.GetService<ILinbikRepository>();
 
@@ -85,9 +85,6 @@ public static class JwtAuthManagerExtensions
                     "or use AddJwtAuth(true) in Program.cs."
                 );
             }
-        }
-        catch (Exception)
-        {
         }
 
         var cookieOptions = new CookieOptions

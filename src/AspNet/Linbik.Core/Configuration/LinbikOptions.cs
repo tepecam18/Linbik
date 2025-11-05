@@ -2,30 +2,68 @@
 
 public class LinbikOptions
 {
-    public string Version { get; set; } = LinbikVersion.Dev2025;
+    /// <summary>
+    /// Linbik server base URL (e.g., "https://linbik.com")
+    /// Used for authorization redirects and token exchange
+    /// </summary>
+    public string ServerUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Authorization endpoint path (default: "/auth")
+    /// </summary>
+    public string AuthorizationEndpoint { get; set; } = "/auth";
+
+    /// <summary>
+    /// Token exchange endpoint path (default: "/oauth/token")
+    /// </summary>
+    public string TokenEndpoint { get; set; } = "/oauth/token";
+
+    /// <summary>
+    /// Refresh token endpoint path (default: "/oauth/refresh")
+    /// </summary>
+    public string RefreshEndpoint { get; set; } = "/oauth/refresh";
+
+    /// <summary>
+    /// Authorization code lifetime in minutes (default: 10)
+    /// </summary>
+    public int AuthorizationCodeLifetimeMinutes { get; set; } = 10;
+
+    /// <summary>
+    /// Access token (JWT) lifetime in minutes (default: 60)
+    /// </summary>
+    public int AccessTokenLifetimeMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// Refresh token lifetime in days (default: 30)
+    /// </summary>
+    public int RefreshTokenLifetimeDays { get; set; } = 30;
+
+    /// <summary>
+    /// Enable PKCE (Proof Key for Code Exchange) validation
+    /// Recommended for public clients (mobile apps, SPAs)
+    /// </summary>
+    public bool EnablePKCE { get; set; } = true;
+
+    /// <summary>
+    /// JWT issuer name (default: "linbik")
+    /// </summary>
+    public string JwtIssuer { get; set; } = "linbik";
+
+    /// <summary>
+    /// Legacy: Allowed app IDs (deprecated - use service registration instead)
+    /// </summary>
+    [Obsolete("Use service registration with API keys instead")]
     public string[] AppIds { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Legacy: Public key (deprecated - use per-service keys instead)
+    /// </summary>
+    [Obsolete("Use per-service RSA key pairs instead")]
+    public string PublicKey { get; set; } = string.Empty;
     
     /// <summary>
-    /// If true, all apps are allowed to use the token. Use for testing only.
+    /// Legacy: If true, all apps are allowed (deprecated)
     /// </summary>
+    [Obsolete("Use proper service registration and API key validation")]
     public bool AllowAllApp { get; set; } = false;
-
-    public string PublicKey
-    {
-        get
-        {
-            return Version switch
-            {
-                LinbikVersion.Dev2025 => "MIICITANBgkqhkiG9w0BAQEFAAOCAg4AMIICCQKCAgBp6ADswC7ZoDYMOyoFRC/cGTx4naAQ+gih2PQTVHVrC3YXRUzxYJwVkdCfuWQkZ3P/FTmpITWENa8OryAJUGAwuFqwgbhH0T0m+lUBLBa49/bJ2KVxjooN3FTQCp1fHS+wmpjIw/yCqDtSih3ylcdLcuhRJCKyj8aSYuY1Y9y1oKmhJvDNc6TrfS/i02Q5oFWu8PF96tQV4MAqKzdKSaytg19AEqv3SV+sPYLoacj3oCnAb7J05W7poBmdFuTXcmbfVc+MZYFoSiyzWk35PyqbPGLKYsq0RYzfoGeLFWVsZ8QOS0tf/P7z1J15rb58PMIyRrcbTqiNJ3MR3EGvCW3dgli0yS8mI2ynD9OKi5xgu6txlAZIKENegmwji9e87uj7SnNxGD7JPSqAW0VaLq4rDKZwnu7WMa6uL/Y83hVRAew19ouTpH50lW7XRaGJu6H8siKRfSa+di/erzev6ppmnpmFBeCzaaSBMLS8gpN/l4rQoI49lbSjzYiipjSusynxVlPvoabx1iH3Ngep7cYR994W7/MhHvbcaziMN4NoeiLbfmiFVDKqEEmRZkId18fyLSkmONBRdwkoovrEr0bNSOjobLrSiXSVZn7eeSZUH7aDRkD/oUVKH0KiSkxnFZr6CiaJep9hykCJyLLzQIzKaCFNcfWTxfguD9lMDEBniQIDAQAB",
-                LinbikVersion.Prod2025 => "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAq+tbwd6rTFOHWKBsFVBUIuleAwdazrmpMLd+WYjWmWns/Z0oIwlDO+9Y5fcm+HAYBFVqm+8UUxKKJvUZLuVZvO2oDKxx0pdhaLkQQ4gYuOg06DR8YaAysyp/KlkHGrcn4qV7kmkgXXxT8QSB+6MAjw+idep8K0e7y1NMdgzRX77d0CEAPPXaLQx2CTENhjDRG4IBKtN9fmG3M2c9pm44pC4oNF3fBaq0bclJw8kjfDakiUSdtKHH+1eUDI98a2yykxRwGXsPjLkexrYiXKDNqSGFQ0tJakv7PwtxElCOz9vICR9F8KBbO2S/AUXqxsgp73dywztz+s91Rh+Sn3d+VLLxue2+x8Nnr53hs4DLrZlfgEkAl8iRMWYr18C2ZGbCpXmZfRk0n5Y1RbI4FCUz/GgHbySZ1QcYzBi2JN+/YNv/FwNnMjLwDiUPp/tLgty9L+8AxEIjXS426vhoiPWnbmNPTifKH8Jrg3HBN5VUC23aZhZbfn2XXPB9+B6R+vpJsUP0s9CRN5YcmLqAE3RS+jfsp5wR7Bw2QHegigYyoAW+0ssaGJnLbwAicFXMBUAr36e2ZmXp2piWer15y/k0Kd8tleTVDxQx+ekYXcFor42w2Prh3EUAHEGk3T5DtJy5GwLuqSviSwBVtDX7NMz5FR1Ah9sv5tT/oW9hI8TEqHECAwEAAQ==",
-                _ => throw new ArgumentOutOfRangeException(nameof(Version), Version, "Invalid Linbik version")
-            };
-        }
-    }
-}
-
-public static class LinbikVersion
-{
-    public const string Dev2025 = "dev2025";
-    public const string Prod2025 = "prod2025";
 }

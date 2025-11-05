@@ -1,253 +1,503 @@
-# Linbik.WebApi - Example Implementation
+# Linbik OAuth 2.0 Test Application# Linbik.WebApi - Example Implementation
 
-A complete example web API project demonstrating how to implement and use the Linbik Authentication Framework in a real-world application.
 
-## 🚀 Overview
 
-This project serves as a comprehensive example of how to integrate and use all Linbik components in a production-ready web API. It demonstrates best practices, proper configuration, and real-world usage patterns.
+Bu proje, Linbik OAuth 2.0 Authorization Code Flow'unu test etmek için geliştirilmiş örnek bir ASP.NET Core uygulamasıdır.A complete example web API project demonstrating how to implement and use the Linbik Authentication Framework in a real-world application.
 
-## 📦 Project Structure
 
-```
-Linbik.WebApi/
+
+## 🎯 Özellikler## 🚀 Overview
+
+
+
+- ✅ OAuth 2.0 Authorization Code FlowThis project serves as a comprehensive example of how to integrate and use all Linbik components in a production-ready web API. It demonstrates best practices, proper configuration, and real-world usage patterns.
+
+- ✅ Multi-service integration (Birden fazla entegre servis token'ı)
+
+- ✅ PKCE (Proof Key for Code Exchange) desteği## 📦 Project Structure
+
+- ✅ Refresh token ile token yenileme
+
+- ✅ Integration service test endpoint'leri```
+
+- ✅ Token bilgilerini görüntülemeLinbik.WebApi/
+
 ├── Controllers/           # API Controllers
-│   ├── AuthController.cs  # Authentication endpoints
-│   ├── UserController.cs  # User management
-│   └── AppController.cs   # App authentication
-├── Models/                # Data models
-│   ├── LoginRequest.cs    # Login request model
-│   ├── UserProfile.cs     # User profile model
-│   └── ApiResponse.cs     # Standard API response
-├── Services/              # Business logic services
-│   ├── UserService.cs     # User operations
-│   └── AuthService.cs     # Authentication logic
-├── Middleware/            # Custom middleware
-│   └── LoggingMiddleware.cs # Request logging
-├── Program.cs             # Application entry point
-├── appsettings.json       # Configuration
-└── READMEnew.md           # This documentation
-```
 
-## 🔧 Prerequisites
+## 📋 Ön Gereksinimler│   ├── AuthController.cs  # Authentication endpoints
+
+│   ├── UserController.cs  # User management
+
+1. **.NET 9.0 SDK** yüklü olmalı│   └── AppController.cs   # App authentication
+
+2. **Linbik.App** uygulaması çalışır durumda olmalı (https://localhost:5001)├── Models/                # Data models
+
+3. Linbik.App'te bir **Service** kaydı oluşturulmuş olmalı│   ├── LoginRequest.cs    # Login request model
+
+│   ├── UserProfile.cs     # User profile model
+
+## 🚀 Kurulum│   └── ApiResponse.cs     # Standard API response
+
+├── Services/              # Business logic services
+
+### 1. Service Kaydı Oluştur (Linbik.App'te)│   ├── UserService.cs     # User operations
+
+│   └── AuthService.cs     # Authentication logic
+
+Linbik.App uygulamasında `/Service/Create` sayfasına git ve yeni bir servis oluştur:├── Middleware/            # Custom middleware
+
+│   └── LoggingMiddleware.cs # Request logging
+
+```├── Program.cs             # Application entry point
+
+Name: Test Application├── appsettings.json       # Configuration
+
+PackageName: test-app└── READMEnew.md           # This documentation
+
+BaseUrl: https://localhost:7020```
+
+CallbackPath: /oauth/callback
+
+IsIntegrationService: false## 🔧 Prerequisites
+
+```
 
 - .NET 9.0 SDK
-- Visual Studio 2022 or VS Code
+
+Kaydet butonuna tıkladıktan sonra **Service ID** ve **API Key**'i not al.- Visual Studio 2022 or VS Code
+
 - Basic understanding of ASP.NET Core
-- Linbik packages (will be installed automatically)
 
-## 🚀 Quick Start
+### 2. Entegre Servisler Ekle (Opsiyonel)- Linbik packages (will be installed automatically)
 
-### 1. Clone and Setup
 
-```bash
+
+Eğer multi-service integration test etmek istersen:## 🚀 Quick Start
+
+
+
+1. Payment Gateway ve Courier Service gibi entegre servisler oluştur (`IsIntegrationService: true`)### 1. Clone and Setup
+
+2. Test Application'ın "Integrations" sekmesinde bu servisleri ekle
+
+3. `IsEnabled: true` yap```bash
+
 git clone https://github.com/your-org/linbik.git
-cd linbik/src/AspNet/Linbik.WebApi
+
+### 3. appsettings.json Yapılandırmasıcd linbik/src/AspNet/Linbik.WebApi
+
 dotnet restore
-dotnet build
+
+`appsettings.json` dosyasındaki `OAuth` bölümünü güncelle:dotnet build
+
 ```
-
-### 2. Configuration
-
-Update `appsettings.json` with your settings:
 
 ```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
+
+{### 2. Configuration
+
+  "OAuth": {
+
+    "LinbikBaseUrl": "https://localhost:5001",Update `appsettings.json` with your settings:
+
+    "ServiceId": "YOUR_SERVICE_ID_HERE",
+
+    "ApiKey": "YOUR_API_KEY_HERE",```json
+
+    "CallbackUrl": "https://localhost:7020/oauth/callback"{
+
+  }  "Logging": {
+
+}    "LogLevel": {
+
+```      "Default": "Information",
+
       "Microsoft.AspNetCore": "Warning"
-    }
+
+### 4. Uygulamayı Çalıştır    }
+
   },
-  "AllowedHosts": "*",
-  "Linbik": {
-    "Version": "dev2025",
-    "AppIds": ["webapi", "mobile", "desktop"],
+
+```bash  "AllowedHosts": "*",
+
+cd examples/AspNet/AspNet  "Linbik": {
+
+dotnet run    "Version": "dev2025",
+
+```    "AppIds": ["webapi", "mobile", "desktop"],
+
     "AllowAllApp": false,
-    "PublicKey": "your-public-key-here",
+
+Uygulama https://localhost:7020 adresinde başlayacak.    "PublicKey": "your-public-key-here",
+
     "JwtAuth": {
-      "PrivateKey": "your-jwt-secret-key",
+
+## 🧪 Test Senaryoları      "PrivateKey": "your-jwt-secret-key",
+
       "PkceEnabled": true,
-      "AccessTokenExpiration": 15,
+
+### Senaryo 1: Basit Authentication Flow      "AccessTokenExpiration": 15,
+
       "RefreshTokenExpiration": 15
-    },
-    "Server": {
-      "PrivateKey": "your-server-secret-key",
-      "AccessTokenExpiration": 60
-    }
+
+1. **Authorization URL Oluştur**:    },
+
+   ```    "Server": {
+
+   https://localhost:5001/auth/{SERVICE_ID}      "PrivateKey": "your-server-secret-key",
+
+   ```      "AccessTokenExpiration": 60
+
+   Tarayıcıda bu URL'yi aç.    }
+
   }
-}
+
+2. **Login Yap**: Linbik.App'te giriş yap (veya zaten giriş yapmışsan devam et)}
+
 ```
+
+3. **Consent Ver**: Hangi entegre servislere izin vereceğini seç
 
 ### 3. Run the Application
 
+4. **Callback**: Otomatik olarak `https://localhost:7020/oauth/callback?code=xxx` adresine yönlendirileceksin
+
 ```bash
-dotnet run
+
+5. **Token Response**: JSON response'da kullanıcı bilgileri ve entegre servis token'ları göreceksindotnet run
+
 ```
 
-The API will be available at:
-- **Swagger UI**: https://localhost:5001/swagger
-- **API Base**: https://localhost:5001/api
+### Senaryo 2: PKCE ile Authentication
 
-## 🏗️ Architecture
+The API will be available at:
+
+1. **Code Verifier Oluştur** (JavaScript):- **Swagger UI**: https://localhost:5001/swagger
+
+   ```javascript- **API Base**: https://localhost:5001/api
+
+   const codeVerifier = generateRandomString(128);
+
+   sessionStorage.setItem('code_verifier', codeVerifier);## 🏗️ Architecture
+
+   ```
 
 ### Dependency Injection Setup
 
-```csharp
-// Program.cs
-var builder = WebApplication.CreateBuilder(args);
+2. **Code Challenge Hesapla**:
 
-// Add Linbik Core
-var linbikBuilder = builder.Services.AddLinbik(options =>
-{
-    options.Version = LinbikVersion.Dev2025;
+   ```javascript```csharp
+
+   const codeChallenge = await sha256Base64Url(codeVerifier);// Program.cs
+
+   ```var builder = WebApplication.CreateBuilder(args);
+
+
+
+3. **Authorization URL**:// Add Linbik Core
+
+   ```var linbikBuilder = builder.Services.AddLinbik(options =>
+
+   https://localhost:5001/auth/{SERVICE_ID}/{CODE_CHALLENGE}{
+
+   ```    options.Version = LinbikVersion.Dev2025;
+
     options.AppIds = new[] { "webapi", "mobile", "desktop" };
-    options.AllowAllApp = false;
-});
 
-// Add JWT Authentication
-linbikBuilder.AddJwtAuth(jwtOptions =>
-{
-    jwtOptions.PrivateKey = builder.Configuration["Linbik:JwtAuth:PrivateKey"];
-    jwtOptions.PkceEnabled = true;
-    jwtOptions.AccessTokenExpiration = 15;
-    jwtOptions.RefreshTokenExpiration = 15;
-});
+4. **Callback'te Validation Yap**:    options.AllowAllApp = false;
+
+   ```javascript});
+
+   const response = await fetch('/oauth/callback?code=xxx');
+
+   const data = await response.json();// Add JWT Authentication
+
+   linbikBuilder.AddJwtAuth(jwtOptions =>
+
+   const storedVerifier = sessionStorage.getItem('code_verifier');{
+
+   const computedChallenge = await sha256Base64Url(storedVerifier);    jwtOptions.PrivateKey = builder.Configuration["Linbik:JwtAuth:PrivateKey"];
+
+       jwtOptions.PkceEnabled = true;
+
+   if (computedChallenge !== data.codeChallenge) {    jwtOptions.AccessTokenExpiration = 15;
+
+     throw new Error('PKCE validation failed!');    jwtOptions.RefreshTokenExpiration = 15;
+
+   }});
+
+   ```
 
 // Add Server Authentication
-linbikBuilder.AddLinbikServer(serverOptions =>
+
+### Senaryo 3: Token Bilgilerini GörüntülemelinbikBuilder.AddLinbikServer(serverOptions =>
+
 {
-    serverOptions.PrivateKey = builder.Configuration["Linbik:Server:PrivateKey"];
-    serverOptions.AccessTokenExpiration = 60;
-});
 
-// Add custom services
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+```bash    serverOptions.PrivateKey = builder.Configuration["Linbik:Server:PrivateKey"];
+
+GET https://localhost:7020/oauth/token-info    serverOptions.AccessTokenExpiration = 60;
+
+```});
+
+
+
+Response:// Add custom services
+
+```jsonbuilder.Services.AddScoped<IUserService, UserService>();
+
+{builder.Services.AddScoped<IAuthService, AuthService>();
+
+  "user": {```
+
+    "id": "guid",
+
+    "username": "sarah_wilson",### Authentication Flow
+
+    "nickname": "Sarah"
+
+  },```mermaid
+
+  "integrations": [sequenceDiagram
+
+    {    participant Client
+
+      "serviceName": "Payment Gateway",    participant WebApi
+
+      "servicePackage": "payment-gateway",    participant Linbik
+
+      "expiresAt": "2025-10-31T15:30:00Z",    participant Database
+
+      "expiresIn": 55.2,
+
+      "isExpired": false    Client->>WebApi: POST /api/auth/login
+
+    }    WebApi->>Linbik: Validate credentials
+
+  ],    Linbik->>Database: Check user
+
+  "refreshToken": {    Database->>Linbik: User data
+
+    "expiresAt": "2025-11-30T14:30:00Z",    Linbik->>WebApi: JWT token
+
+    "expiresIn": 29.8,    WebApi->>Client: Authentication response
+
+    "isExpired": false```
+
+  }
+
+}## 📋 API Endpoints
+
 ```
-
-### Authentication Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant WebApi
-    participant Linbik
-    participant Database
-
-    Client->>WebApi: POST /api/auth/login
-    WebApi->>Linbik: Validate credentials
-    Linbik->>Database: Check user
-    Database->>Linbik: User data
-    Linbik->>WebApi: JWT token
-    WebApi->>Client: Authentication response
-```
-
-## 📋 API Endpoints
 
 ### Authentication Endpoints
 
+### Senaryo 4: Token Refresh
+
 #### 1. User Login
-```http
-POST /api/auth/login
-Content-Type: application/json
 
-{
-  "username": "john_doe",
-  "password": "secure_password"
-}
-```
+```bash```http
 
-**Response:**
-```json
-{
-  "isSuccess": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...",
-    "user": {
+POST https://localhost:7020/oauth/test-refreshPOST /api/auth/login
+
+```Content-Type: application/json
+
+
+
+Response:{
+
+```json  "username": "john_doe",
+
+{  "password": "secure_password"
+
+  "success": true,}
+
+  "message": "Tokens refreshed successfully",```
+
+  "integrations": [
+
+    {**Response:**
+
+      "serviceName": "Payment Gateway",```json
+
+      "expiresAt": "2025-10-31T16:30:00Z"{
+
+    }  "isSuccess": true,
+
+  ]  "data": {
+
+}    "token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...",
+
+```    "user": {
+
       "id": "123e4567-e89b-12d3-a456-426614174000",
-      "username": "john_doe",
+
+### Senaryo 5: Integration Service Test      "username": "john_doe",
+
       "firstName": "John",
-      "lastName": "Doe",
-      "email": "john@example.com"
-    }
+
+```bash      "lastName": "Doe",
+
+POST https://localhost:7020/oauth/test-integration/payment-gateway      "email": "john@example.com"
+
+Content-Type: application/json    }
+
   }
-}
-```
 
-#### 2. App Authentication
-```http
+{}
+
+  "amount": 1000,```
+
+  "currency": "TRY"
+
+}#### 2. App Authentication
+
+``````http
+
 POST /api/auth/app-login
-Content-Type: application/json
 
-{
-  "appId": "123e4567-e89b-12d3-a456-426614174000",
-  "key": "app-secret-key"
-}
+Response:Content-Type: application/json
+
+```json
+
+{{
+
+  "success": true,  "appId": "123e4567-e89b-12d3-a456-426614174000",
+
+  "statusCode": 200,  "key": "app-secret-key"
+
+  "integration": {}
+
+    "serviceName": "Payment Gateway",```
+
+    "baseUrl": "https://payment-gateway.com"
+
+  },#### 3. Refresh Token
+
+  "response": "{ ... integration service response ... }"```http
+
+}POST /api/auth/refresh
+
+```Authorization: Bearer {refresh_token}
+
 ```
 
-#### 3. Refresh Token
-```http
-POST /api/auth/refresh
-Authorization: Bearer {refresh_token}
-```
+## 📚 API Endpoints
 
 ### User Management Endpoints
 
-#### 1. Get User Profile
-```http
-GET /api/users/profile
-Authorization: Bearer {access_token}
-```
+| Endpoint | Method | Açıklama |
+
+|----------|--------|----------|#### 1. Get User Profile
+
+| `/oauth/callback` | GET | OAuth callback endpoint (authorization code alır) |```http
+
+| `/oauth/token-info` | GET | Mevcut token bilgilerini görüntüle |GET /api/users/profile
+
+| `/oauth/test-refresh` | POST | Refresh token ile yeni token'lar al |Authorization: Bearer {access_token}
+
+| `/oauth/test-integration/{servicePackage}` | POST | Belirli bir entegre servisi test et |```
+
+| `/oauth/clear-cache` | POST | Cache'i temizle (test için) |
 
 #### 2. Update User Profile
-```http
+
+## 🔧 Troubleshooting```http
+
 PUT /api/users/profile
-Authorization: Bearer {access_token}
+
+### Problem: "Authorization code is missing"Authorization: Bearer {access_token}
+
 Content-Type: application/json
 
-{
-  "firstName": "John",
-  "lastName": "Smith",
+**Çözüm**: Authorization URL'yi doğru kullandığından emin ol:
+
+```{
+
+https://localhost:5001/auth/{DOGRU_SERVICE_ID}  "firstName": "John",
+
+```  "lastName": "Smith",
+
   "email": "john.smith@example.com"
-}
+
+### Problem: "Token exchange failed"}
+
 ```
 
-#### 3. Get All Users (Admin Only)
-```http
-GET /api/users
+**Çözüm**: 
+
+1. `appsettings.json`'daki API Key'in doğru olduğunu kontrol et#### 3. Get All Users (Admin Only)
+
+2. Linbik.App'in çalıştığından emin ol (https://localhost:5001)```http
+
+3. Service kaydının aktif olduğunu kontrol etGET /api/users
+
 Authorization: Bearer {access_token}
-```
 
-## 🔐 Security Implementation
+### Problem: "Integration service not found"```
 
-### JWT Token Validation
+
+
+**Çözüm**: ## 🔐 Security Implementation
+
+1. Linbik.App'te Service detay sayfasına git
+
+2. "Integrations" sekmesinde servislerin `IsEnabled: true` olduğunu kontrol et### JWT Token Validation
+
+3. Consent screen'de servislere izin verdiğinden emin ol
 
 ```csharp
-[ApiController]
+
+### Problem: "Token expired"[ApiController]
+
 [Route("api/[controller]")]
-[Authorize] // Requires valid JWT token
+
+**Çözüm**: `/oauth/test-refresh` endpoint'ini kullanarak token'ları yenile.[Authorize] // Requires valid JWT token
+
 public class UserController : ControllerBase
-{
+
+## 🎓 Öğrenme Kaynakları{
+
     private readonly ICurrentActor _currentActor;
-    private readonly IUserService _userService;
-    
-    public UserController(ICurrentActor currentActor, IUserService userService)
-    {
+
+- [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)    private readonly IUserService _userService;
+
+- [PKCE RFC 7636](https://tools.ietf.org/html/rfc7636)    
+
+- [Linbik.App README](../../../src/Clients/Linbik.App/README.md)    public UserController(ICurrentActor currentActor, IUserService userService)
+
+- [Linbik.App Copilot Instructions](../../../src/Clients/Linbik.App/.github/copilot-instructions.md)    {
+
         _currentActor = currentActor;
-        _userService = userService;
+
+## 📝 Notlar        _userService = userService;
+
     }
-    
-    [HttpGet("profile")]
-    public async Task<IActionResult> GetProfile()
-    {
+
+- **Token Cache**: Token'lar in-memory cache'de saklanır. Production'da Redis veya veritabanı kullanın.    
+
+- **Security**: HTTPS zorunludur. Development'ta self-signed certificate kullanabilirsiniz.    [HttpGet("profile")]
+
+- **PKCE**: Production'da PKCE kullanımı önerilir (özellikle public client'lar için).    public async Task<IActionResult> GetProfile()
+
+- **Refresh Token**: 30 gün geçerlidir. Expired olduktan sonra kullanıcının tekrar giriş yapması gerekir.    {
+
         if (!_currentActor.IsAuthenticated)
-            return Unauthorized();
+
+## 🤝 Katkıda Bulunma            return Unauthorized();
+
             
-        var userProfile = await _userService.GetUserProfileAsync(_currentActor.UserGuid.Value);
+
+Pull request'ler memnuniyetle karşılanır. Büyük değişiklikler için lütfen önce bir issue açın.        var userProfile = await _userService.GetUserProfileAsync(_currentActor.UserGuid.Value);
+
         return Ok(userProfile);
-    }
+
+## 📄 Lisans    }
+
 }
-```
+
+Bu proje özel bir lisans altında yayınlanmaktadır.```
+
 
 ### Role-Based Access Control
 

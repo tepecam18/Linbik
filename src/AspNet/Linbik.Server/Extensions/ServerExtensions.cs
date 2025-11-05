@@ -55,16 +55,17 @@ public static class ServerExtensions
     {
         var options = app.ApplicationServices.GetRequiredService<IOptions<ServerOptions>>().Value;
 
-        try
+        using (var scope = app.ApplicationServices.CreateScope())
         {
-            app.ApplicationServices.GetRequiredService<ILinbikServerRepository>();
+            var service = scope.ServiceProvider.GetService<ILinbikServerRepository>();
+            if (service == null)
+            {
+                throw new InvalidOperationException(
+                    "Please register ILinbikServerRepository in the DI container"
+                );
+            }
         }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                "Please register ILinbikServerRepository in the DI container"
-            );
-        }
+
 
         app.UseEndpoints(endpoints =>
         {

@@ -1,29 +1,55 @@
 ﻿using Linbik.Core.Responses;
+using Linbik.Core.Interfaces;
 
 namespace Linbik.JwtAuthManager.Interfaces;
 
 public interface ILinbikRepository
 {
     /// <summary>
-    /// Creates a refresh token for a user and saves it to the database
+    /// Legacy: Creates a refresh token (deprecated - use IRefreshTokenService)
     /// </summary>
-    /// <param name="userGuid">The user's unique identifier</param>
-    /// <param name="name">The user's name</param>
-    /// <returns>Tuple containing the refresh token and success status</returns>
+    [Obsolete("Use IRefreshTokenService.CreateRefreshTokenAsync instead")]
     Task<(string refreshToken, bool success)> CreateRefresToken(Guid userGuid, string name);
 
-    //TODO: sadece name yok
     /// <summary>
-    /// Logs a user login and manages user data in the database
+    /// Legacy: Uses a refresh token (deprecated - use IRefreshTokenService)
     /// </summary>
-    /// <param name="userGuid">The user's unique identifier</param>
-    /// <param name="name">The user's name</param>
+    [Obsolete("Use IRefreshTokenService.ValidateRefreshTokenAsync instead")]
     Task<TokenValidatorResponse> UseRefresToken(string token);
 
     /// <summary>
-    /// Validates a refresh token against the database
+    /// Legacy: Logs user login (deprecated)
     /// </summary>
-    /// <param name="token">The refresh token to validate</param>
-    /// <returns>Token validation response</returns>
+    [Obsolete("Use proper OAuth 2.0 authorization flow")]
     Task LoggedInUser(Guid userGuid, string name);
+
+    // === New OAuth 2.0 Methods ===
+    // Implementations should delegate to IRefreshTokenService, IServiceRepository, etc.
+    // This interface is kept for backward compatibility only
+
+    /// <summary>
+    /// Gets service by API key (delegates to IServiceRepository)
+    /// </summary>
+    Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey);
+
+    /// <summary>
+    /// Validates authorization code (delegates to IAuthorizationCodeService)
+    /// </summary>
+    Task<(bool isValid, AuthorizationCodeData? data)> ValidateAuthorizationCodeAsync(string code, Guid serviceId);
+
+    /// <summary>
+    /// Creates refresh token (delegates to IRefreshTokenService)
+    /// </summary>
+    Task<string> CreateRefreshTokenAsync(
+        Guid userId,
+        Guid profileId,
+        Guid serviceId,
+        List<Guid> grantedIntegrationServiceIds,
+        Guid authorizationCodeId,
+        string? clientIp = null);
+
+    /// <summary>
+    /// Validates refresh token (delegates to IRefreshTokenService)
+    /// </summary>
+    Task<(bool isValid, RefreshTokenData? data)> ValidateRefreshTokenAsync(string token, Guid serviceId);
 }

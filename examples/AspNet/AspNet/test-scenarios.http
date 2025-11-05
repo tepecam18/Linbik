@@ -1,0 +1,211 @@
+### Linbik OAuth 2.0 Test Scenarios
+### Base URL
+@linbik_base = https://localhost:5001
+@aspnet_base = https://localhost:7020
+
+### Variables (REPLACE THESE WITH YOUR ACTUAL VALUES)
+@service_id = YOUR_SERVICE_ID_HERE
+@api_key = YOUR_API_KEY_HERE
+
+### ============================================
+### Scenario 1: Simple OAuth Flow (Manual)
+### ============================================
+
+### Step 1.1: Open authorization URL in browser
+### Copy this URL and open in your browser:
+### {{linbik_base}}/auth/{{service_id}}
+
+### Step 1.2: After callback, view token info
+GET {{aspnet_base}}/oauth/token-info
+Accept: application/json
+
+### ============================================
+### Scenario 2: PKCE Flow (Automated)
+### ============================================
+
+### Step 2.1: Generate PKCE parameters
+GET {{aspnet_base}}/pkce/generate
+Accept: application/json
+
+### Step 2.2: Start PKCE flow
+GET {{aspnet_base}}/pkce/start?state=my-custom-state
+Accept: application/json
+
+### Response will contain:
+### - sessionId (save this)
+### - authorizationUrl (open in browser)
+### - codeVerifier (for reference)
+
+### Step 2.3: After callback, validate PKCE
+### Replace @session_id and @auth_code with actual values from callback
+@session_id = SESSION_ID_FROM_STEP_2.2
+@auth_code = AUTH_CODE_FROM_CALLBACK
+
+POST {{aspnet_base}}/pkce/validate
+Content-Type: application/json
+
+{
+  "sessionId": "{{session_id}}",
+  "authorizationCode": "{{auth_code}}"
+}
+
+### ============================================
+### Scenario 3: Token Management
+### ============================================
+
+### View current token information
+GET {{aspnet_base}}/oauth/token-info
+Accept: application/json
+
+### Refresh tokens
+POST {{aspnet_base}}/oauth/test-refresh
+Content-Type: application/json
+
+### Clear token cache
+POST {{aspnet_base}}/oauth/clear-cache
+Content-Type: application/json
+
+### ============================================
+### Scenario 4: Integration Service Testing
+### ============================================
+
+### Test integration service call
+@service_package = payment-gateway
+
+POST {{aspnet_base}}/oauth/test-integration/{{service_package}}
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "currency": "TRY",
+  "description": "Test payment"
+}
+
+### ============================================
+### Scenario 5: Authorization URL Building
+### ============================================
+
+### Simple authorization URL (no PKCE)
+### {{linbik_base}}/auth/{{service_id}}
+
+### Authorization URL with state
+### {{linbik_base}}/auth/{{service_id}}?user_session_code=my-state-123
+
+### Authorization URL with PKCE (use code challenge from /pkce/generate)
+@code_challenge = GENERATED_CODE_CHALLENGE_HERE
+### {{linbik_base}}/auth/{{service_id}}/{{code_challenge}}
+
+### Authorization URL with PKCE + state
+### {{linbik_base}}/auth/{{service_id}}/{{code_challenge}}?user_session_code=my-state-123
+
+### ============================================
+### Scenario 6: Direct Token Exchange (Advanced)
+### ============================================
+
+### This is what happens behind the scenes in /oauth/callback
+@authorization_code = YOUR_AUTH_CODE_HERE
+
+POST {{linbik_base}}/oauth/token
+ApiKey: {{api_key}}
+Code: {{authorization_code}}
+Content-Type: application/json
+
+{}
+
+### ============================================
+### Scenario 7: Refresh Token Flow (Direct)
+### ============================================
+
+@refresh_token = YOUR_REFRESH_TOKEN_HERE
+
+POST {{linbik_base}}/oauth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh_token}}",
+  "apiKey": "{{api_key}}",
+  "communityId": "{{service_id}}"
+}
+
+### ============================================
+### Scenario 8: PKCE Cleanup
+### ============================================
+
+### Clear stored PKCE code verifiers
+POST {{aspnet_base}}/pkce/clear
+Content-Type: application/json
+
+### ============================================
+### Quick Test Checklist
+### ============================================
+
+### ✅ 1. Configure variables at top of file
+### ✅ 2. Start Linbik.App (port 5001)
+### ✅ 3. Create service in Linbik.App
+### ✅ 4. Update @service_id and @api_key
+### ✅ 5. Start AspNet.Examples (port 7020)
+### ✅ 6. Run Scenario 1 or 2
+### ✅ 7. Check /oauth/token-info
+### ✅ 8. Test refresh with Scenario 3
+### ✅ 9. Test integration services (if configured)
+
+### ============================================
+### Expected Responses
+### ============================================
+
+### /oauth/token-info (Success):
+# {
+#   "user": {
+#     "id": "guid",
+#     "username": "user_name",
+#     "nickname": "Display Name"
+#   },
+#   "integrations": [
+#     {
+#       "serviceName": "Payment Gateway",
+#       "expiresAt": "2025-11-01T15:00:00Z",
+#       "expiresIn": 55.5,
+#       "isExpired": false
+#     }
+#   ],
+#   "refreshToken": {
+#     "expiresAt": "2025-12-01T14:00:00Z",
+#     "expiresIn": 29.8,
+#     "isExpired": false
+#   }
+# }
+
+### /pkce/validate (Success):
+# {
+#   "success": true,
+#   "message": "PKCE validation successful! ✅",
+#   "pkceValidation": {
+#     "verified": true,
+#     "codeVerifier": "...",
+#     "codeChallenge": "..."
+#   },
+#   "user": { ... },
+#   "integrations": [ ... ]
+# }
+
+### Token Exchange (Success):
+# {
+#   "userId": "guid",
+#   "userName": "user_name",
+#   "nickName": "Display Name",
+#   "integrations": [
+#     {
+#       "serviceId": "guid",
+#       "serviceName": "Payment Gateway",
+#       "servicePackage": "payment-gateway",
+#       "baseUrl": "https://payment.example.com",
+#       "token": "eyJhbGci...",
+#       "expiresIn": 3600,
+#       "expiresAt": "2025-11-01T15:00:00Z"
+#     }
+#   ],
+#   "refreshToken": "refresh_token_string",
+#   "refreshTokenExpiresAt": 1733068800,
+#   "codeChallenge": "challenge_string",
+#   "queryParameters": "?returnUrl=/dashboard"
+# }
