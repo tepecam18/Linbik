@@ -19,14 +19,17 @@ public class JwtAuthOptions
     /// <summary>
     /// Legacy: Login path (deprecated - use OAuth 2.0 flow)
     /// </summary>
-    [Obsolete("Use OAuth 2.0 authorization flow instead")]
     public string LoginPath { get; set; } = "/linbik/login";
+
+    /// <summary>
+    /// Legacy: Callback path (deprecated)
+    /// </summary>
+    public string CallbackPath { get; set; } = "/linbik/callback";
 
     /// <summary>
     /// Legacy: Refresh login path (deprecated)
     /// </summary>
-    [Obsolete("Use /oauth/refresh endpoint instead")]
-    public string RefreshLoginPath { get; set; } = "/linbik/refresh-token";
+    public string RefreshLoginPath { get; set; } = "/linbik/refresh";
 
     /// <summary>
     /// Legacy: Exit path (deprecated)

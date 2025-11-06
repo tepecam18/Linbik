@@ -1,45 +1,26 @@
-using AspNet.Repositories;
 using Linbik.Core.Extensions;
 using Linbik.JwtAuthManager.Extensions;
-using Linbik.Server.Extensions;
-using Linbik.Server.Interfaces;
 using Linbik.YARP.Extensions;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// MVC Services
+builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 
-builder.Services
-    .AddLinbik() // Add core Linbik services
-    .AddJwtAuth(true) // Enable JWT authentication for Linbik users
-    .AddLinbikServer() // Enable server services for Linbik applications
-    .AddProxy();// Add proxy services for Linbik applications
+builder.Services.AddDistributedMemoryCache();
 
-//builder.Services.AddLinbik(conf =>
-//{
-//    conf.appIds = new string[] { "1", "2" };
-//});
+// ✅ Linbik Core - OAuth 2.0 client services
+builder.Services.AddLinbik(builder.Configuration);
 
-builder.Services.AddSingleton<ILinbikServerRepository, LinbikServerRepository>();
+// ✅ Linbik JwtAuthManager - Login/callback/logout middleware
+builder.Services.AddLinbikJwtAuth();
 
-builder.Services
-    .AddAuthentication()
-    .AddLinbikScheme(builder.Configuration)
-    .AddLinbikAppScheme(builder.Configuration);//for server
+// ✅ Linbik YARP - API Gateway with automatic token injection
+builder.Services.AddLinbikYarp(builder.Configuration);
 
-builder.Services.AddAuthorization(options =>
-{
-    // Add policies for Use Yarp authorize attribute
-    options.AddPolicy("LinbikProxyPolicy", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-        policy.AddAuthenticationSchemes("LinbikScheme");
-    });
-});
-
-//for test
+// Logging for development
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -49,11 +30,10 @@ var app = builder.Build();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
-    options.WithTitle("Custom API");
-    options.Title = "Custom API";
+    options.WithTitle("AspNet.Examples - Linbik Integration");
+    options.Title = "AspNet.Examples API";
 });
 
-// for test
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -62,13 +42,16 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseRouting();
+
+// ✅ Linbik middleware pipeline
+app.UseLinbikAuthMiddleware(); // Handles /linbik/login, /linbik/callback, /linbik/logout
+app.UseLinbikYarpProxy(); // API Gateway with automatic JWT injection
+
 app.UseAuthentication();
 app.UseAuthorization();
-//add this line
-app.UseLinbikServer(); // Enable Linbik server endpoints
-app.UseJwtAuth();
-app.UseProxy();
 
-app.MapControllers();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Test}/{action=Index}/{id?}");
 
 app.Run();

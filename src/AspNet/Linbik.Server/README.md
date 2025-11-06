@@ -1,26 +1,20 @@
 # Linbik.Server
 
-**JWT Validation for Integration Services**
+Server-side repository interfaces and models for Linbik OAuth 2.0 Authorization Server.
 
----
+## 🚀 Features
 
-## 🎯 Purpose
+### OAuth 2.0 Authorization Server (v2.0+)
+- **Authorization Code Management** - Generate, validate, and consume codes
+- **Refresh Token Management** - Issue and revoke refresh tokens
+- **User Profile Management** - Retrieve user profile data
+- **Service Integration** - Manage service-to-service relationships
+- **User Consent Management** - Track user permissions for services
+- **Repository Pattern** - Clean abstraction for data access
 
-`Linbik.Server` provides **JWT validation** for integration services (payment gateways, courier services, survey tools, etc.). These services receive JWT tokens from main applications and need to validate them.
-
-**This library is for INTEGRATION SERVICES** - shared services used by multiple applications.
-
-### What It Does:
-✅ Validates JWT tokens with RSA public key  
-✅ Extracts user information from JWT claims  
-✅ Verifies token signature, expiration, issuer, audience  
-
-### What It Does NOT Do:
-❌ Generate JWT tokens (only **Linbik.App** does that)  
-❌ User authentication (that's for **client apps** with **Linbik.JwtAuthManager**)  
-❌ HTTP client for Linbik.App (that's **Linbik.Core**)  
-
----
+### Legacy Features (Deprecated)
+- Simple login validation (use OAuth 2.0 flow)
+- Basic app validation (use service validation)
 
 ## 📦 Installation
 
@@ -28,372 +22,344 @@
 dotnet add package Linbik.Server
 ```
 
----
-
 ## 🔧 Configuration
 
-### appsettings.json
-
-```json
+```csharp
+services.AddLinbikServer(options =>
 {
-  "LinbikServer": {
-    "PublicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjAN...\n-----END PUBLIC KEY-----",
-    "Issuer": "Linbik",
-    "Audience": "payment-gateway",  // Your service package name
-    "ValidateLifetime": true,
-    "ClockSkewMinutes": 1
-  }
-}
+    options.ServerUrl = "https://linbik.com";
+    options.AuthorizationEndpoint = "/auth/{serviceId}/{codeChallenge?}";
+    options.TokenEndpoint = "/oauth/token";
+    options.RefreshEndpoint = "/oauth/refresh";
+    options.ConsentEndpoint = "/auth/consent";
+    options.RequireHttps = true;
+    options.RequirePKCE = false;  // Optional but recommended
+});
 ```
 
-### Get Your Public Key
+## 📚 Main Interface
 
-1. Register your service in **Linbik.App** as an **Integration Service**
-2. Go to `/Service/Edit/{your-service-id}`
-3. Copy the **Public Key** (PEM format)
-4. Add to appsettings.json
+### ILinbikServerRepository
 
-### Program.cs
+Complete repository interface for OAuth 2.0 operations:
 
 ```csharp
-using Linbik.Server.Extensions;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// Add JWT authentication with Linbik public key
-builder.Services.AddLinbikJwtAuthentication(builder.Configuration);
-
-builder.Services.AddControllers();
-
-var app = builder.Build();
-
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-
-app.Run();
+public interface ILinbikServerRepository
+{
+    // Authorization Code Management
+    Task<string> CreateAuthorizationCodeAsync(/* parameters */);
+    Task<(bool isValid, AuthorizationCodeData? data)> ValidateAndUseAuthorizationCodeAsync(string code, Guid serviceId);
+    
+    // Refresh Token Management
+    Task<string> CreateRefreshTokenAsync(/* parameters */);
+    Task<(bool isValid, RefreshTokenData? data)> ValidateRefreshTokenAsync(string token, Guid serviceId);
+    Task<bool> RevokeRefreshTokenAsync(string token);
+    
+    // User & Profile Management
+    Task<UserData?> GetUserByIdAsync(Guid userId);
+    Task<ProfileData?> GetUserProfileAsync(Guid userId, Guid profileId);
+    
+    // Service Management
+    Task<ServiceData?> GetServiceByIdAsync(Guid serviceId);
+    Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey);
+    Task<List<ServiceData>> GetGrantedIntegrationServicesAsync(Guid userId, Guid mainServiceId);
+    
+    // User Consent Management
+    Task SaveUserConsentsAsync(Guid userId, Guid mainServiceId, Guid profileId, List<Guid> grantedServiceIds);
+    
+    // Legacy Methods (Deprecated)
+    [Obsolete] Task<bool> ValidateUserCredentialsAsync(string email, string password);
+}
 ```
-
----
 
 ## 💻 Usage Examples
 
-### 1. Protected API Endpoint
+### 1. Authorization Code Flow
+
+#### Generate Authorization Code
 
 ```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-
-[Authorize]
-[ApiController]
-[Route("api")]
-public class PaymentController : ControllerBase
+public class OAuthController : Controller
 {
-    private readonly IPaymentService _paymentService;
+    private readonly ILinbikServerRepository _repository;
 
-    public PaymentController(IPaymentService paymentService)
+    [HttpGet("/auth/{serviceId}/{codeChallenge?}")]
+    public async Task<IActionResult> Authorize(Guid serviceId, string? codeChallenge)
     {
-        _paymentService = paymentService;
-    }
-
-    [HttpPost("charge")]
-    public async Task<IActionResult> Charge([FromBody] ChargeRequest request)
-    {
-        // Extract user info from JWT claims
-        var userId = User.FindFirstValue("userId");
-        var userName = User.FindFirstValue("userName");
-        var nickName = User.FindFirstValue("nickName");
+        // 1. Check user authentication (cookie)
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return RedirectToAction("Login");
         
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("Invalid token");
+        // 2. Get service details
+        var service = await _repository.GetServiceByIdAsync(serviceId);
+        if (service == null) return NotFound("Service not found");
         
-        // Find user's payment method in YOUR database
-        var paymentMethod = await _paymentService.GetUserPaymentMethodAsync(
-            Guid.Parse(userId)
+        // 3. Get integration services (if any)
+        var integrations = await _repository.GetGrantedIntegrationServicesAsync(
+            Guid.Parse(userId), 
+            serviceId
         );
         
-        if (paymentMethod == null)
-            return NotFound("No payment method found for this user");
+        // 4. Show consent screen or auto-generate code
+        // (Implementation depends on your UI)
         
-        // Process payment
-        var result = await _paymentService.ChargeAsync(
-            paymentMethod,
-            request.Amount
+        // 5. Generate authorization code
+        var code = await _repository.CreateAuthorizationCodeAsync(
+            serviceId: serviceId,
+            userId: Guid.Parse(userId),
+            profileId: userProfileId,
+            grantedIntegrationServiceIds: integrations.Select(i => i.Id).ToArray(),
+            codeChallenge: codeChallenge,
+            expiresAt: DateTime.UtcNow.AddMinutes(10)
         );
         
-        return Ok(result);
+        // 6. Redirect to service callback
+        return Redirect($"{service.BaseUrl}{service.CallbackPath}?code={code}");
     }
 }
 ```
 
-### 2. Database Model (Example)
+#### Token Exchange
 
 ```csharp
-// In YOUR service's database
-public class UserPaymentMethod
+[HttpPost("/oauth/token")]
+public async Task<IActionResult> ExchangeToken()
 {
-    public Guid Id { get; set; }
+    // 1. Extract headers
+    var apiKey = Request.Headers["ApiKey"].ToString();
+    var code = Request.Headers["Code"].ToString();
     
-    // This is the key: Linbik user ID
-    public Guid LinbikUserId { get; set; }
+    // 2. Validate service by API key
+    var service = await _repository.GetServiceByApiKeyAsync(apiKey);
+    if (service == null) return Unauthorized("Invalid API key");
     
-    // Your service's data
-    public string CardToken { get; set; }
-    public string Last4 { get; set; }
-    public string CardBrand { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-
-// When user adds payment method first time:
-[Authorize]
-[HttpPost("api/payment-method")]
-public async Task<IActionResult> AddPaymentMethod([FromBody] AddPaymentMethodRequest request)
-{
-    var linbikUserId = User.FindFirstValue("userId");
+    // 3. Validate and consume authorization code
+    var (isValid, authData) = await _repository.ValidateAndUseAuthorizationCodeAsync(
+        code, 
+        service.Id
+    );
+    if (!isValid) return BadRequest("Invalid or expired code");
     
-    // Store payment method with Linbik user ID
-    var paymentMethod = new UserPaymentMethod
-    {
-        Id = Guid.NewGuid(),
-        LinbikUserId = Guid.Parse(linbikUserId),
-        CardToken = request.CardToken,
-        Last4 = request.Last4,
-        CardBrand = request.CardBrand,
-        CreatedAt = DateTime.UtcNow
-    };
-    
-    await _db.UserPaymentMethods.AddAsync(paymentMethod);
-    await _db.SaveChangesAsync();
-    
-    return Ok(paymentMethod);
-}
-```
-
-### 3. User Claims Extraction
-
-```csharp
-public class UserClaimsService
-{
-    public LinbikUserInfo GetUserInfoFromClaims(ClaimsPrincipal user)
-    {
-        return new LinbikUserInfo
-        {
-            UserId = Guid.Parse(user.FindFirstValue("userId")!),
-            UserName = user.FindFirstValue("userName")!,
-            NickName = user.FindFirstValue("nickName")!,
-            // JWT standard claims
-            Issuer = user.FindFirstValue("iss"),
-            Subject = user.FindFirstValue("sub"),  // Main service ID
-            Audience = user.FindFirstValue("aud"),  // Your service ID
-            ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(
-                long.Parse(user.FindFirstValue("exp")!)
-            ).DateTime
-        };
-    }
-}
-
-public class LinbikUserInfo
-{
-    public Guid UserId { get; set; }
-    public string UserName { get; set; }
-    public string NickName { get; set; }
-    public string? Issuer { get; set; }
-    public string? Subject { get; set; }
-    public string? Audience { get; set; }
-    public DateTime ExpiresAt { get; set; }
-}
-```
-
-### 4. Multiple Services Example
-
-```csharp
-// Courier Service
-[Authorize]
-[HttpPost("api/shipment")]
-public async Task<IActionResult> CreateShipment([FromBody] ShipmentRequest request)
-{
-    var linbikUserId = Guid.Parse(User.FindFirstValue("userId")!);
-    
-    // Find user's address in YOUR database
-    var address = await _db.UserAddresses
-        .FirstOrDefaultAsync(a => a.LinbikUserId == linbikUserId);
-    
-    if (address == null)
-        return NotFound("No address found");
-    
-    var shipment = await _courierService.CreateShipmentAsync(
-        address,
-        request.Items
+    // 4. Get user profile
+    var profile = await _repository.GetUserProfileAsync(
+        authData.UserId, 
+        authData.ProfileId
     );
     
-    return Ok(shipment);
-}
-
-// Survey Service
-[Authorize]
-[HttpPost("api/survey/response")]
-public async Task<IActionResult> SubmitResponse([FromBody] SurveyResponse response)
-{
-    var linbikUserId = Guid.Parse(User.FindFirstValue("userId")!);
-    var userName = User.FindFirstValue("userName")!;
+    // 5. Get integration services
+    var integrationServices = await _repository.GetGrantedIntegrationServicesAsync(
+        authData.UserId, 
+        service.Id
+    );
     
-    // Store survey response with Linbik user info
-    var surveyResponse = new SurveyResponseEntity
+    // 6. Generate JWT for each integration service
+    var integrationTokens = new List<IntegrationToken>();
+    foreach (var integration in integrationServices)
     {
-        Id = Guid.NewGuid(),
-        LinbikUserId = linbikUserId,
-        LinbikUserName = userName,
-        SurveyId = response.SurveyId,
-        Answers = response.Answers,
-        SubmittedAt = DateTime.UtcNow
-    };
+        var token = await _jwtHelper.CreateTokenAsync(
+            claims: new[] {
+                new Claim("userId", authData.UserId.ToString()),
+                new Claim("userName", profile.UserName),
+                new Claim("nickName", profile.NickName)
+            },
+            privateKey: integration.PrivateKey,
+            audience: integration.Id.ToString(),
+            expirationMinutes: 60
+        );
+        
+        integrationTokens.Add(new IntegrationToken
+        {
+            ServiceId = integration.Id,
+            ServiceName = integration.Name,
+            ServicePackage = integration.PackageName,
+            BaseUrl = integration.BaseUrl,
+            Token = token,
+            ExpiresIn = 3600,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(60)
+        });
+    }
     
-    await _db.SurveyResponses.AddAsync(surveyResponse);
-    await _db.SaveChangesAsync();
+    // 7. Create refresh token
+    var refreshToken = await _repository.CreateRefreshTokenAsync(
+        serviceId: service.Id,
+        userId: authData.UserId,
+        profileId: authData.ProfileId,
+        grantedIntegrationServiceIds: integrationServices.Select(i => i.Id).ToArray(),
+        expiresAt: DateTime.UtcNow.AddDays(30)
+    );
     
-    return Ok(surveyResponse);
+    // 8. Return response
+    return Ok(new MultiServiceTokenResponse
+    {
+        UserId = authData.UserId,
+        UserName = profile.UserName,
+        NickName = profile.NickName,
+        Integrations = integrationTokens,
+        RefreshToken = refreshToken,
+        RefreshTokenExpiresAt = DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds(),
+        CodeChallenge = authData.CodeChallenge  // For PKCE validation
+    });
 }
 ```
 
----
-
-## 🏗️ Architecture
-
-```
-┌────────────────────────────────────────┐
-│   Main App (e.g., MyBlog)              │
-│   - Has integration tokens             │
-│   - Calls integration services         │
-└───────────┬────────────────────────────┘
-            │
-            │ HTTP Request
-            │ Authorization: Bearer {jwt}
-            ↓
-┌────────────────────────────────────────┐
-│   Integration Service                  │
-│   (Payment Gateway / Courier / etc.)   │
-│   - Linbik.Server (this)               │
-│   - Validates JWT with public key      │
-│   - Extracts userId, userName          │
-│   - Looks up user data in own DB       │
-└────────────────────────────────────────┘
-```
-
----
-
-## 🔑 JWT Token Structure
-
-When your service receives a JWT:
-
-```json
-{
-  "userId": "12345678-1234-1234-1234-123456789abc",
-  "userName": "sarah_wilson",
-  "nickName": "Sarah",
-  "iat": 1698765432,
-  "exp": 1698769032,
-  "iss": "Linbik",
-  "sub": "main-service-guid",
-  "aud": "your-service-guid"
-}
-```
-
-**Key Claims:**
-- `userId` - Linbik user ID (use as foreign key)
-- `userName` - User's unique username
-- `nickName` - User's display name
-- `iss` - Issuer (always "Linbik")
-- `sub` - Main service that requested the token
-- `aud` - Your service ID (audience)
-- `exp` - Expiration timestamp (Unix)
-
----
-
-## 🔄 Token Validation Flow
-
-1. **Main app calls your API**
-   ```
-   POST /api/charge
-   Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
-   ```
-
-2. **ASP.NET Core middleware validates JWT**
-   - Checks signature with your public key
-   - Verifies issuer ("Linbik")
-   - Verifies audience (your service ID)
-   - Checks expiration time
-
-3. **If valid** → Request proceeds to controller
-   ```csharp
-   [Authorize]  // This ensures JWT is valid
-   public async Task<IActionResult> Charge(...)
-   ```
-
-4. **Extract user info from claims**
-   ```csharp
-   var userId = User.FindFirstValue("userId");
-   ```
-
-5. **Look up user data in your database**
-   ```csharp
-   var userData = await _db.Users.FindAsync(Guid.Parse(userId));
-   ```
-
----
-
-## 📋 Configuration Options
+### 2. Refresh Token Flow
 
 ```csharp
-public class LinbikServerOptions
+[HttpPost("/oauth/refresh")]
+public async Task<IActionResult> RefreshToken()
 {
-    /// <summary>
-    /// RSA public key (PEM format) from Linbik.App
-    /// </summary>
-    public string PublicKey { get; set; }
+    var apiKey = Request.Headers["ApiKey"].ToString();
+    var refreshToken = Request.Headers["RefreshToken"].ToString();
     
-    /// <summary>
-    /// Expected token issuer
-    /// Default: "Linbik"
-    /// </summary>
-    public string Issuer { get; set; } = "Linbik";
+    // 1. Validate service
+    var service = await _repository.GetServiceByApiKeyAsync(apiKey);
+    if (service == null) return Unauthorized();
     
-    /// <summary>
-    /// Your service package name (token audience)
-    /// </summary>
-    public string Audience { get; set; }
+    // 2. Validate refresh token
+    var (isValid, tokenData) = await _repository.ValidateRefreshTokenAsync(
+        refreshToken, 
+        service.Id
+    );
+    if (!isValid) return BadRequest("Invalid or expired refresh token");
     
-    /// <summary>
-    /// Validate token lifetime
-    /// Default: true
-    /// </summary>
-    public bool ValidateLifetime { get; set; } = true;
+    // 3. Get user profile
+    var profile = await _repository.GetUserProfileAsync(
+        tokenData.UserId, 
+        tokenData.ProfileId
+    );
     
-    /// <summary>
-    /// Clock skew tolerance in minutes
-    /// Default: 1 minute
-    /// </summary>
-    public int ClockSkewMinutes { get; set; } = 1;
+    // 4. Re-generate integration tokens (same logic as token exchange)
+    // ...
+    
+    return Ok(new MultiServiceTokenResponse { /* ... */ });
 }
 ```
 
----
+### 3. User Consent Management
 
-## 🔗 Related Libraries
+```csharp
+[HttpPost("/auth/consent")]
+public async Task<IActionResult> SaveConsent(ConsentModel model)
+{
+    await _repository.SaveUserConsentsAsync(
+        userId: model.UserId,
+        mainServiceId: model.ServiceId,
+        profileId: model.ProfileId,
+        grantedServiceIds: model.SelectedIntegrationIds
+    );
+    
+    // Continue with authorization code generation...
+    return RedirectToAction("Authorize");
+}
+```
 
-- **Linbik.Core** - HTTP client for Linbik.App (not needed for integration services)
-- **Linbik.JwtAuthManager** - User authentication (not needed for integration services)
-- **Linbik.YARP** - API Gateway (can work with Linbik.Server)
+## 🗄️ Data Models
 
----
+### AuthorizationCodeData
+
+```csharp
+public class AuthorizationCodeData
+{
+    public string Code { get; set; }
+    public Guid ServiceId { get; set; }
+    public Guid UserId { get; set; }
+    public Guid ProfileId { get; set; }
+    public Guid[] GrantedIntegrationServiceIds { get; set; }
+    public string? CodeChallenge { get; set; }  // For PKCE
+    public DateTime ExpiresAt { get; set; }
+    public bool IsUsed { get; set; }
+}
+```
+
+### RefreshTokenData
+
+```csharp
+public class RefreshTokenData
+{
+    public string Token { get; set; }
+    public Guid ServiceId { get; set; }
+    public Guid UserId { get; set; }
+    public Guid ProfileId { get; set; }
+    public Guid[] GrantedIntegrationServiceIds { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public bool IsRevoked { get; set; }
+}
+```
+
+### ServiceData
+
+```csharp
+public class ServiceData
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; }
+    public string PackageName { get; set; }
+    public string BaseUrl { get; set; }
+    public string CallbackPath { get; set; }
+    public string ApiKey { get; set; }
+    public string? PrivateKey { get; set; }      // For integration services
+    public string? PublicKey { get; set; }       // For integration services
+    public bool IsIntegrationService { get; set; }
+    public string? AllowedIPs { get; set; }      // CIDR notation
+}
+```
+
+## 🔒 Security Considerations
+
+### API Key Validation
+✅ Always validate API key before token operations  
+✅ Use secure random generation for API keys  
+✅ Consider hashing API keys in database (TODO in Linbik.App)
+
+### Authorization Code Security
+✅ Single-use codes (mark as used immediately)  
+✅ Short expiration (5-10 minutes recommended)  
+✅ Bind to specific service ID  
+✅ Optional PKCE support for public clients
+
+### Refresh Token Security
+✅ Long expiration (30 days default)  
+✅ Store securely with revocation capability  
+✅ Invalidate on logout or suspicious activity  
+✅ Rotate on each refresh (optional)
+
+### IP Whitelisting
+```csharp
+// Check if request IP is allowed
+if (!string.IsNullOrEmpty(service.AllowedIPs))
+{
+    var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+    if (!IsIpAllowed(clientIp, service.AllowedIPs))
+        return Forbid("IP not allowed");
+}
+```
+
+## 🔄 Migration from v1.x
+
+```csharp
+// ❌ Old way (v1.x)
+var isValid = await _repository.ValidateUserCredentialsAsync(email, password);
+
+// ✅ New way (v2.0+)
+// Use authorization code flow with cookies
+// Client redirects to /auth/{serviceId}
+// Server generates authorization code
+// Client exchanges code for tokens
+```
+
+## 📖 Documentation
+
+- [Full Documentation](https://github.com/tepecam18/Linbik)
+- [Migration Guide](../../../MIGRATION_GUIDE.md)
+- [Examples](../../../examples/AspNet/AspNet)
 
 ## 📄 License
 
-See main repository LICENSE
+This library is currently a work in progress and is not ready for production use.
+
+**Contact**: info@linbik.com
 
 ---
 
-**Version**: 2.0.0  
-**Purpose**: JWT validation for integration services  
-**For**: Shared services (payment, courier, survey, etc.)  
+**Version**: 2.0.0 (OAuth 2.0 Authorization Server)  
 **Last Updated**: 1 Kasım 2025

@@ -16,12 +16,19 @@ public static class LinbikServiceCollectionExtensions
         return new LinbikBuilder(services);
     }
 
+    public static LinbikBuilder AddLinbik(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
+        AddCommonAuthServices(services);
+        return new LinbikBuilder(services);
+    }
+
     public static LinbikBuilder AddLinbik(this IServiceCollection services)
     {
         var serviceProvider = services.BuildServiceProvider();
         var configuration = serviceProvider.GetService<IConfiguration>();
 
-        services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
+        services.Configure<LinbikOptions>(configuration?.GetSection("Linbik") ?? throw new InvalidOperationException("Linbik configuration section not found"));
         AddCommonAuthServices(services);
         return new LinbikBuilder(services);
     }
@@ -29,6 +36,21 @@ public static class LinbikServiceCollectionExtensions
     // Ortak servis kayıtlarını tek bir yerde topladık.
     private static void AddCommonAuthServices(IServiceCollection services)
     {
+        // Add HttpContextAccessor for session access
+        services.AddHttpContextAccessor();
+
+        // Add session services
+        services.AddSession(options =>
+        {
+            options.IdleTimeout = TimeSpan.FromHours(24); // 24 hour session
+            options.Cookie.HttpOnly = true;
+            options.Cookie.IsEssential = true;
+        });
+
+        // Add HttpClient for LinbikClient
+        services.AddHttpClient<IAuthService, LinbikClient>();
+
+        // Legacy token validator
         services.AddSingleton<ITokenValidator, TokenValidator>();
     }
 }

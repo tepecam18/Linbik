@@ -6,7 +6,18 @@ public class LinbikOptions
     /// Linbik server base URL (e.g., "https://linbik.com")
     /// Used for authorization redirects and token exchange
     /// </summary>
-    public string ServerUrl { get; set; } = string.Empty;
+    public string ServerUrl { get; set; } = "https://linbik.com";
+
+    /// <summary>
+    /// application's service ID (from Linbik service registration)
+    /// </summary>
+    public string ServiceId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Client application's API key (from Linbik service registration)
+    /// Used for token exchange and refresh operations
+    /// </summary>
+    public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
     /// Authorization endpoint path (default: "/auth")
@@ -47,7 +58,7 @@ public class LinbikOptions
     /// <summary>
     /// JWT issuer name (default: "linbik")
     /// </summary>
-    public string JwtIssuer { get; set; } = "linbik";
+    public string JwtIssuer { get; set; } = "Linbik";
 
     /// <summary>
     /// Legacy: Allowed app IDs (deprecated - use service registration instead)

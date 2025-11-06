@@ -1,25 +1,26 @@
-using Linbik.JwtAuthManager.Extensions;
-using Linbik.Server.Extensions;
+using AspNet.Models;
+using Linbik.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AspNet.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class TestController(ILogger<TestController> logger) : ControllerBase
+public class TestController(IAuthService authService) : Controller
 {
-    [HttpGet("user")]
-    [LinbikAuthorize]
-    public async Task<ActionResult> Get()
+    /// <summary>
+    /// Ana dashboard sayfası - Kullanıcı durumu ve token bilgilerini gösterir
+    /// </summary>
+    public async Task<IActionResult> Index()
     {
-        return Ok("ok user");
-    }
-
-    //app test
-    [HttpGet("app")]
-    [LinbikAppAuthorize]
-    public async Task<ActionResult> GetApp()
-    {
-        return Ok("ok app");
+        var profile = await authService.GetUserProfileAsync(HttpContext);
+        var tokens = await authService.GetIntegrationTokensAsync(HttpContext);
+        
+        var model = new DashboardViewModel
+        {
+            IsLoggedIn = profile != null,
+            Profile = profile,
+            Tokens = tokens ?? new List<IntegrationToken>()
+        };
+        
+        return View(model);
     }
 }
