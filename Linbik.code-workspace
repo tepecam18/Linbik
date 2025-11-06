@@ -1,33 +1,116 @@
 {
-	"folders": [
-		{
-			"path": "src/AspNet/Linbik.Core",
-			"name": "Linbik.Core"
-		},
-		{
-			"path": "src/AspNet/Linbik.JwtAuthManager",
-			"name": "Linbik.JwtAuthManager"
-		},
-		{
-			"path": "src/AspNet/Linbik.Server",
-			"name": "Linbik.Server"
-		},
-		{
-			"path": "src/AspNet/Linbik.YARP",
-			"name": "Linbik.YARP"
-		},
-		{
-			"path": "examples/AspNet/AspNet",
-			"name": "AspNet.Examples"
-		},
-		{
-			"path": "examples/nuxt",
-			"name": "Nuxt.Examples"
-		},
-		{
-			"path": "../ptts/src/Clients/Linbik.App",
-			"name": "Linbik.App"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": "src/AspNet/Linbik.Core",
+      "name": "Linbik.Core"
+    },
+    {
+      "path": "src/AspNet/Linbik.JwtAuthManager",
+      "name": "Linbik.JwtAuthManager"
+    },
+    {
+      "path": "src/AspNet/Linbik.Server",
+      "name": "Linbik.Server"
+    },
+    {
+      "path": "src/AspNet/Linbik.YARP",
+      "name": "Linbik.YARP"
+    },
+    {
+      "path": "examples/AspNet/AspNet",
+      "name": "AspNet.Examples"
+    },
+    {
+      "path": "examples/nuxt",
+      "name": "Nuxt.Examples"
+    },
+    {
+      "path": "../ptts/src/Clients/Linbik.App",
+      "name": "Linbik.App"
+    }
+  ],
+  "settings": {},
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "App build",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "build",
+          "${workspaceFolder:Linbik.App}/Linbik.App.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "presentation": {
+          "reveal": "silent",
+          "panel": "shared"
+        }
+      },
+      {
+        "label": "AspNet.Examples build",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "build",
+          "${workspaceFolder:AspNet.Examples}/AspNet.csproj",
+          "/property:GenerateFullPaths=true",
+          "/consoleloggerparameters:NoSummary"
+        ],
+        "problemMatcher": "$msCompile",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "presentation": {
+          "reveal": "silent",
+          "panel": "shared"
+        }
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "App",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "App build",
+        "program": "${workspaceFolder:Linbik.App}/bin/Debug/net9.0/Linbik.App.dll",
+        "cwd": "${workspaceFolder:Linbik.App}",
+        "stopAtEntry": false,
+        "justMyCode": true,
+        "requireExactSource": true,
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      },
+      {
+        "name": "AspNet",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "AspNet.Examples build",
+        "program": "${workspaceFolder:AspNet.Examples}/bin/Debug/net9.0/AspNet.dll",
+        "cwd": "${workspaceFolder:AspNet.Examples}",
+        "stopAtEntry": false,
+        "justMyCode": true,
+        "requireExactSource": true,
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      }
+    ],
+    "compounds": [
+      {
+        "name": ".NET Test",
+        "configurations": ["App", "AspNet"]
+      }
+    ]
+  }
 }
