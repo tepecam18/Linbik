@@ -7,7 +7,7 @@ public interface ITokenProvider
     /// <summary>
     /// Legacy: Gets a single JWT token (deprecated - use GetMultiServiceTokenAsync)
     /// </summary>
-    [Obsolete("Use GetMultiServiceTokenAsync for OAuth 2.0 flow with multi-service support")]
+    [Obsolete("Use GetMultiServiceTokenAsync for multi-service support")]
     Task<string> GetTokenAsync(string baseUrl, string clientId, string clientSecret);
 
     /// <summary>

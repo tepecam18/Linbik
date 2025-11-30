@@ -20,10 +20,10 @@ public interface ILinbikRepository
     /// <summary>
     /// Legacy: Logs user login (deprecated)
     /// </summary>
-    [Obsolete("Use proper OAuth 2.0 authorization flow")]
+    [Obsolete("Use proper authorization flow")]
     Task LoggedInUser(Guid userGuid, string name);
 
-    // === New OAuth 2.0 Methods ===
+    // === New Authorization Methods ===
     // Implementations should delegate to IRefreshTokenService, IServiceRepository, etc.
     // This interface is kept for backward compatibility only
 

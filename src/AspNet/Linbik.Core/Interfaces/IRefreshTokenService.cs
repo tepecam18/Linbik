@@ -1,7 +1,7 @@
 namespace Linbik.Core.Interfaces;
 
 /// <summary>
-/// Service for managing OAuth 2.0 refresh tokens
+/// Service for managing refresh tokens
 /// </summary>
 public interface IRefreshTokenService
 {

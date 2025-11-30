@@ -1,5 +1,6 @@
 using AspNet.Models;
 using Linbik.Core.Interfaces;
+using Linbik.Core.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AspNet.Controllers;
@@ -18,7 +19,7 @@ public class TestController(IAuthService authService) : Controller
         {
             IsLoggedIn = profile != null,
             Profile = profile,
-            Tokens = tokens ?? new List<IntegrationToken>()
+            Tokens = tokens ?? new List<LinbikIntegrationToken>()
         };
         
         return View(model);

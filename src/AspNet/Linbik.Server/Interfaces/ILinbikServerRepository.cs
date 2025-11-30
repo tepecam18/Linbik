@@ -9,10 +9,10 @@ public interface ILinbikServerRepository
     /// <summary>
     /// Legacy: Validates app login credentials
     /// </summary>
-    [Obsolete("Use GetServiceByApiKeyAsync with OAuth 2.0 flow instead")]
+    [Obsolete("Use GetServiceByApiKeyAsync with authorization code flow instead")]
     Task<AppLoginValidationResponse> AppLoginValidationsAsync(AppLoginModel request);
 
-    // === OAuth 2.0 Authorization Code Flow ===
+    // === Authorization Code Flow ===
 
     /// <summary>
     /// Gets service by API key (for token exchange authentication)

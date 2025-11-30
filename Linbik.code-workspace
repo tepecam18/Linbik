@@ -78,7 +78,7 @@
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "App",
+        "name": "Main App",
         "type": "coreclr",
         "request": "launch",
         "preLaunchTask": "App build",
@@ -92,7 +92,7 @@
         }
       },
       {
-        "name": "AspNet",
+        "name": ".NET",
         "type": "coreclr",
         "request": "launch",
         "preLaunchTask": "AspNet.Examples build",
@@ -108,8 +108,8 @@
     ],
     "compounds": [
       {
-        "name": ".NET Test",
-        "configurations": ["App", "AspNet"]
+        "name": ".NET+App",
+        "configurations": ["Main App", ".NET"]
       }
     ]
   }

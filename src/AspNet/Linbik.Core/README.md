@@ -1,10 +1,10 @@
 # Linbik.Core
 
-Core library for the Linbik Authentication Framework with OAuth 2.0 Authorization Code Flow support.
+Core library for the Linbik Authentication Framework with Authorization Code Flow support.
 
 ## 🚀 Features
 
-### OAuth 2.0 Support (v2.0+)
+### Authorization Code Support (v2.0+)
 - **Authorization Code Flow** with PKCE support
 - **Multi-Service Integration** - Issue multiple JWT tokens in single response
 - **Refresh Token Management** - Long-lived token renewal
@@ -12,7 +12,7 @@ Core library for the Linbik Authentication Framework with OAuth 2.0 Authorizatio
 - **Service Repository** - Manage service registration and validation
 
 ### Legacy Features (Deprecated)
-- Simple JWT authentication (use OAuth 2.0 instead)
+- Simple JWT authentication (use authorization code flow instead)
 - Basic token validation (use per-service validation)
 
 ## 📦 Installation
@@ -23,7 +23,7 @@ dotnet add package Linbik.Core
 
 ## 🔧 Configuration
 
-### OAuth 2.0 Setup (Recommended)
+### Authorization Code Setup (Recommended)
 
 ```csharp
 services.AddLinbik(options =>
@@ -55,7 +55,7 @@ public interface IJwtHelper
 ```
 
 ### IAuthorizationCodeService
-Manages OAuth 2.0 authorization codes (5-10 minute validity, single-use).
+Manages authorization codes (5-10 minute validity, single-use).
 
 ```csharp
 public interface IAuthorizationCodeService
@@ -88,6 +88,55 @@ public interface IRefreshTokenService
     Task<string> CreateRefreshTokenAsync(/* parameters */);
     Task<(bool isValid, RefreshTokenData? data)> ValidateRefreshTokenAsync(string token, Guid serviceId);
     Task<bool> RevokeRefreshTokenAsync(string token);
+}
+```
+
+### ILinbikAuthClient
+HTTP client for communicating with Linbik.App OAuth endpoints.
+
+```csharp
+public interface ILinbikAuthClient
+{
+    /// <summary>
+    /// Exchange authorization code for tokens
+    /// POST {LinbikUrl}/oauth/token
+    /// </summary>
+    Task<LinbikTokenResponse?> ExchangeCodeAsync(string code);
+    
+    /// <summary>
+    /// Refresh tokens using refresh token
+    /// POST {LinbikUrl}/oauth/refresh
+    /// </summary>
+    Task<LinbikTokenResponse?> RefreshTokensAsync(string refreshToken);
+}
+```
+
+**Usage:**
+```csharp
+// In Program.cs - automatically registered with AddLinbik()
+builder.Services.AddLinbik(builder.Configuration);
+
+// In your code
+public class MyService
+{
+    private readonly ILinbikAuthClient _linbikClient;
+    
+    public MyService(ILinbikAuthClient linbikClient)
+    {
+        _linbikClient = linbikClient;
+    }
+    
+    public async Task HandleCallback(string code)
+    {
+        var response = await _linbikClient.ExchangeCodeAsync(code);
+        if (response != null)
+        {
+            // response.UserId
+            // response.Username
+            // response.Integrations (list of JWT tokens for each service)
+            // response.RefreshToken
+        }
+    }
 }
 ```
 
@@ -154,5 +203,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (OAuth 2.0 Support)  
+**Version**: 2.0.0 (Authorization Code Support)  
 **Last Updated**: 1 Kasım 2025

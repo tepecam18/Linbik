@@ -1,8 +1,8 @@
 namespace Linbik.Core.Models;
 
 /// <summary>
-/// OAuth 2.0 multi-service token response
-/// Returned when exchanging authorization code for tokens
+/// Multi-service token response (YARP compatibility)
+/// Maps to LinbikTokenResponse with different property names for YARP proxy
 /// </summary>
 public class MultiServiceTokenResponse
 {
@@ -12,23 +12,22 @@ public class MultiServiceTokenResponse
     public Guid UserId { get; set; }
 
     /// <summary>
-    /// User's profile username
+    /// User's profile username (maps to LinbikTokenResponse.Username)
     /// </summary>
     public string UserName { get; set; } = string.Empty;
 
     /// <summary>
-    /// User's display name (nickname)
+    /// User's display name (maps to LinbikTokenResponse.DisplayName)
     /// </summary>
     public string NickName { get; set; } = string.Empty;
 
     /// <summary>
     /// List of integration service tokens
-    /// Each service gets its own JWT token signed with that service's private key
     /// </summary>
     public List<IntegrationToken> Integrations { get; set; } = new();
 
     /// <summary>
-    /// Refresh token for obtaining new access tokens (30 days validity)
+    /// Refresh token for obtaining new access tokens
     /// </summary>
     public string RefreshToken { get; set; } = string.Empty;
 
@@ -39,7 +38,6 @@ public class MultiServiceTokenResponse
 
     /// <summary>
     /// PKCE code challenge (returned for client-side validation)
-    /// Client should verify this matches their SHA-256 hash of code_verifier
     /// </summary>
     public string? CodeChallenge { get; set; }
 
@@ -47,11 +45,36 @@ public class MultiServiceTokenResponse
     /// Original query parameters preserved from authorization request
     /// </summary>
     public string? QueryParameters { get; set; }
+
+    /// <summary>
+    /// Convert from LinbikTokenResponse
+    /// </summary>
+    public static MultiServiceTokenResponse FromLinbikResponse(LinbikTokenResponse response)
+    {
+        return new MultiServiceTokenResponse
+        {
+            UserId = response.UserId,
+            UserName = response.Username,
+            NickName = response.DisplayName,
+            RefreshToken = response.RefreshToken ?? string.Empty,
+            RefreshTokenExpiresAt = response.RefreshTokenExpiresAt ?? 0,
+            CodeChallenge = response.CodeChallenge,
+            QueryParameters = response.QueryParameters,
+            Integrations = response.Integrations?.Select(i => new IntegrationToken
+            {
+                ServiceId = i.ServiceId,
+                ServiceName = i.ServiceName,
+                ServicePackage = i.PackageName,
+                BaseUrl = i.ServiceUrl,
+                Token = i.Token
+            }).ToList() ?? new()
+        };
+    }
 }
 
 /// <summary>
-/// Integration service token data
-/// Contains JWT token and metadata for a specific integration service
+/// Integration service token data (YARP compatibility)
+/// Maps to LinbikIntegrationToken with different property names
 /// </summary>
 public class IntegrationToken
 {
@@ -66,25 +89,19 @@ public class IntegrationToken
     public string ServiceName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Integration service package name (URL-safe identifier)
+    /// Integration service package name (maps to PackageName)
     /// </summary>
     public string ServicePackage { get; set; } = string.Empty;
 
     /// <summary>
-    /// Integration service base URL
+    /// Integration service base URL (maps to ServiceUrl)
     /// </summary>
     public string BaseUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// JWT access token (signed with integration service's private key)
-    /// Use this in Authorization header when calling the integration service
+    /// JWT access token
     /// </summary>
     public string Token { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Token lifetime in seconds (typically 3600 = 1 hour)
-    /// </summary>
-    public int ExpiresIn { get; set; }
 
     /// <summary>
     /// Token expiration timestamp
@@ -93,7 +110,8 @@ public class IntegrationToken
 }
 
 /// <summary>
-/// Request model for refresh token endpoint
+/// Request model for refresh token endpoint (body format for some clients)
+/// Note: Linbik.App uses headers for RefreshToken and ApiKey
 /// </summary>
 public class RefreshTokenRequest
 {
@@ -108,7 +126,7 @@ public class RefreshTokenRequest
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Service ID (community ID)
+    /// Service ID
     /// </summary>
     public string CommunityId { get; set; } = string.Empty;
 }

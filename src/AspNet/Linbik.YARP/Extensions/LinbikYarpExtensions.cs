@@ -4,8 +4,11 @@ using Linbik.YARP.Interfaces;
 using Linbik.YARP.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Yarp.ReverseProxy.Transforms;
 
 namespace Linbik.YARP.Extensions;
@@ -15,6 +18,8 @@ namespace Linbik.YARP.Extensions;
 /// </summary>
 public static class LinbikYarpExtensions
 {
+    private const string IntegrationTokenCookiePrefix = "integration_";
+
     /// <summary>
     /// Add Linbik YARP services for API gateway with token management
     /// </summary>
@@ -169,4 +174,148 @@ public static class LinbikYarpExtensions
     {
         return app.UseLinbikYarp();
     }
+
+    /// <summary>
+    /// Map integration service proxy endpoints
+    /// Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}
+    /// Automatically injects JWT token from integration_{packageName} cookie
+    /// </summary>
+    public static IEndpointRouteBuilder MapLinbikIntegrationProxy(this IEndpointRouteBuilder endpoints)
+    {
+        var options = endpoints.ServiceProvider.GetRequiredService<IOptions<YARPOptions>>().Value;
+        var httpClientFactory = endpoints.ServiceProvider.GetRequiredService<IHttpClientFactory>();
+        var logger = endpoints.ServiceProvider.GetService<ILogger<IntegrationProxyService>>();
+
+        foreach (var integration in options.IntegrationServices)
+        {
+            var packageName = integration.Key;
+            var serviceConfig = integration.Value;
+            var cookiePrefix = options.IntegrationTokenCookiePrefix;
+
+            // Map route: /{packageName}/{**path}
+            endpoints.Map($"/{packageName}/{{**path}}", async (HttpContext context) =>
+            {
+                var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
+                
+                // Get JWT token from cookie
+                var cookieName = $"{cookiePrefix}{packageName}";
+                var token = context.Request.Cookies[cookieName];
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    logger?.LogWarning("Integration token not found for {PackageName}", packageName);
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsJsonAsync(new 
+                    { 
+                        error = "unauthorized", 
+                        error_description = $"Integration token not found for {packageName}. Please login again." 
+                    });
+                    return;
+                }
+
+                // Build target URL
+                var targetUrl = serviceConfig.BaseUrl.TrimEnd('/');
+                if (!string.IsNullOrEmpty(path))
+                {
+                    targetUrl = $"{targetUrl}/{path}";
+                }
+
+                // Preserve query string
+                if (context.Request.QueryString.HasValue)
+                {
+                    targetUrl = $"{targetUrl}{context.Request.QueryString}";
+                }
+
+                try
+                {
+                    var client = httpClientFactory.CreateClient();
+                    client.Timeout = TimeSpan.FromSeconds(serviceConfig.TimeoutSeconds);
+
+                    // Create proxy request
+                    var requestMessage = new HttpRequestMessage
+                    {
+                        Method = new HttpMethod(context.Request.Method),
+                        RequestUri = new Uri(targetUrl)
+                    };
+
+                    // Add Authorization header with JWT token
+                    requestMessage.Headers.Authorization = 
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                    // Copy headers (except Host and Authorization)
+                    foreach (var header in context.Request.Headers)
+                    {
+                        if (header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase) ||
+                            header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+                    }
+
+                    // Copy request body for POST/PUT/PATCH
+                    if (context.Request.ContentLength > 0 || 
+                        context.Request.Headers.ContainsKey("Transfer-Encoding"))
+                    {
+                        requestMessage.Content = new StreamContent(context.Request.Body);
+                        
+                        if (context.Request.ContentType != null)
+                        {
+                            requestMessage.Content.Headers.ContentType = 
+                                System.Net.Http.Headers.MediaTypeHeaderValue.Parse(context.Request.ContentType);
+                        }
+                    }
+
+                    // Send request
+                    var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
+
+                    // Copy response status
+                    context.Response.StatusCode = (int)response.StatusCode;
+
+                    // Copy response headers
+                    foreach (var header in response.Headers)
+                    {
+                        context.Response.Headers[header.Key] = header.Value.ToArray();
+                    }
+
+                    foreach (var header in response.Content.Headers)
+                    {
+                        context.Response.Headers[header.Key] = header.Value.ToArray();
+                    }
+
+                    // Remove transfer-encoding if present (handled by Kestrel)
+                    context.Response.Headers.Remove("transfer-encoding");
+
+                    // Copy response body
+                    await response.Content.CopyToAsync(context.Response.Body);
+                }
+                catch (HttpRequestException ex)
+                {
+                    logger?.LogError(ex, "Failed to proxy request to {PackageName}: {TargetUrl}", packageName, targetUrl);
+                    context.Response.StatusCode = 502;
+                    await context.Response.WriteAsJsonAsync(new 
+                    { 
+                        error = "bad_gateway", 
+                        error_description = $"Failed to connect to {packageName} service" 
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    logger?.LogWarning("Request to {PackageName} timed out: {TargetUrl}", packageName, targetUrl);
+                    context.Response.StatusCode = 504;
+                    await context.Response.WriteAsJsonAsync(new 
+                    { 
+                        error = "gateway_timeout", 
+                        error_description = $"Request to {packageName} service timed out" 
+                    });
+                }
+            }).WithTags($"Integration.{packageName}");
+        }
+
+        return endpoints;
+    }
 }
+
+/// <summary>
+/// Marker class for logging
+/// </summary>
+internal class IntegrationProxyService { }

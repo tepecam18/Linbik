@@ -1,7 +1,6 @@
 using Linbik.Core.Interfaces;
 using Linbik.JwtAuthManager.Configuration;
 using Linbik.JwtAuthManager.Interfaces;
-using Linbik.JwtAuthManager.Middleware;
 using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -60,13 +59,14 @@ public static class LinbikJwtAuthExtensions
     /// Use Linbik authentication middleware
     /// Handles login redirect, OAuth callback, and logout
     /// </summary>
+    [Obsolete("Middleware not yet implemented. Use JwtAuthManagerExtensions.UseEndpoints() instead.")]
     public static IApplicationBuilder UseLinbikAuthMiddleware(this IApplicationBuilder app)
     {
         // Ensure session is enabled
         app.UseSession();
         
-        // Add Linbik auth middleware
-        app.UseMiddleware<LinbikAuthMiddleware>();
+        // TODO: Add Linbik auth middleware when implemented
+        // app.UseMiddleware<LinbikAuthMiddleware>();
         
         return app;
     }

@@ -6,7 +6,7 @@ public class LinbikOptions
     /// Linbik server base URL (e.g., "https://linbik.com")
     /// Used for authorization redirects and token exchange
     /// </summary>
-    public string ServerUrl { get; set; } = "https://linbik.com";
+    public string LinbikUrl { get; set; } = "https://linbik.com";
 
     /// <summary>
     /// application's service ID (from Linbik service registration)
@@ -27,12 +27,12 @@ public class LinbikOptions
     /// <summary>
     /// Token exchange endpoint path (default: "/oauth/token")
     /// </summary>
-    public string TokenEndpoint { get; set; } = "/oauth/token";
+    public string TokenEndpoint { get; set; } = "/auth/token";
 
     /// <summary>
     /// Refresh token endpoint path (default: "/oauth/refresh")
     /// </summary>
-    public string RefreshEndpoint { get; set; } = "/oauth/refresh";
+    public string RefreshEndpoint { get; set; } = "/auth/refresh";
 
     /// <summary>
     /// Authorization code lifetime in minutes (default: 10)

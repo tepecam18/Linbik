@@ -13,7 +13,7 @@ public class LinbikServerRepository : ILinbikServerRepository
 {
     #region Legacy Methods (Deprecated)
 
-    [Obsolete("Use GetServiceByApiKeyAsync with OAuth 2.0 flow instead")]
+    [Obsolete("Use GetServiceByApiKeyAsync with authorization code flow instead")]
     public Task<AppLoginValidationResponse> AppLoginValidationsAsync(AppLoginModel request)
     {
         return Task.FromResult(new AppLoginValidationResponse
@@ -25,7 +25,7 @@ public class LinbikServerRepository : ILinbikServerRepository
 
     #endregion
 
-    #region OAuth 2.0 Methods (Mock Implementation)
+    #region Authorization Code Methods (Mock Implementation)
 
     public Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey)
     {

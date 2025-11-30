@@ -5,6 +5,18 @@ namespace Linbik.Server.Configuration;
 public class ServerOptions
 {
     /// <summary>
+    /// Service ID (GUID) - this integration service's unique identifier
+    /// Used for validating that incoming tokens are intended for this service
+    /// </summary>
+    public Guid ServiceId { get; set; }
+
+    /// <summary>
+    /// RSA public key for JWT validation (PEM format or Base64 DER)
+    /// This is the public key corresponding to this service's private key
+    /// </summary>
+    public string PublicKey { get; set; } = string.Empty;
+
+    /// <summary>
     /// Legacy: Private key for JWT signing (deprecated - use per-service keys)
     /// </summary>
     [Obsolete("Use per-service RSA key pairs instead")]
@@ -17,9 +29,9 @@ public class ServerOptions
     public string Algorithm { get; set; } = SecurityAlgorithms.HmacSha512Signature;
 
     /// <summary>
-    /// Legacy: Login path (deprecated - use OAuth 2.0 authorization endpoint)
+    /// Legacy: Login path (deprecated - use authorization endpoint)
     /// </summary>
-    [Obsolete("Use OAuth 2.0 /auth/{serviceId} endpoint instead")]
+    [Obsolete("Use /auth/{serviceId} endpoint instead")]
     public string LoginPath { get; set; } = "/linbik/app-login";
 
     /// <summary>
@@ -38,9 +50,9 @@ public class ServerOptions
     public int RefreshTokenExpirationDays { get; set; } = 30;
 
     /// <summary>
-    /// JWT issuer name (default: "linbik")
+    /// JWT issuer name (default: "Linbik")
     /// </summary>
-    public string JwtIssuer { get; set; } = "linbik";
+    public string JwtIssuer { get; set; } = "Linbik";
 
     /// <summary>
     /// Enable PKCE (Proof Key for Code Exchange) validation
@@ -51,4 +63,19 @@ public class ServerOptions
     /// Enable IP whitelisting validation for services
     /// </summary>
     public bool EnableIpWhitelisting { get; set; } = true;
+
+    /// <summary>
+    /// Clock skew tolerance for token validation (default: 5 minutes)
+    /// </summary>
+    public int ClockSkewMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Require ServiceId validation in token audience
+    /// </summary>
+    public bool ValidateAudience { get; set; } = true;
+
+    /// <summary>
+    /// Require issuer validation
+    /// </summary>
+    public bool ValidateIssuer { get; set; } = true;
 }

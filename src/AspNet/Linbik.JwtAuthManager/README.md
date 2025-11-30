@@ -4,7 +4,7 @@ JWT Authentication Manager with RSA-256 signing support for Linbik Framework.
 
 ## 🚀 Features
 
-### OAuth 2.0 Support (v2.0+)
+### Authorization Code Support (v2.0+)
 - **RSA-256 JWT Signing** - Industry-standard asymmetric cryptography
 - **Per-Service Key Pairs** - Each service uses its own private/public keys
 - **Multi-Service Token Generation** - Issue multiple JWTs in single response
@@ -36,6 +36,26 @@ services.AddLinbikJwtAuth(options =>
     options.ClockSkewMinutes = 1;
 });
 ```
+
+### Minimal API Endpoints Setup (Recommended)
+
+```csharp
+// In Program.cs
+
+// 1. Add services
+builder.Services.AddLinbik(builder.Configuration);
+builder.Services.AddLinbikJwtAuth();
+
+// 2. Map endpoints
+app.MapLinbikEndpoints();  // Maps /linbik/login, /linbik/logout, /linbik/refresh
+```
+
+**Endpoints:**
+| Path | Method | Description |
+|------|--------|-------------|
+| `/linbik/login` | GET | Exchange auth code for tokens |
+| `/linbik/logout` | POST | Clear all auth cookies |
+| `/linbik/refresh` | POST | Refresh tokens |
 
 ### RSA Key Configuration
 
@@ -151,7 +171,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr8zN...
 ```csharp
 public interface ILinbikRepository
 {
-    // OAuth 2.0 Methods (v2.0+)
+    // Authorization Methods (v2.0+)
     Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey);
     Task<ServiceData?> GetServiceByIdAsync(Guid serviceId);
     Task<List<ServiceData>> GetGrantedIntegrationServicesAsync(Guid userId, Guid mainServiceId);

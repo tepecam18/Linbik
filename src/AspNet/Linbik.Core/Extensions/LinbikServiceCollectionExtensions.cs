@@ -4,11 +4,17 @@ using Linbik.Core.Interfaces;
 using Linbik.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Linbik.Core.Extensions;
 
 public static class LinbikServiceCollectionExtensions
 {
+    /// <summary>
+    /// Default HttpClient name for Linbik authentication client
+    /// </summary>
+    public const string LinbikHttpClientName = "LinbikAuthClient";
+
     public static LinbikBuilder AddLinbik(this IServiceCollection services, Action<LinbikOptions> configureOptions)
     {
         services.Configure(configureOptions);
@@ -47,8 +53,21 @@ public static class LinbikServiceCollectionExtensions
             options.Cookie.IsEssential = true;
         });
 
-        // Add HttpClient for LinbikClient
-        services.AddHttpClient<IAuthService, LinbikClient>();
+        // Add typed HttpClient for LinbikAuthClient
+        // Base address is configured from LinbikOptions.LinbikUrl in the client constructor
+        services.AddHttpClient<ILinbikAuthClient, LinbikAuthClient>(LinbikHttpClientName)
+            .ConfigureHttpClient((sp, client) =>
+            {
+                var options = sp.GetRequiredService<IOptions<LinbikOptions>>().Value;
+                if (!string.IsNullOrEmpty(options.LinbikUrl))
+                {
+                    client.BaseAddress = new Uri(options.LinbikUrl.TrimEnd('/') + "/");
+                }
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+            });
+
+        // Register main auth service
+        services.AddScoped<IAuthService, LinbikAuthService>();
 
         // Legacy token validator
         services.AddSingleton<ITokenValidator, TokenValidator>();

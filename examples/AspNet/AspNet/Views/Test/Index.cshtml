@@ -266,9 +266,9 @@
                         @foreach (var token in Model.Tokens)
                         {
                             <li class="token-item">
-                                <h4>📦 @(token.PackageName ?? token.ServicePackage)</h4>
-                                <p><strong>Token Length:</strong> <code>@((token.AccessToken?.Length ?? token.Token?.Length ?? 0)) characters</code></p>
-                                <p><strong>Expires At:</strong> @token.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                                <h4>📦 @token.PackageName (@token.ServiceName)</h4>
+                                <p><strong>Service URL:</strong> <code>@token.ServiceUrl</code></p>
+                                <p><strong>Token Length:</strong> <code>@token.Token.Length characters</code></p>
                             </li>
                         }
                     </ul>

@@ -1,18 +1,14 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Linbik.Core.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace Linbik.Core.Interfaces;
 
 /// <summary>
 /// Core authentication service for communicating with Linbik authorization server
+/// Uses session-based token storage for server-side applications
 /// </summary>
 public interface IAuthService
 {
-    /// <summary>
-    /// Legacy: Get user ID from context (deprecated)
-    /// </summary>
-    [Obsolete("Use GetUserProfileAsync instead")]
-    Task<string> GetUserIdAsync(HttpContext context);
-
     /// <summary>
     /// Redirect user to Linbik authorization endpoint
     /// </summary>
@@ -26,7 +22,7 @@ public interface IAuthService
     /// </summary>
     /// <param name="code">Authorization code from callback</param>
     /// <returns>Token response with user profile and integration tokens</returns>
-    Task<TokenResponse?> ExchangeCodeForTokensAsync(string code);
+    Task<LinbikTokenResponse?> ExchangeCodeForTokensAsync(string code);
 
     /// <summary>
     /// Get current user profile from session
@@ -40,7 +36,7 @@ public interface IAuthService
     /// </summary>
     /// <param name="context">HTTP context</param>
     /// <returns>List of integration tokens</returns>
-    Task<List<IntegrationToken>> GetIntegrationTokensAsync(HttpContext context);
+    Task<List<LinbikIntegrationToken>> GetIntegrationTokensAsync(HttpContext context);
 
     /// <summary>
     /// Refresh expired tokens using refresh token
@@ -54,36 +50,6 @@ public interface IAuthService
     /// </summary>
     /// <param name="context">HTTP context</param>
     Task LogoutAsync(HttpContext context);
-}
-
-/// <summary>
-/// Token response from Linbik authorization server
-/// </summary>
-public class TokenResponse
-{
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public string NickName { get; set; } = string.Empty;
-    public List<IntegrationToken> Integrations { get; set; } = new();
-    public string RefreshToken { get; set; } = string.Empty;
-    public long RefreshTokenExpiresAt { get; set; }
-    public string? CodeChallenge { get; set; }
-}
-
-/// <summary>
-/// Integration service token
-/// </summary>
-public class IntegrationToken
-{
-    public Guid ServiceId { get; set; }
-    public string ServiceName { get; set; } = string.Empty;
-    public string ServicePackage { get; set; } = string.Empty;
-    public string PackageName { get; set; } = string.Empty; // Alias for ServicePackage
-    public string BaseUrl { get; set; } = string.Empty;
-    public string Token { get; set; } = string.Empty;
-    public string AccessToken { get; set; } = string.Empty; // Alias for Token
-    public int ExpiresIn { get; set; }
-    public DateTime ExpiresAt { get; set; }
 }
 
 /// <summary>

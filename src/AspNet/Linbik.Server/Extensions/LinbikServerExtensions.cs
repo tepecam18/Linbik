@@ -1,4 +1,3 @@
-using Linbik.Core.Interfaces;
 using Linbik.Server.Configuration;
 using Linbik.Server.Middleware;
 using Linbik.Server.Services;
@@ -22,11 +21,9 @@ public static class LinbikServerExtensions
         Action<ServerOptions> configureOptions)
     {
         services.Configure(configureOptions);
-        
-        // Add token validator (requires IJwtHelper from Linbik.JwtAuthManager)
-        services.AddSingleton<IntegrationTokenValidator>();
-        
-        return services;
+
+        // Add token validator as singleton (RSA key is loaded once)
+        services.AddSingleton<IntegrationTokenValidator>();        return services;
     }
 
     /// <summary>

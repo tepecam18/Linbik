@@ -108,9 +108,9 @@ public static class YARPManagerExtensions
                     // DI'dan IAuthService örneğini alıyoruz.
                     var authService = transformContext.HttpContext.RequestServices.GetRequiredService<IAuthService>();
 
-                    // IAuthService üzerinden kullanıcı id'sini alacak metodu çağırıyoruz.
-                    // Bu örnekte metot asenkron kabul edilmiştir. (Kendi implementasyonunuza göre düzenleyebilirsiniz.)
-                    var userId = await authService.GetUserIdAsync(transformContext.HttpContext);
+                    // GetUserProfileAsync ile kullanıcı profilini alıyoruz
+                    var userProfile = await authService.GetUserProfileAsync(transformContext.HttpContext);
+                    var userId = userProfile?.UserId.ToString() ?? string.Empty;
 
                     // Saklanacak header'ları belirleyelim.
                     var headersToKeep = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

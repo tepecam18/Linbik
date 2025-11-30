@@ -11,7 +11,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDistributedMemoryCache();
 
-// ✅ Linbik Core - OAuth 2.0 client services
+// ✅ Linbik Core - Authentication client services
 builder.Services.AddLinbik(builder.Configuration);
 
 // ✅ Linbik JwtAuthManager - Login/callback/logout middleware
@@ -43,15 +43,23 @@ app.UseHttpsRedirection();
 
 app.UseRouting();
 
-// ✅ Linbik middleware pipeline
-app.UseLinbikAuthMiddleware(); // Handles /linbik/login, /linbik/callback, /linbik/logout
-app.UseLinbikYarpProxy(); // API Gateway with automatic JWT injection
-
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ✅ Linbik middleware pipeline
+app.UseLinbikYarpProxy(); // API Gateway with automatic JWT injection
+
+// Map endpoints
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Test}/{action=Index}/{id?}");
+
+// ✅ Map Linbik OAuth endpoints (login, refresh, logout)
+app.MapLinbikEndpoints();
+
+// ✅ Map integration service proxy endpoints
+// Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}
+// Automatically injects JWT token from integration_{packageName} cookie
+app.MapLinbikIntegrationProxy();
 
 app.Run();

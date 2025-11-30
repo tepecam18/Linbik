@@ -46,7 +46,7 @@ public class InMemoryLinbikRepository : ILinbikRepository
         return Task.FromResult((refreshToken, true));
     }
 
-    [Obsolete("Use proper OAuth 2.0 flow")]
+    [Obsolete("Use proper authorization flow")]
     public Task LoggedInUser(Guid userGuid, string name)
     {
         return Task.CompletedTask;
@@ -93,7 +93,7 @@ public class InMemoryLinbikRepository : ILinbikRepository
 
     #endregion
 
-    #region OAuth 2.0 Methods (Stub Implementation)
+    #region Authorization Code Methods (Stub Implementation)
 
     /// <summary>
     /// Gets service by API key (stub - should be implemented in database repository)

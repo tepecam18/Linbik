@@ -1,6 +1,6 @@
 # Linbik.YARP
 
-YARP (Yet Another Reverse Proxy) integration for Linbik OAuth 2.0 multi-service authentication.
+YARP (Yet Another Reverse Proxy) integration for Linbik multi-service authentication.
 
 ## 🚀 Features
 
@@ -36,6 +36,73 @@ services.AddLinbikYARP(options =>
     options.EnableAutomaticRefresh = true;
     options.TokenCacheExpirationMinutes = 55;  // Refresh before 60min expiration
 });
+```
+
+### Simple Proxy Setup (Recommended)
+
+For most use cases, use `MapLinbikIntegrationProxy()`:
+
+```csharp
+// In Program.cs
+
+// 1. Add services with configuration
+builder.Services.AddLinbik(builder.Configuration);
+builder.Services.AddLinbikJwtAuth();
+
+// 2. Configure integration services in appsettings.json
+// See IntegrationServices Configuration section below
+
+var app = builder.Build();
+
+// 3. Map integration proxy endpoint
+app.MapLinbikIntegrationProxy();  // Maps /{packageName}/{**path}
+```
+
+**Endpoint Pattern**: `/{packageName}/{path}` routes to the integration service's BaseUrl.
+
+**Example**:
+- Request: `GET /payment-gateway/api/charge`
+- Routes to: `https://payment.example.com/api/charge`
+- With: `Authorization: Bearer {jwt_from_cookie}`
+
+### IntegrationServices Configuration
+
+```json
+{
+  "YARP": {
+    "IntegrationServices": {
+      "payment-gateway": {
+        "BaseUrl": "https://payment.example.com"
+      },
+      "survey-service": {
+        "BaseUrl": "https://survey.example.com"
+      },
+      "courier-service": {
+        "BaseUrl": "https://courier.example.com"
+      }
+    }
+  }
+}
+```
+
+### How Cookie-Based JWT Injection Works
+
+```
+1. User authenticates → Integration tokens stored in cookies
+   Cookie: integration_payment-gateway = "eyJhbG..."
+   Cookie: integration_survey-service = "eyJhbG..."
+
+2. Client request → /payment-gateway/api/charge
+
+3. MapLinbikIntegrationProxy():
+   a. Extract {packageName} from URL → "payment-gateway"
+   b. Read cookie: integration_payment-gateway
+   c. Lookup BaseUrl from IntegrationServices config
+   d. Proxy request to BaseUrl with Authorization header
+
+4. Target service receives:
+   GET /api/charge
+   Authorization: Bearer eyJhbG...
 ```
 
 ### YARP Route Configuration
@@ -96,7 +163,7 @@ services.AddLinbikYARP(options =>
 ```csharp
 public interface ITokenProvider
 {
-    // OAuth 2.0 Methods (v2.0+)
+    // Authorization Methods (v2.0+)
     Task<string?> GetTokenForServiceAsync(string servicePackage, HttpContext context);
     Task ExchangeAuthorizationCodeAsync(string authorizationCode, HttpContext context);
     Task RefreshTokensAsync(HttpContext context);

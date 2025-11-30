@@ -17,7 +17,7 @@ public class JwtAuthOptions
     public string Algorithm { get; set; } = SecurityAlgorithms.HmacSha512Signature;
 
     /// <summary>
-    /// Legacy: Login path (deprecated - use OAuth 2.0 flow)
+    /// Legacy: Login path (deprecated - use authorization code flow)
     /// </summary>
     public string LoginPath { get; set; } = "/linbik/login";
 
@@ -65,9 +65,19 @@ public class JwtAuthOptions
     public string JwtIssuer { get; set; } = "linbik";
 
     /// <summary>
+    /// JWT audience (default: "linbik-client")
+    /// </summary>
+    public string JwtAudience { get; set; } = "linbik-client";
+
+    /// <summary>
+    /// Refresh token endpoint path (default: "/linbik/refresh")
+    /// </summary>
+    public string RefreshPath { get; set; } = "/linbik/refresh";
+
+    /// <summary>
     /// Legacy: Custom routes (deprecated)
     /// </summary>
-    [Obsolete("Use standard OAuth 2.0 endpoints")]
+    [Obsolete("Use standard endpoints")]
     public Dictionary<string, string> Routes { get; set; } = new();
 
     /// <summary>

@@ -1,10 +1,10 @@
 # Linbik.Server
 
-Server-side repository interfaces and models for Linbik OAuth 2.0 Authorization Server.
+Server-side repository interfaces, JWT validation, and authentication middleware for Linbik integration services.
 
 ## 🚀 Features
 
-### OAuth 2.0 Authorization Server (v2.0+)
+### Authorization Server (v2.0+)
 - **Authorization Code Management** - Generate, validate, and consume codes
 - **Refresh Token Management** - Issue and revoke refresh tokens
 - **User Profile Management** - Retrieve user profile data
@@ -12,8 +12,14 @@ Server-side repository interfaces and models for Linbik OAuth 2.0 Authorization 
 - **User Consent Management** - Track user permissions for services
 - **Repository Pattern** - Clean abstraction for data access
 
+### Integration Service Features (v2.1+)
+- **IntegrationTokenValidator** - RSA public key based JWT validation
+- **IntegrationAuthMiddleware** - Automatic JWT validation in request pipeline
+- **LinbikTokenClaims** - Strongly typed claims for user identity
+- **HttpContext Extensions** - Easy access to validated claims
+
 ### Legacy Features (Deprecated)
-- Simple login validation (use OAuth 2.0 flow)
+- Simple login validation (use authorization code flow)
 - Basic app validation (use service validation)
 
 ## 📦 Installation
@@ -23,6 +29,8 @@ dotnet add package Linbik.Server
 ```
 
 ## 🔧 Configuration
+
+### Basic Setup (Authorization Server)
 
 ```csharp
 services.AddLinbikServer(options =>
@@ -37,11 +45,59 @@ services.AddLinbikServer(options =>
 });
 ```
 
+### Integration Service Setup (JWT Validation)
+
+For services that receive integration tokens from main services:
+
+```csharp
+// In Program.cs
+
+// 1. Add services with public key configuration
+builder.Services.AddLinbikServer(options =>
+{
+    options.ServiceId = "your-service-guid";
+    options.PublicKey = builder.Configuration["Linbik:PublicKey"];
+    options.ClockSkewMinutes = 5;
+    options.ValidateAudience = true;
+    options.ValidateIssuer = true;
+});
+
+// 2. Use authentication middleware
+app.UseLinbikIntegrationAuth();
+
+// 3. Access claims in controllers
+[ApiController]
+public class PaymentController : ControllerBase
+{
+    [HttpPost("/charge")]
+    public IActionResult Charge([FromBody] ChargeRequest request)
+    {
+        // Get validated claims from middleware
+        var claims = HttpContext.GetLinbikClaims();
+        var userId = HttpContext.GetLinbikUserId();
+        var userName = HttpContext.GetLinbikUserName();
+        
+        // Process payment for this Linbik user...
+        return Ok();
+    }
+}
+```
+
+### ServerOptions Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ServiceId` | `string` | null | Your integration service ID (for audience validation) |
+| `PublicKey` | `string` | null | RSA public key (PEM or Base64 format) |
+| `ClockSkewMinutes` | `int` | 5 | Allowed clock skew for token validation |
+| `ValidateAudience` | `bool` | true | Validate JWT audience claim |
+| `ValidateIssuer` | `bool` | true | Validate JWT issuer claim |
+
 ## 📚 Main Interface
 
 ### ILinbikServerRepository
 
-Complete repository interface for OAuth 2.0 operations:
+Complete repository interface for authorization operations:
 
 ```csharp
 public interface ILinbikServerRepository
@@ -72,6 +128,87 @@ public interface ILinbikServerRepository
 }
 ```
 
+## 🔐 JWT Validation (Integration Services)
+
+### IntegrationTokenValidator
+
+Validates integration JWT tokens using RSA public key:
+
+```csharp
+public class IntegrationTokenValidator
+{
+    public IntegrationTokenValidator(IOptions<ServerOptions> options);
+    
+    // Validate JWT and extract claims
+    public LinbikTokenClaims? ValidateToken(string token);
+}
+```
+
+### LinbikTokenClaims Model
+
+```csharp
+public class LinbikTokenClaims
+{
+    public string UserId { get; set; }
+    public string UserName { get; set; }
+    public string NickName { get; set; }
+    public string Subject { get; set; }
+    public string Audience { get; set; }
+    public string Issuer { get; set; }
+    public DateTime IssuedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+}
+```
+
+### HttpContext Extensions
+
+Easy access to validated Linbik claims:
+
+```csharp
+// Get all claims
+var claims = HttpContext.GetLinbikClaims();
+
+// Get individual values
+var userId = HttpContext.GetLinbikUserId();
+var userName = HttpContext.GetLinbikUserName();
+var nickName = HttpContext.GetLinbikNickName();
+
+// Check if user is authenticated via Linbik
+var isAuthenticated = HttpContext.HasLinbikUser();
+```
+
+### Complete Integration Example
+
+```csharp
+// Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+// Add Linbik server with public key
+builder.Services.AddLinbikServer(options =>
+{
+    options.ServiceId = "payment-gateway";
+    options.PublicKey = builder.Configuration["Linbik:PublicKey"];
+});
+
+var app = builder.Build();
+
+// Enable Linbik auth middleware
+app.UseLinbikIntegrationAuth();
+
+app.MapPost("/charge", (HttpContext ctx, ChargeRequest request) =>
+{
+    if (!ctx.HasLinbikUser())
+        return Results.Unauthorized();
+    
+    var userId = ctx.GetLinbikUserId();
+    // Process payment...
+    
+    return Results.Ok(new { success = true });
+});
+
+app.Run();
+```
+
 ## 💻 Usage Examples
 
 ### 1. Authorization Code Flow
@@ -79,7 +216,7 @@ public interface ILinbikServerRepository
 #### Generate Authorization Code
 
 ```csharp
-public class OAuthController : Controller
+public class AuthController : Controller
 {
     private readonly ILinbikServerRepository _repository;
 
@@ -361,5 +498,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (OAuth 2.0 Authorization Server)  
+**Version**: 2.0.0 (Authorization Server)  
 **Last Updated**: 1 Kasım 2025

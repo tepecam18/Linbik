@@ -41,7 +41,7 @@ public class MultiJwtTokenProvider : ITokenProvider
     /// <summary>
     /// Legacy: Gets a single JWT token (deprecated)
     /// </summary>
-    [Obsolete("Use GetMultiServiceTokenAsync for OAuth 2.0 flow")]
+    [Obsolete("Use GetMultiServiceTokenAsync for multi-service flow")]
     public async Task<string> GetTokenAsync(string baseUrl, string clientId, string clientSecret)
     {
         if (string.IsNullOrEmpty(baseUrl))

@@ -1,7 +1,7 @@
 namespace Linbik.Core.Interfaces;
 
 /// <summary>
-/// Service for managing OAuth 2.0 authorization codes
+/// Service for managing authorization codes
 /// </summary>
 public interface IAuthorizationCodeService
 {
