@@ -14,6 +14,11 @@ public class LinbikOptions
     public string ServiceId { get; set; } = string.Empty;
 
     /// <summary>
+    /// application's client ID (from Linbik login registration)
+    /// </summary>
+    public string ClientId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Client application's API key (from Linbik service registration)
     /// Used for token exchange and refresh operations
     /// </summary>
@@ -59,22 +64,4 @@ public class LinbikOptions
     /// JWT issuer name (default: "linbik")
     /// </summary>
     public string JwtIssuer { get; set; } = "Linbik";
-
-    /// <summary>
-    /// Legacy: Allowed app IDs (deprecated - use service registration instead)
-    /// </summary>
-    [Obsolete("Use service registration with API keys instead")]
-    public string[] AppIds { get; set; } = Array.Empty<string>();
-
-    /// <summary>
-    /// Legacy: Public key (deprecated - use per-service keys instead)
-    /// </summary>
-    [Obsolete("Use per-service RSA key pairs instead")]
-    public string PublicKey { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Legacy: If true, all apps are allowed (deprecated)
-    /// </summary>
-    [Obsolete("Use proper service registration and API key validation")]
-    public bool AllowAllApp { get; set; } = false;
 }

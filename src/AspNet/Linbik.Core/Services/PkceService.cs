@@ -22,7 +22,8 @@ public static class PkceService
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.None,
-            Expires = DateTimeOffset.UtcNow.AddMinutes(VerifierExpirationMinutes)
+            Expires = DateTimeOffset.UtcNow.AddMinutes(VerifierExpirationMinutes),
+            Path = "/"
         });
     }
 

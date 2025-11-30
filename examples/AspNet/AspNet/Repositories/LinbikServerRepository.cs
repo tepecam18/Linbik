@@ -1,7 +1,6 @@
 ﻿using Linbik.Core.Interfaces;
 using Linbik.Server.Interfaces;
 using Linbik.Server.Models;
-using Linbik.Server.Responses;
 
 namespace AspNet.Repositories;
 
@@ -11,22 +10,6 @@ namespace AspNet.Repositories;
 /// </summary>
 public class LinbikServerRepository : ILinbikServerRepository
 {
-    #region Legacy Methods (Deprecated)
-
-    [Obsolete("Use GetServiceByApiKeyAsync with authorization code flow instead")]
-    public Task<AppLoginValidationResponse> AppLoginValidationsAsync(AppLoginModel request)
-    {
-        return Task.FromResult(new AppLoginValidationResponse
-        {
-            Success = true,
-            Claims = new()
-        });
-    }
-
-    #endregion
-
-    #region Authorization Code Methods (Mock Implementation)
-
     public Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey)
     {
         // Mock implementation - return null (should be implemented with database)
@@ -90,9 +73,7 @@ public class LinbikServerRepository : ILinbikServerRepository
 
     public Task<bool> IsIpAllowedAsync(Guid serviceId, string ipAddress)
     {
-        // Mock implementation - return true (allow all IPs for testing)
+        // Mock implementation - allow all IPs (should be implemented with database)
         return Task.FromResult(true);
     }
-
-    #endregion
 }

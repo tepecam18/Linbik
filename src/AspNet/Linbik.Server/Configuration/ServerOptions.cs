@@ -1,6 +1,4 @@
-﻿using Microsoft.IdentityModel.Tokens;
-
-namespace Linbik.Server.Configuration;
+﻿namespace Linbik.Server.Configuration;
 
 public class ServerOptions
 {
@@ -15,24 +13,6 @@ public class ServerOptions
     /// This is the public key corresponding to this service's private key
     /// </summary>
     public string PublicKey { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Legacy: Private key for JWT signing (deprecated - use per-service keys)
-    /// </summary>
-    [Obsolete("Use per-service RSA key pairs instead")]
-    public string PrivateKey { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Legacy: JWT signing algorithm (deprecated)
-    /// </summary>
-    [Obsolete("Use RS256 (RSA-SHA256) with per-service keys")]
-    public string Algorithm { get; set; } = SecurityAlgorithms.HmacSha512Signature;
-
-    /// <summary>
-    /// Legacy: Login path (deprecated - use authorization endpoint)
-    /// </summary>
-    [Obsolete("Use /auth/{serviceId} endpoint instead")]
-    public string LoginPath { get; set; } = "/linbik/app-login";
 
     /// <summary>
     /// Authorization code lifetime in minutes (default: 10)

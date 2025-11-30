@@ -1,658 +1,218 @@
-﻿using Linbik.Core.Interfaces;
-using Linbik.Core.Models;
+﻿using Linbik.Core.Configuration;
+using Linbik.Core.Interfaces;
 using Linbik.Core.Responses;
 using Linbik.Core.Services;
 using Linbik.JwtAuthManager.Configuration;
-using Linbik.JwtAuthManager.Interfaces;
-using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
+using System.Threading.RateLimiting;
 
 namespace Linbik.JwtAuthManager.Extensions;
 
+/// <summary>
+/// Extension methods for Linbik JWT authentication endpoints
+/// </summary>
 public static class JwtAuthManagerExtensions
 {
-    private const string IdClaimType = "userId";
-    private const string NameClaimType = "firstName";
     private const string AuthTokenCookie = "authToken";
     private const string RefreshTokenCookie = "refreshToken";
     private const string LinbikRefreshTokenCookie = "linbikRefreshToken";
-    private const string HasIntegrationsCookie = "hasIntegrations";
-    private const string UserTypeClaimType = "userType";
     private const string UserNameCookie = "userName";
-    private const string DefaultRoute = "default";
     private const string IntegrationTokenPrefix = "integration_";
+    private const int MinSecretKeyLength = 32; // 256-bit minimum for HS256
 
-    public static ILinbikBuilder AddJwtAuth(this ILinbikBuilder builder, Action<JwtAuthOptions> configureOptions, bool useInMemory = false)
+    /// <summary>
+    /// Validates that a URL is a safe local URL to prevent Open Redirect attacks
+    /// </summary>
+    private static bool IsLocalUrl(string? url)
     {
-        builder.Services.Configure(configureOptions);
+        if (string.IsNullOrEmpty(url))
+            return false;
 
-        if (useInMemory)
-        {
-            builder.Services.AddSingleton<ILinbikRepository, InMemoryLinbikRepository>();
-        }
+        // Only allow relative URLs starting with / but not // (protocol-relative)
+        if (url.StartsWith("/") && !url.StartsWith("//") && !url.StartsWith("/\\"))
+            return true;
 
-        var optionsInstance = new JwtAuthOptions();
-        configureOptions(optionsInstance);
+        // Also allow ~ for ASP.NET virtual paths
+        if (url.StartsWith("~/"))
+            return true;
 
-        // IOptions haline getiriyoruz.
-        var jwtOptions = Options.Create(optionsInstance);
-
-        AddCommonAuthServices(builder.Services, jwtOptions);
-
-        return builder;
-    }
-
-    public static ILinbikBuilder AddJwtAuth(this ILinbikBuilder builder, bool useInMemory = false)
-    {
-        var serviceProvider = builder.Services.BuildServiceProvider();
-        var configuration = serviceProvider.GetService<IConfiguration>();
-
-        builder.Services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
-
-        if (useInMemory)
-        {
-            builder.Services.AddSingleton<ILinbikRepository, InMemoryLinbikRepository>();
-        }
-
-        var jwtOptions = Options.Create(configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>());
-
-        AddCommonAuthServices(builder.Services, jwtOptions);
-
-        return builder;
-    }
-
-    private static void AddCommonAuthServices(IServiceCollection services, IOptions<JwtAuthOptions> jwtOptions)
-    {
-        services.AddSingleton<IAuthService, JwtAuthService>();
-    }
-
-    public static IApplicationBuilder UseJwtAuth(this IApplicationBuilder app)
-    {
-        var options = app.ApplicationServices.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
-
-        using (var scope = app.ApplicationServices.CreateScope())
-        {
-            var service = app.ApplicationServices.GetService<ILinbikRepository>();
-
-            if (service == null)
-            {
-                throw new InvalidOperationException(
-                    "Please register ILinbikRepository in the DI container, " +
-                    "or use AddJwtAuth(true) in Program.cs."
-                );
-            }
-        }
-
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-        };
-
-        app.UseEndpoints(endpoints =>
-        {
-            // Login endpoint - exchange authorization code for tokens
-            endpoints.MapGet(options.LoginPath, async (HttpContext context, 
-                [FromServices] ILinbikAuthClient linbikClient, 
-                [FromServices] ILinbikRepository repository,
-                [FromServices] ILogger<ILinbikAuthClient> logger) =>
-            {
-                try
-                {
-                    if (options.RefererControl)
-                    {
-                        var referer = context.Request.Headers["Referer"].ToString();
-                        if (referer != "https://linbik.com/")
-                            return Results.BadRequest(new LBaseResponse<object>("Invalid Referer"));
-                    }
-
-                    #region Code Exchange with LinbikAuthClient
-
-                    var code = context.Request.Query["code"].FirstOrDefault();
-
-                    if (string.IsNullOrEmpty(code))
-                        return Results.Json(new LBaseResponse<object>("Invalid Code"), statusCode: StatusCodes.Status406NotAcceptable);
-
-                    // Exchange code for tokens using LinbikAuthClient
-                    var tokenResponse = await linbikClient.ExchangeCodeAsync(code).ConfigureAwait(false);
-
-                    if (tokenResponse is null)
-                        return Results.Json(new LBaseResponse<object>("Token exchange failed"), statusCode: StatusCodes.Status406NotAcceptable);
-
-                    // PKCE verification (client-side)
-                    if (options.PkceEnabled)
-                    {
-                        if (string.IsNullOrEmpty(tokenResponse.CodeChallenge))
-                        {
-                            logger.LogWarning("PKCE is enabled but CodeChallenge is missing in token response");
-                            return Results.Json(new LBaseResponse<object>("PKCE verification failed"), statusCode: StatusCodes.Status406NotAcceptable);
-                        }
-                        
-                        var verifier = PkceService.GetVerifier(context.Request);
-                        if (!string.IsNullOrEmpty(verifier))
-                        {
-                            if (!PkceService.VerifyChallengeMatches(verifier, tokenResponse.CodeChallenge))
-                            {
-                                logger.LogWarning("PKCE verification failed for user {UserId}", tokenResponse.UserId);
-                                return Results.Json(new LBaseResponse<object>("PKCE verification failed"), statusCode: StatusCodes.Status406NotAcceptable);
-                            }
-                            PkceService.DeleteVerifier(context.Response);
-                        }
-                    }
-
-                    var userGuid = tokenResponse.UserId;
-                    var userName = tokenResponse.Username;
-                    var displayName = tokenResponse.DisplayName;
-
-                    #endregion
-
-                    // Calculate token expiration from response or use default
-                    var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue
-                        ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                        : DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration);
-
-                    var hasIntegrations = tokenResponse.Integrations?.Count > 0;
-                    string localRefreshToken;
-
-                    if (hasIntegrations)
-                    {
-                        // Integrations exist - use Linbik's refresh token
-                        localRefreshToken = tokenResponse.RefreshToken ?? string.Empty;
-                        
-                        // Store Linbik refresh token in separate cookie
-                        context.Response.Cookies.Append(LinbikRefreshTokenCookie, localRefreshToken, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.None,
-                            Expires = tokenResponse.RefreshTokenExpiresAt.HasValue
-                                ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                                : DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-                        });
-
-                        // Store integration tokens in cookies
-                        foreach (var integration in tokenResponse.Integrations!)
-                        {
-                            var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                            context.Response.Cookies.Append(integrationCookieName, integration.AccessToken, new CookieOptions
-                            {
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.None,
-                                Expires = accessTokenExpiry
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // No integrations - create local refresh token
-                        var (refreshToken, success) = await repository.CreateRefresToken(userGuid, userName)
-                            .ConfigureAwait(false);
-
-                        if (!success)
-                            return Results.BadRequest(new LBaseResponse<object>("Failed to create refresh token"));
-
-                        localRefreshToken = refreshToken;
-                    }
-
-                    // Mark whether we have integrations (affects refresh behavior)
-                    context.Response.Cookies.Append(HasIntegrationsCookie, hasIntegrations.ToString().ToLower(), new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-                    });
-
-                    // Create local JWT token
-                    var claims = new List<Claim>
-                    {
-                        new Claim(NameClaimType, displayName),
-                        new Claim(IdClaimType, userGuid.ToString()),
-                        new Claim(UserTypeClaimType, "User")
-                    };
-
-                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
-                    var cred = new SigningCredentials(key, options.Algorithm);
-
-                    var securityToken = new JwtSecurityToken(
-                        claims: claims,
-                        expires: accessTokenExpiry,
-                        signingCredentials: cred);
-
-                    var jwt = new JwtSecurityTokenHandler();
-                    var jwtToken = jwt.WriteToken(securityToken);
-
-                    context.Response.Cookies.Append(AuthTokenCookie, jwtToken, cookieOptions);
-                    context.Response.Cookies.Append(RefreshTokenCookie, localRefreshToken, cookieOptions);
-                    context.Response.Cookies.Append(UserNameCookie, displayName, new CookieOptions
-                    {
-                        Secure = true,
-                        Expires = accessTokenExpiry.AddMinutes(-1),
-                        SameSite = SameSiteMode.None
-                    });
-
-                    var routeKey = context.Request.Query["route"].FirstOrDefault() ?? DefaultRoute;
-                    options.Routes.TryGetValue(routeKey, out var route);
-                    var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault() ?? "";
-
-                    if (string.IsNullOrEmpty(route))
-                        route = options.Routes?.FirstOrDefault().Value ?? "";
-
-                    if (string.IsNullOrEmpty(route))
-                        return Results.Ok(new LBaseResponse<object>
-                        {
-                            IsSuccess = true,
-                            Data = null
-                        });
-
-                    if (returnUrl.ToLower().Contains(route.ToLower()))
-                        return Results.Redirect(returnUrl);
-
-                    return Results.Redirect(route);
-                }
-                catch (Exception ex)
-                {
-                    return Results.BadRequest(new LBaseResponse<object>(ex.Message));
-                }
-            }).WithTags("Linbik");
-
-            // Refresh endpoint - handles both local and Linbik refresh tokens
-            endpoints.MapPost(options.RefreshLoginPath, async (HttpContext context, 
-                [FromServices] ILinbikRepository repository,
-                [FromServices] ILinbikAuthClient linbikClient,
-                [FromServices] ILogger<ILinbikAuthClient> logger) =>
-            {
-                var hasIntegrationsStr = context.Request.Cookies[HasIntegrationsCookie];
-                var hasIntegrations = hasIntegrationsStr?.ToLower() == "true";
-
-                if (hasIntegrations)
-                {
-                    // === SCENARIO 1: Has Integrations - Use Linbik Refresh ===
-                    var linbikRefreshToken = context.Request.Cookies[LinbikRefreshTokenCookie];
-
-                    if (string.IsNullOrEmpty(linbikRefreshToken))
-                    {
-                        return Results.BadRequest(new LBaseResponse<object>(
-                            title: "refresh_token_error",
-                            message: "Linbik Refresh Token is null, please login again.",
-                            isSuccess: false
-                        ));
-                    }
-
-                    // Call Linbik to refresh tokens
-                    var tokenResponse = await linbikClient.RefreshTokensAsync(linbikRefreshToken).ConfigureAwait(false);
-
-                    if (tokenResponse is null)
-                    {
-                        return Results.BadRequest(new LBaseResponse<object>(
-                            title: "refresh_token_error",
-                            message: "Failed to refresh tokens from Linbik, please login again.",
-                            isSuccess: false
-                        ));
-                    }
-
-                    var userGuid = tokenResponse.UserId;
-                    var displayName = tokenResponse.DisplayName;
-
-                    // Calculate token expiration
-                    var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue
-                        ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                        : DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration);
-
-                    // Update Linbik refresh token cookie
-                    if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
-                    {
-                        context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.None,
-                            Expires = tokenResponse.RefreshTokenExpiresAt.HasValue
-                                ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                                : DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-                        });
-                    }
-
-                    // Update integration token cookies
-                    if (tokenResponse.Integrations?.Count > 0)
-                    {
-                        foreach (var integration in tokenResponse.Integrations)
-                        {
-                            var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                            context.Response.Cookies.Append(integrationCookieName, integration.AccessToken, new CookieOptions
-                            {
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.None,
-                                Expires = accessTokenExpiry
-                            });
-                        }
-                    }
-
-                    // Create new local JWT token
-                    var claims = new List<Claim>
-                    {
-                        new Claim(NameClaimType, displayName),
-                        new Claim(IdClaimType, userGuid.ToString()),
-                        new Claim(UserTypeClaimType, "User")
-                    };
-
-                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
-                    var cred = new SigningCredentials(key, options.Algorithm);
-
-                    var securityToken = new JwtSecurityToken(
-                        claims: claims,
-                        expires: accessTokenExpiry,
-                        signingCredentials: cred);
-
-                    var jwt = new JwtSecurityTokenHandler();
-                    var jwtToken = jwt.WriteToken(securityToken);
-
-                    context.Response.Cookies.Append(AuthTokenCookie, jwtToken, cookieOptions);
-                    context.Response.Cookies.Append(RefreshTokenCookie, tokenResponse.RefreshToken ?? string.Empty, cookieOptions);
-                    context.Response.Cookies.Append(UserNameCookie, displayName, new CookieOptions
-                    {
-                        Secure = true,
-                        Expires = accessTokenExpiry.AddMinutes(-1),
-                        SameSite = SameSiteMode.None
-                    });
-
-                    return Results.Ok(new LBaseResponse<object>
-                    {
-                        IsSuccess = true,
-                        Data = null
-                    });
-                }
-                else
-                {
-                    // === SCENARIO 2: No Integrations - Use Local Refresh ===
-                    string? currentRefreshToken = context.Request.Cookies[RefreshTokenCookie];
-
-                    if (string.IsNullOrEmpty(currentRefreshToken))
-                    {
-                        return Results.BadRequest(new LBaseResponse<object>(
-                            title: "refresh_token_error",
-                            message: "Refresh Token is null, please login again.",
-                            isSuccess: false
-                        ));
-                    }
-
-                    var result = await repository.UseRefresToken(currentRefreshToken).ConfigureAwait(false);
-
-                    if (!result.Success)
-                    {
-                        return Results.BadRequest(new LBaseResponse<object>(
-                            title: "refresh_token_error",
-                            message: result.Message ?? "Refresh Token is invalid, please login again.",
-                            isSuccess: false
-                        ));
-                    }
-
-                    await repository.LoggedInUser(result.UserGuid, result.Name).ConfigureAwait(false);
-
-                    var (refreshToken, success) = await repository.CreateRefresToken(result.UserGuid, result.Name)
-                        .ConfigureAwait(false);
-
-                    if (!success)
-                        return Results.BadRequest(new LBaseResponse<object>("Failed to create refresh token"));
-
-                    var claims = new List<Claim>
-                    {
-                        new Claim(NameClaimType, result.Name ?? "Unknown"),
-                        new Claim(IdClaimType, result.UserGuid.ToString()),
-                        new Claim(UserTypeClaimType, "User")
-                    };
-
-                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey));
-                    var cred = new SigningCredentials(key, options.Algorithm);
-
-                    var securityToken = new JwtSecurityToken(
-                        claims: claims,
-                        expires: DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration),
-                        signingCredentials: cred);
-
-                    var jwt = new JwtSecurityTokenHandler();
-                    var jwtToken = jwt.WriteToken(securityToken);
-
-                    context.Response.Cookies.Append(AuthTokenCookie, jwtToken, cookieOptions);
-                    context.Response.Cookies.Append(RefreshTokenCookie, refreshToken, cookieOptions);
-                    context.Response.Cookies.Append(UserNameCookie, result.Name ?? "Unknown", new CookieOptions
-                    {
-                        Secure = true,
-                        Expires = DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration - 1),
-                        SameSite = SameSiteMode.None
-                    });
-
-                    return Results.Ok(new LBaseResponse<object>
-                    {
-                        IsSuccess = true,
-                        Data = null
-                    });
-                }
-            }).WithTags("Linbik");
-
-            // Logout endpoint - clear all cookies
-            endpoints.MapPost(options.ExitPath, async (HttpContext context) =>
-            {
-                context.Response.Cookies.Delete(AuthTokenCookie, cookieOptions);
-                context.Response.Cookies.Delete(RefreshTokenCookie, cookieOptions);
-                context.Response.Cookies.Delete(LinbikRefreshTokenCookie, cookieOptions);
-                context.Response.Cookies.Delete(HasIntegrationsCookie, cookieOptions);
-                context.Response.Cookies.Delete(UserNameCookie, cookieOptions);
-
-                // Delete all integration token cookies
-                foreach (var cookie in context.Request.Cookies)
-                {
-                    if (cookie.Key.StartsWith(IntegrationTokenPrefix))
-                    {
-                        context.Response.Cookies.Delete(cookie.Key, cookieOptions);
-                    }
-                }
-
-                var response = new LBaseResponse<object>()
-                {
-                    IsSuccess = true,
-                    Data = null
-                };
-
-                return Results.Ok(response);
-            }).WithTags("Linbik");
-
-            if (options.PkceEnabled)
-            {
-                endpoints.MapPost(options.PkceStartPath, (HttpContext ctx) =>
-                {
-                    var authorize = PkceService.BuildAuthorizeBody(ctx.Response);
-
-                    var response = new LBaseResponse<object>(authorize);
-
-                    return Results.Ok(response);
-                }).WithTags("Linbik").AllowAnonymous();
-            }
-        });
-
-        return app;
+        return false;
     }
 
     /// <summary>
-    /// Get integration token from cookie by package name
+    /// Map Linbik OAuth endpoints (login, callback, refresh, logout)
     /// </summary>
-    /// <param name="context">HTTP context</param>
-    /// <param name="packageName">Integration service package name</param>
-    /// <returns>JWT token or null if not found</returns>
-    public static string? GetIntegrationToken(HttpContext context, string packageName)
-    {
-        var cookieName = $"{IntegrationTokenPrefix}{packageName}";
-        return context.Request.Cookies.TryGetValue(cookieName, out var token) ? token : null;
-    }
-
-    /// <summary>
-    /// Get all integration tokens from cookies
-    /// </summary>
-    /// <param name="context">HTTP context</param>
-    /// <returns>Dictionary of package name to JWT token</returns>
-    public static Dictionary<string, string> GetAllIntegrationTokens(HttpContext context)
-    {
-        var tokens = new Dictionary<string, string>();
-        
-        foreach (var cookie in context.Request.Cookies)
-        {
-            if (cookie.Key.StartsWith(IntegrationTokenPrefix))
-            {
-                var packageName = cookie.Key.Substring(IntegrationTokenPrefix.Length);
-                tokens[packageName] = cookie.Value;
-            }
-        }
-        
-        return tokens;
-    }
-
-    /// <summary>
-    /// Check if user has integrations (requires Linbik refresh)
-    /// </summary>
-    /// <param name="context">HTTP context</param>
-    /// <returns>True if user has integration services</returns>
-    public static bool HasIntegrations(HttpContext context)
-    {
-        var value = context.Request.Cookies[HasIntegrationsCookie];
-        return value?.ToLower() == "true";
-    }
-
-    /// <summary>
-    /// Map Linbik OAuth endpoints (login, refresh, logout)
-    /// This is the preferred way to add Linbik endpoints in .NET 6+ minimal APIs
-    /// </summary>
-    /// <param name="endpoints">Endpoint route builder</param>
-    /// <returns>Endpoint route builder for chaining</returns>
     public static IEndpointRouteBuilder MapLinbikEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var options = endpoints.ServiceProvider.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
+        var linbikOptions = endpoints.ServiceProvider.GetRequiredService<IOptions<Linbik.Core.Configuration.LinbikOptions>>().Value;
 
-        var cookieOptions = new CookieOptions
+        // Login - redirect to Linbik authorization
+        endpoints.MapGet(options.LoginPath, (HttpContext context,
+            [FromQuery] string? returnUrl) =>
         {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-        };
+            // Build authorization URL: LinbikUrl + /auth + ServiceId + CodeChallenge
+            var baseUrl = linbikOptions.LinbikUrl.TrimEnd('/');
+            var authEndpoint = linbikOptions.AuthorizationEndpoint.TrimStart('/');
+            var clientId = linbikOptions.ClientId;
 
-        // Login endpoint - exchange authorization code for tokens
-        endpoints.MapGet(options.LoginPath, async (HttpContext context,
+            string authorizationUrl;
+
+            // Generate PKCE code challenge if enabled
+            if (options.PkceEnabled)
+            {
+                var (verifier, challenge) = PkceService.Generate();
+                PkceService.SaveVerifier(context.Response, verifier);
+                authorizationUrl = $"{baseUrl}/{authEndpoint}/{clientId}/{challenge}";
+            }
+            else
+            {
+                authorizationUrl = $"{baseUrl}/{authEndpoint}/{clientId}";
+            }
+
+            // Store return URL in cookie for callback (only if it's a safe local URL)
+            if (IsLocalUrl(returnUrl))
+            {
+                context.Response.Cookies.Append("linbik_return_url", returnUrl!, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    MaxAge = TimeSpan.FromMinutes(10),
+                    Path = "/"
+                });
+            }
+
+            return Results.Redirect(authorizationUrl);
+        }).WithTags("Linbik.Auth").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
+
+        // Login callback - exchange authorization code for tokens
+        endpoints.MapGet(options.LoginCallbackPath, async (HttpContext context,
             [FromServices] ILinbikAuthClient linbikClient,
-            [FromServices] ILinbikRepository repository,
-            [FromServices] ILogger<ILinbikAuthClient> logger) =>
+            [FromServices] ILogger<ILinbikAuthClient> logger,
+            [FromServices] IAuditLogger auditLogger,
+            [FromServices] LinbikMetrics metrics) =>
         {
+            var timer = metrics.StartTimer();
+            string? userId = null;
+            
             try
             {
                 var code = context.Request.Query["code"].FirstOrDefault();
-
                 if (string.IsNullOrEmpty(code))
-                    return Results.Json(new LBaseResponse<object>("Invalid Code"), statusCode: StatusCodes.Status406NotAcceptable);
+                {
+                    await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Authorization code is required", false);
+                    metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
+                    return Results.BadRequest(new LBaseResponse<object>("Authorization code is required"));
+                }
 
-                // Exchange code for tokens using LinbikAuthClient
-                var tokenResponse = await linbikClient.ExchangeCodeAsync(code).ConfigureAwait(false);
-
+                // Exchange code for tokens
+                var tokenResponse = await linbikClient.ExchangeCodeAsync(code);
                 if (tokenResponse is null)
-                    return Results.Json(new LBaseResponse<object>("Token exchange failed"), statusCode: StatusCodes.Status406NotAcceptable);
+                {
+                    await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Token exchange failed", false);
+                    metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
+                    return Results.BadRequest(new LBaseResponse<object>("Token exchange failed"));
+                }
+
+                userId = tokenResponse.UserId.ToString();
 
                 // PKCE verification (client-side)
-                if (options.PkceEnabled)
+                if (options.PkceEnabled && !string.IsNullOrEmpty(tokenResponse.CodeChallenge))
                 {
-                    if (string.IsNullOrEmpty(tokenResponse.CodeChallenge))
-                    {
-                        logger.LogWarning("PKCE is enabled but CodeChallenge is missing in token response");
-                        return Results.Json(new LBaseResponse<object>("PKCE verification failed"), statusCode: StatusCodes.Status406NotAcceptable);
-                    }
-
                     var verifier = PkceService.GetVerifier(context.Request);
                     if (!string.IsNullOrEmpty(verifier))
                     {
                         if (!PkceService.VerifyChallengeMatches(verifier, tokenResponse.CodeChallenge))
                         {
                             logger.LogWarning("PKCE verification failed for user {UserId}", tokenResponse.UserId);
-                            return Results.Json(new LBaseResponse<object>("PKCE verification failed"), statusCode: StatusCodes.Status406NotAcceptable);
+                            await auditLogger.LogAsync(AuditEventType.PkceValidationFailed, userId, "PKCE verification failed", false);
+                            metrics.RecordLoginFailure("pkce_failed");
+                            return Results.BadRequest(new LBaseResponse<object>("PKCE verification failed"));
                         }
                         PkceService.DeleteVerifier(context.Response);
                     }
                 }
 
-                var userGuid = tokenResponse.UserId;
-                var userName = tokenResponse.Username;
-                var displayName = tokenResponse.DisplayName;
-
-                // Calculate token expiration
-                var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue
+                // Calculate expiry (check > 0 to avoid 1970 epoch date when value is 0)
+                var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue && tokenResponse.AccessTokenExpiresAt.Value > 0
                     ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                    : DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration);
+                    : DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes);
 
-                var hasIntegrations = tokenResponse.Integrations?.Count > 0;
-                string localRefreshToken;
+                var refreshTokenExpiry = tokenResponse.RefreshTokenExpiresAt.HasValue && tokenResponse.RefreshTokenExpiresAt.Value > 0
+                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
+                    : DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays);
 
-                if (hasIntegrations)
+                var cookieOptions = new CookieOptions
                 {
-                    // Integrations exist - use Linbik's refresh token
-                    localRefreshToken = tokenResponse.RefreshToken ?? string.Empty;
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None
+                };
 
-                    // Store Linbik refresh token
-                    context.Response.Cookies.Append(LinbikRefreshTokenCookie, localRefreshToken, new CookieOptions
+                // Store refresh token
+                if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                {
+                    context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
                     {
                         HttpOnly = true,
                         Secure = true,
                         SameSite = SameSiteMode.None,
-                        Expires = tokenResponse.RefreshTokenExpiresAt.HasValue
-                            ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                            : DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
+                        Expires = refreshTokenExpiry,
+                        Path = "/"
                     });
+                }
 
-                    // Store integration tokens in separate cookies
+                // Store integration tokens
+                if (tokenResponse.Integrations?.Count > 0)
+                {
                     foreach (var integration in tokenResponse.Integrations)
                     {
                         var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                        context.Response.Cookies.Append(integrationCookieName, integration.AccessToken, new CookieOptions
+                        context.Response.Cookies.Append(integrationCookieName, integration.Token, new CookieOptions
                         {
                             HttpOnly = true,
                             Secure = true,
                             SameSite = SameSiteMode.None,
-                            Expires = accessTokenExpiry
+                            Expires = accessTokenExpiry,
+                            Path = "/"
                         });
                     }
-
-                    // Mark that user has integrations
-                    context.Response.Cookies.Append(HasIntegrationsCookie, "true", cookieOptions);
                 }
-                else
+
+                // Create local access token (for cookie auth)
+                if (string.IsNullOrEmpty(options.SecretKey))
                 {
-                    // No integrations - create local refresh token
-                    var (refreshToken, success) = await repository.CreateRefresToken(userGuid, userName).ConfigureAwait(false);
-                    if (!success)
-                        return Results.Json(new LBaseResponse<object>("Failed to create refresh token"), statusCode: StatusCodes.Status500InternalServerError);
-                    localRefreshToken = refreshToken;
-                    context.Response.Cookies.Append(HasIntegrationsCookie, "false", cookieOptions);
+                    logger.LogError("SecretKey is not configured in JwtAuthOptions. User authentication will not work. Please set 'Linbik:JwtAuth:SecretKey' in appsettings.json");
+                    return Results.Problem("Authentication is not properly configured. SecretKey is missing.");
                 }
 
-                // Create local access token
+                if (options.SecretKey.Length < MinSecretKeyLength)
+                {
+                    logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters for HS256. Current length: {CurrentLength}", MinSecretKeyLength, options.SecretKey.Length);
+                    return Results.Problem("Authentication is not properly configured. SecretKey is too weak.");
+                }
+
                 var claims = new List<Claim>
                 {
-                    new(ClaimTypes.NameIdentifier, userGuid.ToString()),
-                    new(ClaimTypes.Name, userName),
-                    new("display_name", displayName ?? userName)
+                    new(ClaimTypes.NameIdentifier, tokenResponse.UserId.ToString()),
+                    new(ClaimTypes.Name, tokenResponse.Username),
+                    new("display_name", tokenResponse.DisplayName ?? tokenResponse.Username)
                 };
 
-                var securityKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey ?? throw new InvalidOperationException("PrivateKey not configured")));
-                var credentials = new SigningCredentials(securityKey, options.Algorithm ?? SecurityAlgorithms.HmacSha256);
+                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
+                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
                 var token = new JwtSecurityToken(
                     issuer: options.JwtIssuer,
@@ -664,190 +224,241 @@ public static class JwtAuthManagerExtensions
 
                 var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-                // Store tokens in cookies
                 context.Response.Cookies.Append(AuthTokenCookie, tokenString, new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.None,
-                    Expires = accessTokenExpiry
+                    Expires = accessTokenExpiry,
+                    Path = "/"
                 });
 
-                context.Response.Cookies.Append(RefreshTokenCookie, localRefreshToken, cookieOptions);
-                context.Response.Cookies.Append(UserNameCookie, userName, cookieOptions);
-
-                return Results.Ok(new LBaseResponse<object>(new
+                context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, new CookieOptions
                 {
-                    userId = userGuid,
-                    userName,
-                    displayName,
-                    hasIntegrations,
-                    integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
-                }));
+                    HttpOnly = false,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = refreshTokenExpiry,
+                    Path = "/"
+                });
+
+                // Check for return URL cookie and redirect (with Open Redirect protection)
+                var returnUrl = context.Request.Cookies["linbik_return_url"];
+                context.Response.Cookies.Delete("linbik_return_url", new CookieOptions { Path = "/" });
+                
+                // Log successful login
+                timer.Stop();
+                await auditLogger.LogTokenExchangeAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
+                metrics.RecordTokenExchange(true, timer.ElapsedSeconds, linbikOptions.ServiceId);
+                metrics.RecordLoginSuccess(linbikOptions.ClientId);
+                
+                if (IsLocalUrl(returnUrl))
+                {
+                    return Results.Redirect(returnUrl!);
+                }
+
+                // Default redirect to home page
+                return Results.Redirect("/");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Login failed");
-                return Results.Json(new LBaseResponse<object>(ex.Message), statusCode: StatusCodes.Status500InternalServerError);
+                logger.LogError(ex, "Login callback failed");
+                await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, userId, ex.Message, false);
+                metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
+                return Results.Problem(ex.Message);
             }
-        }).WithTags("Linbik.Auth").AllowAnonymous();
+        }).WithTags("Linbik.Auth").AllowAnonymous().RequireRateLimiting("LinbikStrict");
 
         // Logout endpoint
-        endpoints.MapPost(options.ExitPath ?? "/linbik/logout", async (HttpContext context) =>
+        endpoints.MapPost(options.LogoutPath, async (HttpContext context,
+            [FromServices] IAuditLogger auditLogger) =>
         {
+            var deleteCookieOptions = new CookieOptions { Path = "/" };
+            
+            // Get user ID before deleting cookies
+            var authToken = context.Request.Cookies[AuthTokenCookie];
+            string? userId = null;
+            if (!string.IsNullOrEmpty(authToken))
+            {
+                try
+                {
+                    var handler = new JwtSecurityTokenHandler();
+                    var jwt = handler.ReadJwtToken(authToken);
+                    userId = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value;
+                }
+                catch { /* Ignore token parsing errors */ }
+            }
+            
             // Delete all auth cookies
-            context.Response.Cookies.Delete(AuthTokenCookie);
-            context.Response.Cookies.Delete(RefreshTokenCookie);
-            context.Response.Cookies.Delete(LinbikRefreshTokenCookie);
-            context.Response.Cookies.Delete(HasIntegrationsCookie);
-            context.Response.Cookies.Delete(UserNameCookie);
+            context.Response.Cookies.Delete(AuthTokenCookie, deleteCookieOptions);
+            context.Response.Cookies.Delete(RefreshTokenCookie, deleteCookieOptions);
+            context.Response.Cookies.Delete(LinbikRefreshTokenCookie, deleteCookieOptions);
+            context.Response.Cookies.Delete(UserNameCookie, deleteCookieOptions);
 
             // Delete integration cookies
             foreach (var cookie in context.Request.Cookies)
             {
                 if (cookie.Key.StartsWith(IntegrationTokenPrefix))
                 {
-                    context.Response.Cookies.Delete(cookie.Key);
+                    context.Response.Cookies.Delete(cookie.Key, deleteCookieOptions);
                 }
             }
 
-            await Task.CompletedTask;
+            await auditLogger.LogAsync(AuditEventType.LogoutSuccess, userId, "User logged out successfully");
             return Results.Ok(new LBaseResponse<object>("Logged out successfully"));
-        }).WithTags("Linbik.Auth");
+        }).WithTags("Linbik.Auth").RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
         // Refresh endpoint
-        endpoints.MapPost(options.RefreshPath ?? "/linbik/refresh", async (HttpContext context,
+        endpoints.MapPost(options.RefreshPath, async (HttpContext context,
             [FromServices] ILinbikAuthClient linbikClient,
-            [FromServices] ILinbikRepository repository,
-            [FromServices] ILogger<ILinbikAuthClient> logger) =>
+            [FromServices] ILogger<ILinbikAuthClient> logger,
+            [FromServices] IAuditLogger auditLogger,
+            [FromServices] LinbikMetrics metrics) =>
         {
+            var timer = metrics.StartTimer();
+            string? userId = null;
+            
             try
             {
-                var hasIntegrationsCookie = context.Request.Cookies[HasIntegrationsCookie];
-                var hasIntegrations = hasIntegrationsCookie?.ToLower() == "true";
-
-                if (hasIntegrations)
+                var refreshToken = context.Request.Cookies[LinbikRefreshTokenCookie];
+                if (string.IsNullOrEmpty(refreshToken))
                 {
-                    // Use Linbik refresh token
-                    var linbikRefreshToken = context.Request.Cookies[LinbikRefreshTokenCookie];
-                    if (string.IsNullOrEmpty(linbikRefreshToken))
-                    {
-                        return Results.Json(new LBaseResponse<object>("No refresh token available"), statusCode: StatusCodes.Status401Unauthorized);
-                    }
-
-                    var tokenResponse = await linbikClient.RefreshTokensAsync(linbikRefreshToken).ConfigureAwait(false);
-                    if (tokenResponse is null)
-                    {
-                        // Clear cookies on refresh failure
-                        context.Response.Cookies.Delete(AuthTokenCookie);
-                        context.Response.Cookies.Delete(LinbikRefreshTokenCookie);
-                        return Results.Json(new LBaseResponse<object>("Token refresh failed"), statusCode: StatusCodes.Status401Unauthorized);
-                    }
-
-                    var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue
-                        ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                        : DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration);
-
-                    // Update integration tokens
-                    if (tokenResponse.Integrations?.Count > 0)
-                    {
-                        foreach (var integration in tokenResponse.Integrations)
-                        {
-                            var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                            context.Response.Cookies.Append(integrationCookieName, integration.AccessToken, new CookieOptions
-                            {
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.None,
-                                Expires = accessTokenExpiry
-                            });
-                        }
-                    }
-
-                    // Update Linbik refresh token if new one provided
-                    if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
-                    {
-                        context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.None,
-                            Expires = tokenResponse.RefreshTokenExpiresAt.HasValue
-                                ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                                : DateTime.UtcNow.AddDays(options.RefreshTokenExpiration)
-                        });
-                    }
-
-                    return Results.Ok(new LBaseResponse<object>(new
-                    {
-                        refreshed = true,
-                        integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
-                    }));
+                    await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, null, "No refresh token provided", false);
+                    metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
+                    return Results.Unauthorized();
                 }
-                else
+
+                var tokenResponse = await linbikClient.RefreshTokensAsync(refreshToken);
+                if (tokenResponse is null)
                 {
-                    // Local refresh token
-                    var localRefreshToken = context.Request.Cookies[RefreshTokenCookie];
-                    if (string.IsNullOrEmpty(localRefreshToken))
-                    {
-                        return Results.Json(new LBaseResponse<object>("No refresh token available"), statusCode: StatusCodes.Status401Unauthorized);
-                    }
+                    await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, null, "Token refresh returned null", false);
+                    metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
+                    return Results.Unauthorized();
+                }
 
-                    var tokenResult = await repository.UseRefresToken(localRefreshToken).ConfigureAwait(false);
-                    if (!tokenResult.Success || tokenResult.UserGuid == Guid.Empty)
-                    {
-                        context.Response.Cookies.Delete(AuthTokenCookie);
-                        context.Response.Cookies.Delete(RefreshTokenCookie);
-                        return Results.Json(new LBaseResponse<object>("Invalid refresh token"), statusCode: StatusCodes.Status401Unauthorized);
-                    }
+                userId = tokenResponse.UserId.ToString();
 
-                    var userGuid = tokenResult.UserGuid;
-                    var userName = context.Request.Cookies[UserNameCookie] ?? "user";
-                    var (newRefreshTokenValue, createSuccess) = await repository.CreateRefresToken(userGuid, userName).ConfigureAwait(false);
-                    if (!createSuccess)
-                        return Results.Json(new LBaseResponse<object>("Failed to create refresh token"), statusCode: StatusCodes.Status500InternalServerError);
+                // Calculate expiry (check > 0 to avoid 1970 epoch date when value is 0)
+                var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue && tokenResponse.AccessTokenExpiresAt.Value > 0
+                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
+                    : DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes);
 
-                    var accessTokenExpiry = DateTime.UtcNow.AddMinutes(options.AccessTokenExpiration);
-                    var claims = new List<Claim>
-                    {
-                        new(ClaimTypes.NameIdentifier, userGuid.ToString()),
-                        new(ClaimTypes.Name, userName)
-                    };
+                var refreshTokenExpiry = tokenResponse.RefreshTokenExpiresAt.HasValue && tokenResponse.RefreshTokenExpiresAt.Value > 0
+                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
+                    : DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays);
 
-                    var securityKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(options.PrivateKey ?? throw new InvalidOperationException("PrivateKey not configured")));
-                    var credentials = new SigningCredentials(securityKey, options.Algorithm ?? SecurityAlgorithms.HmacSha256);
-
-                    var token = new JwtSecurityToken(
-                        issuer: options.JwtIssuer,
-                        audience: options.JwtAudience,
-                        claims: claims,
-                        expires: accessTokenExpiry,
-                        signingCredentials: credentials
-                    );
-
-                    var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                    context.Response.Cookies.Append(AuthTokenCookie, tokenString, new CookieOptions
+                // Update refresh token
+                if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                {
+                    context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
                     {
                         HttpOnly = true,
                         Secure = true,
                         SameSite = SameSiteMode.None,
-                        Expires = accessTokenExpiry
+                        Expires = refreshTokenExpiry,
+                        Path = "/"
                     });
-
-                    context.Response.Cookies.Append(RefreshTokenCookie, newRefreshTokenValue, cookieOptions);
-
-                    return Results.Ok(new LBaseResponse<object>(new { refreshed = true }));
                 }
+
+                // Update integration tokens
+                if (tokenResponse.Integrations?.Count > 0)
+                {
+                    foreach (var integration in tokenResponse.Integrations)
+                    {
+                        var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
+                        context.Response.Cookies.Append(integrationCookieName, integration.Token, new CookieOptions
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.None,
+                            Expires = accessTokenExpiry,
+                            Path = "/"
+                        });
+                    }
+                }
+
+                // Update local access token
+                if (string.IsNullOrEmpty(options.SecretKey))
+                {
+                    logger.LogError("SecretKey is not configured in JwtAuthOptions");
+                    return Results.Problem("Authentication is not properly configured");
+                }
+
+                if (options.SecretKey.Length < MinSecretKeyLength)
+                {
+                    logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters", MinSecretKeyLength);
+                    return Results.Problem("Authentication is not properly configured");
+                }
+
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, tokenResponse.UserId.ToString()),
+                    new(ClaimTypes.Name, tokenResponse.Username),
+                    new("display_name", tokenResponse.DisplayName ?? tokenResponse.Username)
+                };
+
+                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
+                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+                var token = new JwtSecurityToken(
+                    issuer: options.JwtIssuer,
+                    audience: options.JwtAudience,
+                    claims: claims,
+                    expires: accessTokenExpiry,
+                    signingCredentials: credentials
+                );
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+                context.Response.Cookies.Append(AuthTokenCookie, tokenString, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = accessTokenExpiry,
+                    Path = "/"
+                });
+
+                // Log successful refresh
+                timer.Stop();
+                await auditLogger.LogTokenRefreshAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
+                metrics.RecordTokenRefresh(true, timer.ElapsedSeconds, linbikOptions.ServiceId);
+
+                return Results.Ok(new LBaseResponse<object>(new
+                {
+                    userId = tokenResponse.UserId,
+                    userName = tokenResponse.Username,
+                    displayName = tokenResponse.DisplayName,
+                    integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
+                }));
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Token refresh failed");
-                return Results.Json(new LBaseResponse<object>(ex.Message), statusCode: StatusCodes.Status500InternalServerError);
+                await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, userId, ex.Message, false);
+                metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
+                return Results.Problem(ex.Message);
             }
-        }).WithTags("Linbik.Auth");
+        }).WithTags("Linbik.Auth").RequireRateLimiting("LinbikStrict");
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// Get integration token from cookie
+    /// </summary>
+    public static string? GetIntegrationToken(this HttpContext context, string packageName)
+    {
+        var cookieName = $"{IntegrationTokenPrefix}{packageName}";
+        return context.Request.Cookies[cookieName];
+    }
+
+    /// <summary>
+    /// Check if user has integration tokens
+    /// </summary>
+    public static bool HasIntegrations(this HttpContext context)
+    {
+        return context.Request.Cookies.Any(c => c.Key.StartsWith(IntegrationTokenPrefix));
     }
 }
 

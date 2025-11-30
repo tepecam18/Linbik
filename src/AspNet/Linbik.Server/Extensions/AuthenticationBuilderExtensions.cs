@@ -1,42 +1,63 @@
 ﻿using Linbik.Server.Configuration;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using System.Security.Cryptography;
 
 namespace Linbik.Server.Extensions;
 
+/// <summary>
+/// Extension methods for adding Linbik JWT Bearer authentication for integration services
+/// </summary>
 public static class AuthenticationBuilderExtensions
 {
-    private const string LinbikAppScheme = "LinbikAppScheme";
+    private const string LinbikIntegrationScheme = "LinbikIntegration";
 
-    public static AuthenticationBuilder AddLinbikAppScheme(this AuthenticationBuilder builder, IConfiguration config)
+    /// <summary>
+    /// Add Linbik Integration authentication scheme
+    /// Validates JWT tokens using the service's RSA public key
+    /// </summary>
+    public static AuthenticationBuilder AddLinbikIntegrationScheme(
+        this AuthenticationBuilder builder,
+        IConfiguration configuration)
     {
-        var options = config.GetSection("Linbik:Server").Get<ServerOptions>();
+        var options = configuration.GetSection("Linbik:Server").Get<ServerOptions>();
 
-        return builder.AddJwtBearer(LinbikAppScheme, opt =>
+        return builder.AddJwtBearer(LinbikIntegrationScheme, opt =>
         {
-            if (!string.IsNullOrEmpty(options?.PrivateKey))
+            if (!string.IsNullOrEmpty(options?.PublicKey))
             {
+                // Import RSA public key
+                var rsa = RSA.Create();
+                var publicKeyBytes = Convert.FromBase64String(options.PublicKey);
+                rsa.ImportSubjectPublicKeyInfo(publicKeyBytes, out _);
+
                 opt.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new RsaSecurityKey(rsa),
                     ValidateLifetime = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.PrivateKey)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
+                    ValidateIssuer = options.ValidateIssuer,
+                    ValidIssuer = options.JwtIssuer,
+                    ValidateAudience = options.ValidateAudience,
+                    ValidAudience = options.ServiceId.ToString(),
+                    ClockSkew = TimeSpan.FromMinutes(options.ClockSkewMinutes)
                 };
             }
         });
     }
 }
 
-public class LinbikAppAuthorizeAttribute : AuthorizeAttribute
+/// <summary>
+/// Authorize attribute for Linbik integration service endpoints
+/// </summary>
+public class LinbikIntegrationAuthorizeAttribute : AuthorizeAttribute
 {
-    public LinbikAppAuthorizeAttribute()
+    public LinbikIntegrationAuthorizeAttribute()
     {
-        AuthenticationSchemes = "LinbikAppScheme";
+        AuthenticationSchemes = "LinbikIntegration";
     }
 }

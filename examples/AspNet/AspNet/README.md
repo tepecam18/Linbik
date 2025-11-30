@@ -835,6 +835,126 @@ dotnet-counters monitor
 # Verify async patterns
 ```
 
+## 🛡️ Enterprise Security Features (New!)
+
+Bu proje artık enterprise-grade güvenlik özelliklerini içermektedir:
+
+### Rate Limiting
+
+3 farklı rate limiting policy mevcuttur:
+
+| Policy | Tip | Limit | Kullanım |
+|--------|-----|-------|----------|
+| `LinbikAuth` | Fixed Window | 10 req/dakika | Login, logout işlemleri |
+| `LinbikStrict` | Token Bucket | 5 token, 2 refill/sn | Token exchange, refresh |
+| `LinbikGeneral` | Fixed Window | 50 req/dakika | Genel API istekleri |
+
+**Kullanım:**
+```csharp
+[EnableRateLimiting("LinbikAuth")]
+public IActionResult Login() { ... }
+```
+
+**Yapılandırma (appsettings.json):**
+```json
+{
+  "RateLimit": {
+    "Enabled": true,
+    "PermitLimit": 10,
+    "WindowSeconds": 60,
+    "UseSlidingWindow": false
+  }
+}
+```
+
+### HttpClient Resilience
+
+Otomatik retry, circuit breaker ve timeout özellikleri:
+
+- **Retry**: 3 deneme, exponential backoff
+- **Circuit Breaker**: 5 hata = 30 saniye devre kesici
+- **Timeout**: 30 saniye request timeout
+
+**Yapılandırma (appsettings.json):**
+```json
+{
+  "Resilience": {
+    "Enabled": true,
+    "MaxRetryAttempts": 3,
+    "RetryDelayMs": 1000,
+    "CircuitBreakerEnabled": true,
+    "TimeoutSeconds": 30
+  }
+}
+```
+
+### Audit Logging
+
+Structured logging ile tüm authentication event'leri:
+
+**Event Tipleri:**
+- `LoginAttempt`, `LoginSuccess`, `LoginFailed`
+- `TokenExchangeAttempt`, `TokenExchangeSuccess`, `TokenExchangeFailed`
+- `TokenRefreshAttempt`, `TokenRefreshSuccess`, `TokenRefreshFailed`
+- `RateLimitExceeded`, `InvalidApiKey`, `InvalidAuthorizationCode`
+- `SessionCreated`, `SessionExpired`
+
+**Yapılandırma (appsettings.json):**
+```json
+{
+  "Audit": {
+    "Enabled": true,
+    "LogSuccessfulOperations": true,
+    "IncludeIpAddress": true
+  }
+}
+```
+
+### Performance Metrics
+
+OpenTelemetry uyumlu metrikler:
+
+**Mevcut Metrikler:**
+| Metrik | Tip | Açıklama |
+|--------|-----|----------|
+| `linbik_login_attempts_total` | Counter | Toplam login denemeleri |
+| `linbik_login_successes_total` | Counter | Başarılı loginler |
+| `linbik_token_exchanges_total` | Counter | Token exchange sayısı |
+| `linbik_rate_limit_hits_total` | Counter | Rate limit aşımları |
+| `linbik_token_exchange_duration_seconds` | Histogram | Token exchange süresi |
+
+**OpenTelemetry Entegrasyonu:**
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m => m.AddMeter("Linbik.Auth"));
+```
+
+### Test Endpoint'leri
+
+Yeni güvenlik özelliklerini test etmek için endpoint'ler:
+
+| Endpoint | Method | Açıklama |
+|----------|--------|----------|
+| `/Test/TestRateLimit` | GET | Rate limiting testi (LinbikAuth policy) |
+| `/Test/TestStrictRateLimit` | GET | Strict rate limiting testi (LinbikStrict policy) |
+| `/Test/Metrics` | GET | Mevcut metriklerin listesi |
+| `/Test/TestAuditLog` | POST | Audit logging testi |
+| `/Test/SecurityInfo` | GET | Güvenlik yapılandırması özeti |
+
+**Örnek Kullanım:**
+```bash
+# Rate limit test (10 kez çağırınca 429 döner)
+curl https://localhost:7020/Test/TestRateLimit
+
+# Audit log test
+curl -X POST https://localhost:7020/Test/TestAuditLog \
+  -H "Content-Type: application/json" \
+  -d '{"eventType": "LoginAttempt", "message": "Test audit"}'
+
+# Security info
+curl https://localhost:7020/Test/SecurityInfo
+```
+
 ## 📞 Support
 
 ### Getting Help

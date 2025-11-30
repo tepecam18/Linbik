@@ -4,7 +4,13 @@ public class YARPOptions
 {
     public string RouteId { get; set; } = string.Empty;
     public string ClusterId { get; set; } = string.Empty;
-    public string PrivateKey { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Integration service package name for this route
+    /// Used to retrieve the correct JWT token from cookies
+    /// </summary>
+    public string IntegrationPackageName { get; set; } = string.Empty;
+    
     public List<ClusterOptions> Clusters { get; set; } = new();
     public string PrefixPath { get; set; } = string.Empty;
     

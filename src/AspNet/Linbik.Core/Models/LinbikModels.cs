@@ -100,17 +100,6 @@ public class LinbikIntegrationToken
     /// Use this in Authorization header when calling the integration service
     /// </summary>
     public string Token { get; set; } = string.Empty;
-
-    // Backwards compatibility aliases
-    /// <summary>
-    /// Alias for ServiceUrl (backwards compatibility)
-    /// </summary>
-    public string BaseUrl => ServiceUrl;
-
-    /// <summary>
-    /// Alias for Token (backwards compatibility)
-    /// </summary>
-    public string AccessToken => Token;
 }
 
 /// <summary>

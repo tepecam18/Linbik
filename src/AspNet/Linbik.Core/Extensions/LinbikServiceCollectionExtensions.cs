@@ -4,7 +4,9 @@ using Linbik.Core.Interfaces;
 using Linbik.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
+using Polly;
 
 namespace Linbik.Core.Extensions;
 
@@ -53,8 +55,34 @@ public static class LinbikServiceCollectionExtensions
             options.Cookie.IsEssential = true;
         });
 
-        // Add typed HttpClient for LinbikAuthClient
-        // Base address is configured from LinbikOptions.LinbikUrl in the client constructor
+        // Configure resilience options
+        services.AddOptions<ResilienceOptions>()
+            .Configure<IConfiguration>((options, config) =>
+            {
+                config.GetSection("Linbik:Resilience").Bind(options);
+            });
+
+        // Configure audit options
+        services.AddOptions<AuditOptions>()
+            .Configure<IConfiguration>((options, config) =>
+            {
+                config.GetSection("Linbik:Audit").Bind(options);
+            });
+
+        // Configure rate limit options
+        services.AddOptions<RateLimitOptions>()
+            .Configure<IConfiguration>((options, config) =>
+            {
+                config.GetSection("Linbik:RateLimit").Bind(options);
+            });
+
+        // Register audit logger
+        services.AddSingleton<IAuditLogger, DefaultAuditLogger>();
+
+        // Register metrics
+        services.AddSingleton<LinbikMetrics>();
+
+        // Add typed HttpClient for LinbikAuthClient with resilience
         services.AddHttpClient<ILinbikAuthClient, LinbikAuthClient>(LinbikHttpClientName)
             .ConfigureHttpClient((sp, client) =>
             {
@@ -64,12 +92,45 @@ public static class LinbikServiceCollectionExtensions
                     client.BaseAddress = new Uri(options.LinbikUrl.TrimEnd('/') + "/");
                 }
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
+            })
+            .AddResilienceHandler("LinbikResilience", (builder, context) =>
+            {
+                var resilienceOptions = context.ServiceProvider
+                    .GetService<IOptions<ResilienceOptions>>()?.Value ?? new ResilienceOptions();
+
+                if (!resilienceOptions.Enabled)
+                    return;
+
+                // Add retry policy with exponential backoff
+                builder.AddRetry(new HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = resilienceOptions.MaxRetryAttempts,
+                    Delay = TimeSpan.FromMilliseconds(resilienceOptions.RetryDelayMs),
+                    MaxDelay = TimeSpan.FromMilliseconds(resilienceOptions.MaxRetryDelayMs),
+                    BackoffType = DelayBackoffType.Exponential,
+                    UseJitter = true,
+                    ShouldHandle = args => ValueTask.FromResult(
+                        args.Outcome.Exception != null ||
+                        (args.Outcome.Result?.StatusCode >= System.Net.HttpStatusCode.InternalServerError))
+                });
+
+                // Add circuit breaker
+                if (resilienceOptions.CircuitBreakerEnabled)
+                {
+                    builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        MinimumThroughput = resilienceOptions.CircuitBreakerFailureThreshold,
+                        SamplingDuration = TimeSpan.FromSeconds(resilienceOptions.CircuitBreakerSamplingDurationSeconds),
+                        BreakDuration = TimeSpan.FromSeconds(resilienceOptions.CircuitBreakerDurationSeconds)
+                    });
+                }
+
+                // Add timeout
+                builder.AddTimeout(TimeSpan.FromSeconds(resilienceOptions.TimeoutSeconds));
             });
 
         // Register main auth service
         services.AddScoped<IAuthService, LinbikAuthService>();
-
-        // Legacy token validator
-        services.AddSingleton<ITokenValidator, TokenValidator>();
     }
 }

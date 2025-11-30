@@ -1,17 +1,10 @@
 ﻿using Linbik.Core.Interfaces;
 using Linbik.Server.Models;
-using Linbik.Server.Responses;
 
 namespace Linbik.Server.Interfaces;
 
 public interface ILinbikServerRepository
 {
-    /// <summary>
-    /// Legacy: Validates app login credentials
-    /// </summary>
-    [Obsolete("Use GetServiceByApiKeyAsync with authorization code flow instead")]
-    Task<AppLoginValidationResponse> AppLoginValidationsAsync(AppLoginModel request);
-
     // === Authorization Code Flow ===
 
     /// <summary>

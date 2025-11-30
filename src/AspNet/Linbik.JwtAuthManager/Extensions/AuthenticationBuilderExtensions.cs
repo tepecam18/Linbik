@@ -1,4 +1,4 @@
-﻿using Linbik.JwtAuthManager.Configuration;
+using Linbik.JwtAuthManager.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -9,18 +9,27 @@ using System.Text;
 
 namespace Linbik.JwtAuthManager.Extensions;
 
+/// <summary>
+/// Extension methods for adding Linbik JWT Bearer authentication scheme
+/// </summary>
 public static class AuthenticationBuilderExtensions
 {
     private const string LinbikScheme = "LinbikScheme";
-    private const string AuthTokenCookie = "AuthToken";
+    private const string AuthTokenCookie = "authToken";
 
-    public static AuthenticationBuilder AddLinbikScheme(this AuthenticationBuilder builder, IConfiguration config)
+    /// <summary>
+    /// Add Linbik JWT Bearer authentication scheme
+    /// Validates JWT tokens from cookies using the configured secret key
+    /// </summary>
+    public static AuthenticationBuilder AddLinbikScheme(
+        this AuthenticationBuilder builder,
+        IConfiguration configuration)
     {
-        var options = config.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>();
+        var options = configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>();
 
         return builder.AddJwtBearer(LinbikScheme, opt =>
         {
-            if (!string.IsNullOrEmpty(options?.PrivateKey))
+            if (!string.IsNullOrEmpty(options?.SecretKey))
             {
                 opt.Events = new JwtBearerEvents
                 {
@@ -35,15 +44,20 @@ public static class AuthenticationBuilderExtensions
                 {
                     ValidateIssuerSigningKey = true,
                     ValidateLifetime = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.PrivateKey)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey)),
+                    ValidateIssuer = !string.IsNullOrEmpty(options.JwtIssuer),
+                    ValidIssuer = options.JwtIssuer,
+                    ValidateAudience = !string.IsNullOrEmpty(options.JwtAudience),
+                    ValidAudience = options.JwtAudience
                 };
             }
         });
     }
 }
 
+/// <summary>
+/// Authorize attribute that uses the Linbik authentication scheme
+/// </summary>
 public class LinbikAuthorizeAttribute : AuthorizeAttribute
 {
     public LinbikAuthorizeAttribute()

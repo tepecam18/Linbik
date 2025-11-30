@@ -11,11 +11,14 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDistributedMemoryCache();
 
-// ✅ Linbik Core - Authentication client services
+// ✅ Linbik Core - Authentication client services (includes HttpClient resilience)
 builder.Services.AddLinbik(builder.Configuration);
 
 // ✅ Linbik JwtAuthManager - Login/callback/logout middleware
-builder.Services.AddLinbikJwtAuth();
+builder.Services.AddLinbikJwtAuth(builder.Configuration);
+
+// ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
+builder.Services.AddLinbikRateLimiting(builder.Configuration);
 
 // ✅ Linbik YARP - API Gateway with automatic token injection
 builder.Services.AddLinbikYarp(builder.Configuration);
@@ -40,6 +43,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// ✅ Rate limiting middleware (before other middleware)
+app.UseLinbikRateLimiting();
+
+app.UseSession(); // Session middleware - required for Linbik auth
 
 app.UseRouting();
 
