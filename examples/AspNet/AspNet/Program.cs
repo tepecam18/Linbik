@@ -44,18 +44,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ✅ Rate limiting middleware (before other middleware)
-app.UseLinbikRateLimiting();
-
-app.UseSession(); // Session middleware - required for Linbik auth
-
 app.UseRouting();
+
+// ✅ Rate limiting middleware - must be after UseRouting for attribute-based rate limiting to work
+app.UseLinbikRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-// ✅ Linbik middleware pipeline
-app.UseLinbikYarpProxy(); // API Gateway with automatic JWT injection
 
 // Map endpoints
 app.MapControllerRoute(

@@ -134,19 +134,6 @@ public static class YARPManagerExtensions
                 });
             });
     }
-
-    /// <summary>
-    /// Use Linbik reverse proxy middleware
-    /// </summary>
-    public static IApplicationBuilder UseProxy(this IApplicationBuilder app)
-    {
-        app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapReverseProxy();
-        });
-
-        return app;
-    }
 }
 
 

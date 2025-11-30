@@ -19,10 +19,7 @@
             padding: 20px;
         }
         
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
+        .container { max-width: 900px; margin: 0 auto; }
         
         .card {
             background: white;
@@ -32,19 +29,17 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
-        h1 {
-            color: #667eea;
-            margin-bottom: 24px;
-            font-size: 32px;
-        }
+        h1 { color: #667eea; margin-bottom: 24px; font-size: 28px; }
         
         h2 {
             color: #333;
             margin-bottom: 16px;
-            font-size: 20px;
+            font-size: 18px;
             border-bottom: 2px solid #667eea;
             padding-bottom: 8px;
         }
+
+        h3 { color: #333; font-size: 16px; margin-bottom: 12px; }
         
         .status {
             display: flex;
@@ -55,77 +50,39 @@
             margin-bottom: 20px;
         }
         
-        .status.logged-in {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .status.logged-out {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .status-icon {
-            font-size: 32px;
-        }
-        
-        .status-text {
-            flex: 1;
-        }
-        
-        .status-text h3 {
-            margin-bottom: 4px;
-            color: #333;
-        }
-        
-        .status-text p {
-            color: #666;
-            font-size: 14px;
-        }
+        .status.logged-in { background: #d4edda; border: 1px solid #c3e6cb; }
+        .status.logged-out { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .status-icon { font-size: 32px; }
+        .status-text { flex: 1; }
+        .status-text h3 { margin-bottom: 4px; color: #333; }
+        .status-text p { color: #666; font-size: 14px; }
         
         .btn {
             display: inline-block;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: bold;
             transition: all 0.3s;
             border: none;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
         }
         
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
-        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
         
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
             margin-bottom: 20px;
         }
         
         .info-item {
-            padding: 16px;
+            padding: 12px;
             background: #f8f9fa;
             border-radius: 8px;
             border-left: 4px solid #667eea;
@@ -133,120 +90,203 @@
         
         .info-item label {
             display: block;
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
             margin-bottom: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
         .info-item .value {
-            display: block;
-            font-size: 18px;
+            font-size: 14px;
             color: #333;
             font-weight: 600;
             word-break: break-all;
         }
         
-        .token-list {
-            list-style: none;
-        }
-        
         .token-item {
-            padding: 16px;
+            padding: 12px;
             background: #f8f9fa;
             border-radius: 8px;
-            margin-bottom: 12px;
-            border-left: 4px solid #28a745;
-        }
-        
-        .token-item h4 {
-            color: #333;
             margin-bottom: 8px;
-            font-size: 16px;
-        }
-        
-        .token-item p {
-            color: #666;
-            font-size: 14px;
-            margin: 4px 0;
-        }
-        
-        .token-item code {
-            background: #e9ecef;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-        
-        .footer {
-            text-align: center;
-            color: white;
-            margin-top: 40px;
-            font-size: 14px;
+            border-left: 4px solid #28a745;
         }
         
         .badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             margin-left: 8px;
         }
         
-        .badge-success {
-            background: #28a745;
-            color: white;
-        }
+        .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-info { background: #17a2b8; color: white; }
+
+        /* Test Section */
+        .test-section { margin-bottom: 24px; }
         
-        .badge-warning {
-            background: #ffc107;
+        .test-group {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .test-group-title {
+            font-size: 14px;
+            font-weight: bold;
             color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .test-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn-test {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-test:hover { transform: translateY(-1px); opacity: 0.9; }
+        .btn-test:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-auth { background: #667eea; color: white; }
+        .btn-refresh { background: #28a745; color: white; }
+        .btn-rate { background: #f5576c; color: white; }
+        .btn-integration { background: #17a2b8; color: white; }
+        .btn-info { background: #6c757d; color: white; }
+
+        .result-box {
+            background: #1a1a2e;
+            border-radius: 8px;
+            margin-top: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .result-box.show { display: block; }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .result-header h4 { color: #e94560; font-size: 13px; }
+
+        .result-status {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .result-status.success { background: #28a745; color: white; }
+        .result-status.error { background: #dc3545; color: white; }
+
+        .result-body {
+            padding: 12px 16px;
+            color: #00ff41;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .counter-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .counter { font-size: 24px; font-weight: bold; color: #856404; }
+
+        .note-box {
+            background: #e7f3ff;
+            border-left: 4px solid #0d6efd;
+            padding: 12px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #0d6efd;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Login Status Card -->
         <div class="card">
-            <h1>🔐 Linbik Integration Test</h1>
+            <h1>🔐 Linbik Integration Test Dashboard</h1>
             
             <div class="status @(Model.IsLoggedIn ? "logged-in" : "logged-out")">
                 <div class="status-icon">@(Model.IsLoggedIn ? "✅" : "❌")</div>
                 <div class="status-text">
-                    <h3>@(Model.IsLoggedIn ? "Kullanıcı Giriş Yapmış" : "Kullanıcı Giriş Yapmamış")</h3>
-                    <p>@(Model.IsLoggedIn ? $"Hoş geldiniz, {Model.Profile!.UserName}!" : "Devam etmek için Linbik ile giriş yapın")</p>
+                    <h3>@(Model.IsLoggedIn ? "Giriş Yapıldı" : "Giriş Yapılmadı")</h3>
+                    <p>@(Model.IsLoggedIn ? $"Hoş geldin, {Model.Profile!.UserName}!" : "Testleri görmek için giriş yapın")</p>
                 </div>
                 @if (Model.IsLoggedIn)
                 {
-                    <a href="/linbik/logout" class="btn btn-danger">Çıkış Yap</a>
+                    <button onclick="logout()" class="btn btn-danger">🚪 Çıkış</button>
                 }
                 else
                 {
-                    <a href="/linbik/login" class="btn btn-primary">Linbik ile Giriş Yap</a>
+                    <a href="/linbik/login" class="btn btn-primary">Linbik ile Giriş</a>
                 }
             </div>
 
             @if (Model.IsLoggedIn)
             {
-                <h2>👤 Kullanıcı Bilgileri <span class="badge badge-success">Session</span></h2>
                 <div class="info-grid">
                     <div class="info-item">
                         <label>User ID</label>
-                        <span class="value">@Model.Profile!.UserId</span>
+                        <span class="value">@Model.Profile!.UserId.ToString().Substring(0, 8)...</span>
                     </div>
                     <div class="info-item">
                         <label>Username</label>
@@ -256,38 +296,223 @@
                         <label>Nickname</label>
                         <span class="value">@Model.Profile.NickName</span>
                     </div>
-                </div>
-
-                <h2>🔑 Integration Tokens <span class="badge @(Model.Tokens.Count > 0 ? "badge-success" : "badge-warning")">@Model.Tokens.Count</span></h2>
-                
-                @if (Model.Tokens.Count > 0)
-                {
-                    <ul class="token-list">
-                        @foreach (var token in Model.Tokens)
-                        {
-                            <li class="token-item">
-                                <h4>📦 @token.PackageName (@token.ServiceName)</h4>
-                                <p><strong>Service URL:</strong> <code>@token.ServiceUrl</code></p>
-                                <p><strong>Token Length:</strong> <code>@token.Token.Length characters</code></p>
-                            </li>
-                        }
-                    </ul>
-                }
-                else
-                {
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <p>Bu servise ait integration token bulunamadı.</p>
-                        <p style="font-size: 12px; margin-top: 8px;">Integration servislerini appsettings.json'da yapılandırın.</p>
+                    <div class="info-item">
+                        <label>Integration Tokens</label>
+                        <span class="value">@Model.Tokens.Count adet</span>
                     </div>
-                }
+                </div>
             }
         </div>
 
+        <!-- Test Panel -->
+        <div class="card">
+            <h2>🧪 API Test Paneli</h2>
+
+            <!-- Authentication Tests -->
+            <div class="test-group">
+                <div class="test-group-title">
+                    🔒 Authentication Testleri
+                    <span class="badge badge-info">[LinbikAuthorize]</span>
+                </div>
+                <div class="test-buttons">
+                    <button class="btn-test btn-auth" onclick="testEndpoint('/Test/Protected', 'auth')">
+                        🛡️ Protected Endpoint
+                    </button>
+                    <button class="btn-test btn-auth" onclick="testEndpoint('/Test/Profile', 'auth')">
+                        👤 Profile
+                    </button>
+                    <button class="btn-test btn-info" onclick="testEndpoint('/Test/TokenInfo', 'auth')">
+                        📋 Token Bilgileri
+                    </button>
+                </div>
+                <div id="auth-result" class="result-box"></div>
+                <div class="note-box">
+                    💡 <strong>Not:</strong> Protected ve Profile endpoint'leri <code>[LinbikAuthorize]</code> ile korunur. 
+                    Giriş yapmadan <strong>401 Unauthorized</strong> döner.
+                </div>
+            </div>
+
+            <!-- Refresh Token Test -->
+            <div class="test-group">
+                <div class="test-group-title">
+                    🔄 Refresh Token Testi
+                </div>
+                <div class="test-buttons">
+                    <button class="btn-test btn-refresh" onclick="testEndpoint('/Test/TestRefreshToken', 'refresh', 'POST')">
+                        🔄 Token Yenile
+                    </button>
+                </div>
+                <div id="refresh-result" class="result-box"></div>
+                <div class="note-box">
+                    💡 Linbik sunucusuna refresh token gönderir ve yeni auth token alır. 
+                    Giriş yapmış olmanız gerekir.
+                </div>
+            </div>
+
+            <!-- Rate Limiting Tests -->
+            <div class="test-group">
+                <div class="test-group-title">
+                    ⚡ Rate Limiting Testleri
+                    <span class="badge badge-warning">Hızlı tıklayın!</span>
+                </div>
+                <div class="test-buttons">
+                    <button class="btn-test btn-rate" onclick="testRateLimit('/Test/TestRateLimit', 'rate')">
+                        📊 Normal (10/dk)
+                    </button>
+                    <button class="btn-test btn-rate" onclick="testRateLimit('/Test/TestStrictRateLimit', 'strict')">
+                        🚫 Strict (5 token)
+                    </button>
+                    <button class="btn-test btn-info" onclick="resetCounters()">
+                        🔄 Sayaçları Sıfırla
+                    </button>
+                </div>
+                <div class="counter-box">
+                    <div>
+                        <span class="counter" id="rate-counter">0</span>
+                        <span style="color: #856404;"> / 10</span>
+                    </div>
+                    <div style="flex: 1; font-size: 13px; color: #856404;">
+                        Normal rate limit sayacı. 11. istekte 429 hatası almalısınız.
+                    </div>
+                </div>
+                <div id="rate-result" class="result-box"></div>
+                <div id="strict-result" class="result-box"></div>
+            </div>
+
+            <!-- Integration Service Tests -->
+            <div class="test-group">
+                <div class="test-group-title">
+                    🔗 Integration Service Testleri
+                    <span class="badge badge-info">JWT Token</span>
+                </div>
+                <div class="test-buttons">
+                    <button class="btn-test btn-integration" onclick="testEndpoint('/Test/TestIntegrationToken', 'integration')">
+                        📦 Token Listele
+                    </button>
+                    @if (Model.Tokens.Count > 0)
+                    {
+                        @foreach (var token in Model.Tokens)
+                        {
+                            <button class="btn-test btn-integration" 
+                                    onclick="testEndpoint('/Test/TestIntegrationToken?packageName=@token.PackageName', 'integration')">
+                                🔑 @token.PackageName
+                            </button>
+                        }
+                    }
+                </div>
+                <div id="integration-result" class="result-box"></div>
+                <div class="note-box">
+                    💡 Integration token'lar, YARP proxy üzerinden diğer servislere istek yaparken 
+                    <code>Authorization: Bearer {token}</code> olarak eklenir.
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Tokens.Count > 0)
+        {
+            <!-- Integration Tokens Detail -->
+            <div class="card">
+                <h2>🔑 Integration Token Detayları</h2>
+                @foreach (var token in Model.Tokens)
+                {
+                    <div class="token-item">
+                        <strong>📦 @token.PackageName</strong>
+                        <br/>
+                        <small style="color: #666;">Token uzunluğu: @token.Token.Length karakter</small>
+                    </div>
+                }
+            </div>
+        }
+
         <div class="footer">
             <p>✨ Powered by Linbik - Federated Identity Platform</p>
-            <p style="margin-top: 8px; font-size: 12px;">AspNet.Examples • @DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</p>
+            <p style="margin-top: 6px; opacity: 0.8;">@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</p>
         </div>
     </div>
+
+    <script>
+        let rateCounter = 0;
+        let strictCounter = 0;
+
+        function resetCounters() {
+            rateCounter = 0;
+            strictCounter = 0;
+            document.getElementById('rate-counter').textContent = '0';
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/linbik/logout', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Çıkış yapılamadı: ' + response.status);
+                }
+            } catch (error) {
+                alert('Çıkış hatası: ' + error.message);
+            }
+        }
+
+        async function testEndpoint(url, resultGroup, method = 'GET') {
+            const resultBox = document.getElementById(resultGroup + '-result');
+            resultBox.classList.add('show');
+            resultBox.innerHTML = `
+                <div class="result-header">
+                    <h4>${url}</h4>
+                    <span class="result-status" style="background: #6c757d;">Loading...</span>
+                </div>
+                <div class="result-body">Fetching...</div>
+            `;
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch {
+                    data = await response.text();
+                }
+
+                const statusClass = response.ok ? 'success' : 'error';
+                const statusText = response.ok ? `✓ ${response.status}` : `✗ ${response.status}`;
+
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>${method} ${url}</h4>
+                        <span class="result-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="result-body">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</div>
+                `;
+            } catch (error) {
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>${method} ${url}</h4>
+                        <span class="result-status error">✗ Error</span>
+                    </div>
+                    <div class="result-body" style="color: #ff6b6b;">Network Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function testRateLimit(url, type) {
+            if (type === 'rate') {
+                rateCounter++;
+                document.getElementById('rate-counter').textContent = rateCounter;
+            } else {
+                strictCounter++;
+            }
+
+            await testEndpoint(url, type);
+        }
+    </script>
 </body>
 </html>

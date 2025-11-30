@@ -269,8 +269,8 @@ public static class JwtAuthManagerExtensions
             }
         }).WithTags("Linbik.Auth").AllowAnonymous().RequireRateLimiting("LinbikStrict");
 
-        // Logout endpoint
-        endpoints.MapPost(options.LogoutPath, async (HttpContext context,
+        // Logout endpoint (GET for simple link usage)
+        endpoints.MapGet(options.LogoutPath, async (HttpContext context,
             [FromServices] IAuditLogger auditLogger) =>
         {
             var deleteCookieOptions = new CookieOptions { Path = "/" };

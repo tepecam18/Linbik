@@ -158,24 +158,6 @@ public static class LinbikYarpExtensions
     }
 
     /// <summary>
-    /// Use Linbik YARP with automatic token management
-    /// </summary>
-    public static IApplicationBuilder UseLinbikYarp(this IApplicationBuilder app)
-    {
-        // YARP middleware should be added via MapReverseProxy in endpoint routing
-        // This method is for additional setup if needed
-        return app;
-    }
-
-    /// <summary>
-    /// Use Linbik YARP proxy (alias for UseLinbikYarp)
-    /// </summary>
-    public static IApplicationBuilder UseLinbikYarpProxy(this IApplicationBuilder app)
-    {
-        return app.UseLinbikYarp();
-    }
-
-    /// <summary>
     /// Map integration service proxy endpoints
     /// Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}
     /// Automatically injects JWT token from integration_{packageName} cookie

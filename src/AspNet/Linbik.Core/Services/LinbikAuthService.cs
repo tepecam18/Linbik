@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text.Json;
 using Linbik.Core.Configuration;
 using Linbik.Core.Interfaces;
@@ -10,7 +12,7 @@ namespace Linbik.Core.Services;
 
 /// <summary>
 /// Main authentication service for Linbik
-/// Manages user sessions, token storage, and authentication flow
+/// Cookie-based authentication - profile info extracted from JWT for security
 /// </summary>
 public class LinbikAuthService : IAuthService
 {
@@ -18,13 +20,10 @@ public class LinbikAuthService : IAuthService
     private readonly LinbikOptions _options;
     private readonly ILogger<LinbikAuthService> _logger;
 
-    // Session keys
-    private const string SessionKeyUserId = "linbik_user_id";
-    private const string SessionKeyUserName = "linbik_user_name";
-    private const string SessionKeyNickName = "linbik_nick_name";
-    private const string SessionKeyRefreshToken = "linbik_refresh_token";
-    private const string SessionKeyRefreshExpiresAt = "linbik_refresh_expires_at";
-    private const string SessionKeyIntegrations = "linbik_integrations";
+    // Cookie names
+    private const string AuthTokenCookie = "authToken";
+    private const string RefreshTokenCookie = "linbikRefreshToken";
+    private const string IntegrationTokenPrefix = "integration_";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -47,10 +46,17 @@ public class LinbikAuthService : IAuthService
     {
         var authUrl = BuildAuthorizationUrl(codeChallenge);
         
-        // Store return URL in session
+        // Store return URL in cookie (not session)
         if (!string.IsNullOrEmpty(returnUrl))
         {
-            context.Session.SetString("linbik_return_url", returnUrl);
+            context.Response.Cookies.Append("linbik_return_url", returnUrl, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                MaxAge = TimeSpan.FromMinutes(10),
+                Path = "/"
+            });
         }
 
         context.Response.Redirect(authUrl);
@@ -73,50 +79,75 @@ public class LinbikAuthService : IAuthService
     /// <inheritdoc />
     public Task<UserProfile?> GetUserProfileAsync(HttpContext context)
     {
-        var userId = context.Session.GetString(SessionKeyUserId);
-        if (string.IsNullOrEmpty(userId))
+        // Extract profile from JWT token (more secure than storing in session/cookie)
+        var authToken = context.Request.Cookies[AuthTokenCookie];
+        if (string.IsNullOrEmpty(authToken))
         {
             return Task.FromResult<UserProfile?>(null);
         }
 
-        var profile = new UserProfile
+        try
         {
-            UserId = Guid.Parse(userId),
-            UserName = context.Session.GetString(SessionKeyUserName) ?? string.Empty,
-            NickName = context.Session.GetString(SessionKeyNickName) ?? string.Empty
-        };
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(authToken);
 
-        return Task.FromResult<UserProfile?>(profile);
+            var userId = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value;
+            var userName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "name" || c.Type == "preferred_username")?.Value;
+            var nickName = jwt.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value;
+
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+            {
+                return Task.FromResult<UserProfile?>(null);
+            }
+
+            var profile = new UserProfile
+            {
+                UserId = userGuid,
+                UserName = userName ?? string.Empty,
+                NickName = nickName ?? userName ?? string.Empty
+            };
+
+            return Task.FromResult<UserProfile?>(profile);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse JWT token for user profile");
+            return Task.FromResult<UserProfile?>(null);
+        }
     }
 
     /// <inheritdoc />
     public Task<List<LinbikIntegrationToken>> GetIntegrationTokensAsync(HttpContext context)
     {
-        var json = context.Session.GetString(SessionKeyIntegrations);
-        if (string.IsNullOrEmpty(json))
+        // Get integration tokens from cookies
+        var tokens = new List<LinbikIntegrationToken>();
+
+        foreach (var cookie in context.Request.Cookies)
         {
-            return Task.FromResult(new List<LinbikIntegrationToken>());
+            if (cookie.Key.StartsWith(IntegrationTokenPrefix))
+            {
+                var packageName = cookie.Key.Substring(IntegrationTokenPrefix.Length);
+                tokens.Add(new LinbikIntegrationToken
+                {
+                    PackageName = packageName,
+                    ServiceName = packageName,
+                    Token = cookie.Value,
+                    ServiceUrl = string.Empty // URL not stored in cookie for security
+                });
+            }
         }
 
-        try
-        {
-            var tokens = JsonSerializer.Deserialize<List<LinbikIntegrationToken>>(json, JsonOptions);
-            return Task.FromResult(tokens ?? new List<LinbikIntegrationToken>());
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Failed to deserialize integration tokens from session");
-            return Task.FromResult(new List<LinbikIntegrationToken>());
-        }
+        return Task.FromResult(tokens);
     }
 
     /// <inheritdoc />
     public async Task<bool> RefreshTokensAsync(HttpContext context)
     {
-        var refreshToken = context.Session.GetString(SessionKeyRefreshToken);
+        // Get refresh token from cookie
+        var refreshToken = context.Request.Cookies[RefreshTokenCookie];
         if (string.IsNullOrEmpty(refreshToken))
         {
-            _logger.LogWarning("No refresh token found in session");
+            _logger.LogWarning("No refresh token found in cookies");
             return false;
         }
 
@@ -127,52 +158,70 @@ public class LinbikAuthService : IAuthService
             return false;
         }
 
-        // Store new tokens
-        StoreTokensInSession(context, response);
+        // Store new tokens in cookies
+        StoreTokensInCookies(context, response);
         return true;
     }
 
     /// <inheritdoc />
     public Task LogoutAsync(HttpContext context)
     {
-        // Clear session
-        context.Session.Remove(SessionKeyUserId);
-        context.Session.Remove(SessionKeyUserName);
-        context.Session.Remove(SessionKeyNickName);
-        context.Session.Remove(SessionKeyRefreshToken);
-        context.Session.Remove(SessionKeyRefreshExpiresAt);
-        context.Session.Remove(SessionKeyIntegrations);
+        var deleteCookieOptions = new CookieOptions
+        {
+            Path = "/",
+            Secure = true,
+            SameSite = SameSiteMode.None
+        };
+
+        // Clear auth cookies
+        context.Response.Cookies.Delete(AuthTokenCookie, deleteCookieOptions);
+        context.Response.Cookies.Delete(RefreshTokenCookie, deleteCookieOptions);
 
         // Clear integration cookies
         ClearIntegrationCookies(context);
 
-        _logger.LogInformation("User logged out");
+        _logger.LogInformation("User logged out - cookies cleared");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Store token response in session and cookies
+    /// Store token response in cookies (no session required)
+    /// Profile info is NOT stored - it's extracted from JWT when needed
     /// </summary>
-    public void StoreTokensInSession(HttpContext context, LinbikTokenResponse response)
+    public void StoreTokensInCookies(HttpContext context, LinbikTokenResponse response)
     {
-        // Store user profile in session
-        context.Session.SetString(SessionKeyUserId, response.UserId.ToString());
-        context.Session.SetString(SessionKeyUserName, response.Username);
-        context.Session.SetString(SessionKeyNickName, response.DisplayName);
-        context.Session.SetString(SessionKeyRefreshToken, response.RefreshToken ?? string.Empty);
-        context.Session.SetString(SessionKeyRefreshExpiresAt, (response.RefreshTokenExpiresAt ?? 0).ToString());
+        var secureCookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Path = "/"
+        };
 
-        // Store integration tokens in session
+        // Store refresh token if available
+        if (!string.IsNullOrEmpty(response.RefreshToken))
+        {
+            var refreshExpiry = (response.RefreshTokenExpiresAt ?? 0) > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(response.RefreshTokenExpiresAt!.Value).UtcDateTime
+                : DateTime.UtcNow.AddDays(14);
+
+            context.Response.Cookies.Append(RefreshTokenCookie, response.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = refreshExpiry
+            });
+        }
+
+        // Store integration tokens in cookies for YARP proxy
         if (response.Integrations?.Count > 0)
         {
-            var integrationsJson = JsonSerializer.Serialize(response.Integrations, JsonOptions);
-            context.Session.SetString(SessionKeyIntegrations, integrationsJson);
-
-            // Store integration tokens in cookies for YARP proxy
             StoreIntegrationCookies(context, response.Integrations);
         }
 
-        _logger.LogInformation("Tokens stored for user {UserId}", response.UserId);
+        _logger.LogInformation("Tokens stored in cookies for user {UserId}", response.UserId);
     }
 
     #region Private Methods
@@ -181,14 +230,14 @@ public class LinbikAuthService : IAuthService
     {
         var baseUrl = _options.LinbikUrl.TrimEnd('/');
         var endpoint = _options.AuthorizationEndpoint.TrimStart('/');
-        var serviceId = _options.ServiceId;
+        var clientId = _options.ClientId;
 
         if (!string.IsNullOrEmpty(codeChallenge))
         {
-            return $"{baseUrl}/{endpoint}/{serviceId}/{codeChallenge}";
+            return $"{baseUrl}/{endpoint}/{clientId}/{codeChallenge}";
         }
 
-        return $"{baseUrl}/{endpoint}/{serviceId}";
+        return $"{baseUrl}/{endpoint}/{clientId}";
     }
 
     private void StoreIntegrationCookies(HttpContext context, List<LinbikIntegrationToken> integrations)
@@ -197,14 +246,14 @@ public class LinbikAuthService : IAuthService
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Lax,
+            SameSite = SameSiteMode.None,
             Path = "/",
             Expires = DateTimeOffset.UtcNow.AddHours(1)
         };
 
         foreach (var integration in integrations)
         {
-            var cookieName = $"integration_{integration.PackageName}";
+            var cookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
             context.Response.Cookies.Append(cookieName, integration.Token, cookieOptions);
             _logger.LogDebug("Stored integration cookie for {PackageName}", integration.PackageName);
         }
@@ -212,14 +261,21 @@ public class LinbikAuthService : IAuthService
 
     private void ClearIntegrationCookies(HttpContext context)
     {
+        var deleteCookieOptions = new CookieOptions
+        {
+            Path = "/",
+            Secure = true,
+            SameSite = SameSiteMode.None
+        };
+
         // Get all cookies that start with integration_
         var integrationCookies = context.Request.Cookies.Keys
-            .Where(k => k.StartsWith("integration_"))
+            .Where(k => k.StartsWith(IntegrationTokenPrefix))
             .ToList();
 
         foreach (var cookieName in integrationCookies)
         {
-            context.Response.Cookies.Delete(cookieName);
+            context.Response.Cookies.Delete(cookieName, deleteCookieOptions);
             _logger.LogDebug("Cleared integration cookie {CookieName}", cookieName);
         }
     }
