@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 
-namespace Linbik.JwtAuthManager.Extensions;
+namespace Linbik.JwtAuthManager.Attributes;
 
 /// <summary>
 /// Authorize attribute that uses the Linbik authentication scheme.

@@ -28,13 +28,13 @@ public static class LinbikYarpExtensions
         Action<YARPOptions> configureOptions)
     {
         services.Configure(configureOptions);
-        
+
         // Add token provider
         services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
-        
+
         // Add HTTP client factory
         services.AddHttpClient();
-        
+
         return services;
     }
 
@@ -46,13 +46,13 @@ public static class LinbikYarpExtensions
         IConfiguration configuration)
     {
         services.Configure<YARPOptions>(configuration.GetSection("Linbik:YARP"));
-        
+
         // Add token provider
         services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
-        
+
         // Add HTTP client factory
         services.AddHttpClient();
-        
+
         return services;
     }
 
@@ -69,13 +69,13 @@ public static class LinbikYarpExtensions
             {
                 var tokenProvider = transformContext.HttpContext.RequestServices
                     .GetRequiredService<ITokenProvider>();
-                
+
                 var authService = transformContext.HttpContext.RequestServices
                     .GetService<IAuthService>();
 
                 // Get service package name from route metadata or header
                 var servicePackage = transformContext.HttpContext.Request.Headers["X-Service-Package"].ToString();
-                
+
                 if (string.IsNullOrEmpty(servicePackage))
                 {
                     // Try to get from route values
@@ -91,7 +91,7 @@ public static class LinbikYarpExtensions
                     {
                         // Get integration token (will auto-refresh if expired)
                         var token = await tokenProvider.GetIntegrationTokenAsync(servicePackage);
-                        
+
                         if (!string.IsNullOrEmpty(token))
                         {
                             // Inject token into Authorization header
@@ -112,8 +112,11 @@ public static class LinbikYarpExtensions
                     }
                     catch (Exception ex)
                     {
-                        // Log error and return 500
-                        Console.WriteLine($"Token injection failed: {ex.Message}");
+                        // Log error using ILogger instead of Console.WriteLine
+                        var logger = transformContext.HttpContext.RequestServices
+                            .GetService<ILogger<MultiJwtTokenProvider>>();
+                        logger?.LogError(ex, "Token injection failed for service {ServicePackage}", servicePackage);
+
                         transformContext.HttpContext.Response.StatusCode = 500;
                         await transformContext.HttpContext.Response.WriteAsync(
                             "Failed to inject authentication token");
@@ -130,7 +133,7 @@ public static class LinbikYarpExtensions
                 {
                     var tokenProvider = transformContext.HttpContext.RequestServices
                         .GetRequiredService<ITokenProvider>();
-                    
+
                     var authService = transformContext.HttpContext.RequestServices
                         .GetService<IAuthService>();
 
@@ -138,12 +141,12 @@ public static class LinbikYarpExtensions
                     if (authService != null)
                     {
                         var refreshed = await authService.RefreshTokensAsync(transformContext.HttpContext);
-                        
+
                         if (!refreshed)
                         {
                             // Refresh failed - clear cache and redirect to login
                             tokenProvider.ClearCache();
-                            
+
                             transformContext.HttpContext.Response.StatusCode = 401;
                             transformContext.HttpContext.Response.Headers["X-Linbik-Auth-Error"] = "token_expired";
                             await transformContext.HttpContext.Response.WriteAsync(
@@ -178,7 +181,7 @@ public static class LinbikYarpExtensions
             endpoints.Map($"/{packageName}/{{**path}}", async (HttpContext context) =>
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
-                
+
                 // Get JWT token from cookie
                 var cookieName = $"{cookiePrefix}{packageName}";
                 var token = context.Request.Cookies[cookieName];
@@ -187,10 +190,10 @@ public static class LinbikYarpExtensions
                 {
                     logger?.LogWarning("Integration token not found for {PackageName}", packageName);
                     context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new 
-                    { 
-                        error = "unauthorized", 
-                        error_description = $"Integration token not found for {packageName}. Please login again." 
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        error = "unauthorized",
+                        error_description = $"Integration token not found for {packageName}. Please login again."
                     });
                     return;
                 }
@@ -221,7 +224,7 @@ public static class LinbikYarpExtensions
                     };
 
                     // Add Authorization header with JWT token
-                    requestMessage.Headers.Authorization = 
+                    requestMessage.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                     // Copy headers (except Host and Authorization)
@@ -235,14 +238,14 @@ public static class LinbikYarpExtensions
                     }
 
                     // Copy request body for POST/PUT/PATCH
-                    if (context.Request.ContentLength > 0 || 
+                    if (context.Request.ContentLength > 0 ||
                         context.Request.Headers.ContainsKey("Transfer-Encoding"))
                     {
                         requestMessage.Content = new StreamContent(context.Request.Body);
-                        
+
                         if (context.Request.ContentType != null)
                         {
-                            requestMessage.Content.Headers.ContentType = 
+                            requestMessage.Content.Headers.ContentType =
                                 System.Net.Http.Headers.MediaTypeHeaderValue.Parse(context.Request.ContentType);
                         }
                     }
@@ -274,20 +277,20 @@ public static class LinbikYarpExtensions
                 {
                     logger?.LogError(ex, "Failed to proxy request to {PackageName}: {TargetUrl}", packageName, targetUrl);
                     context.Response.StatusCode = 502;
-                    await context.Response.WriteAsJsonAsync(new 
-                    { 
-                        error = "bad_gateway", 
-                        error_description = $"Failed to connect to {packageName} service" 
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        error = "bad_gateway",
+                        error_description = $"Failed to connect to {packageName} service"
                     });
                 }
                 catch (TaskCanceledException)
                 {
                     logger?.LogWarning("Request to {PackageName} timed out: {TargetUrl}", packageName, targetUrl);
                     context.Response.StatusCode = 504;
-                    await context.Response.WriteAsJsonAsync(new 
-                    { 
-                        error = "gateway_timeout", 
-                        error_description = $"Request to {packageName} service timed out" 
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        error = "gateway_timeout",
+                        error_description = $"Request to {packageName} service timed out"
                     });
                 }
             }).WithTags($"Integration.{packageName}");

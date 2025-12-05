@@ -1,12 +1,10 @@
-﻿using Linbik.Core.Configuration;
-using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Interfaces;
 using Linbik.Core.Responses;
 using Linbik.Core.Services;
 using Linbik.JwtAuthManager.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,7 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.RateLimiting;
 
 namespace Linbik.JwtAuthManager.Extensions;
 
@@ -106,7 +103,7 @@ public static class JwtAuthManagerExtensions
         {
             var timer = metrics.StartTimer();
             string? userId = null;
-            
+
             try
             {
                 var code = context.Request.Query["code"].FirstOrDefault();
@@ -245,13 +242,13 @@ public static class JwtAuthManagerExtensions
                 // Check for return URL cookie and redirect (with Open Redirect protection)
                 var returnUrl = context.Request.Cookies["linbik_return_url"];
                 context.Response.Cookies.Delete("linbik_return_url", new CookieOptions { Path = "/" });
-                
+
                 // Log successful login
                 timer.Stop();
                 await auditLogger.LogTokenExchangeAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
                 metrics.RecordTokenExchange(true, timer.ElapsedSeconds, linbikOptions.ServiceId);
                 metrics.RecordLoginSuccess(linbikOptions.ClientId);
-                
+
                 if (IsLocalUrl(returnUrl))
                 {
                     return Results.Redirect(returnUrl!);
@@ -274,7 +271,7 @@ public static class JwtAuthManagerExtensions
             [FromServices] IAuditLogger auditLogger) =>
         {
             var deleteCookieOptions = new CookieOptions { Path = "/" };
-            
+
             // Get user ID before deleting cookies
             var authToken = context.Request.Cookies[AuthTokenCookie];
             string? userId = null;
@@ -288,7 +285,7 @@ public static class JwtAuthManagerExtensions
                 }
                 catch { /* Ignore token parsing errors */ }
             }
-            
+
             // Delete all auth cookies
             context.Response.Cookies.Delete(AuthTokenCookie, deleteCookieOptions);
             context.Response.Cookies.Delete(RefreshTokenCookie, deleteCookieOptions);
@@ -317,7 +314,7 @@ public static class JwtAuthManagerExtensions
         {
             var timer = metrics.StartTimer();
             string? userId = null;
-            
+
             try
             {
                 var refreshToken = context.Request.Cookies[LinbikRefreshTokenCookie];

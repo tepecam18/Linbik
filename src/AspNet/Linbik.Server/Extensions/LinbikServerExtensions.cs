@@ -1,7 +1,6 @@
 using Linbik.Server.Configuration;
 using Linbik.Server.Middleware;
 using Linbik.Server.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,9 +30,9 @@ public static class LinbikServerExtensions
 
         // Add token validator as singleton (RSA key is loaded once)
         services.AddSingleton<IntegrationTokenValidator>();
-        
+
         AddLinbikIntegrationAuthentication(services, options);
-        
+
         return services;
     }
 
@@ -46,12 +45,12 @@ public static class LinbikServerExtensions
     {
         var options = configuration.GetSection("Linbik:Server").Get<ServerOptions>() ?? new ServerOptions();
         services.Configure<ServerOptions>(configuration.GetSection("Linbik:Server"));
-        
+
         // Add token validator
         services.AddSingleton<IntegrationTokenValidator>();
-        
+
         AddLinbikIntegrationAuthentication(services, options);
-        
+
         return services;
     }
 
@@ -63,10 +62,9 @@ public static class LinbikServerExtensions
         if (string.IsNullOrEmpty(options.PublicKey))
             return;
 
-        // Import RSA public key
-        var rsa = RSA.Create();
-        var publicKeyBytes = Convert.FromBase64String(options.PublicKey);
-        rsa.ImportSubjectPublicKeyInfo(publicKeyBytes, out _);
+        // Create RSA key as a managed singleton to ensure proper lifecycle
+        // The RSA instance is created once and reused for all token validations
+        var rsaKey = CreateRsaSecurityKey(options.PublicKey);
 
         services.AddAuthentication(authOptions =>
         {
@@ -77,7 +75,7 @@ public static class LinbikServerExtensions
             jwtOptions.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new RsaSecurityKey(rsa),
+                IssuerSigningKey = rsaKey,
                 ValidateLifetime = true,
                 ValidateIssuer = options.ValidateIssuer,
                 ValidIssuer = options.JwtIssuer,
@@ -88,6 +86,35 @@ public static class LinbikServerExtensions
         });
 
         services.AddAuthorization();
+    }
+
+    /// <summary>
+    /// Creates an RsaSecurityKey from a Base64-encoded public key.
+    /// The RSA instance is NOT disposed because it must remain valid for the application lifetime.
+    /// </summary>
+    /// <param name="publicKeyBase64">Base64-encoded RSA public key in SubjectPublicKeyInfo format.</param>
+    /// <returns>An <see cref="RsaSecurityKey"/> for JWT validation.</returns>
+    /// <exception cref="ArgumentException">Thrown when the public key is invalid.</exception>
+    private static RsaSecurityKey CreateRsaSecurityKey(string publicKeyBase64)
+    {
+        try
+        {
+            var rsa = RSA.Create();
+            var publicKeyBytes = Convert.FromBase64String(publicKeyBase64);
+            rsa.ImportSubjectPublicKeyInfo(publicKeyBytes, out _);
+
+            // Note: We intentionally don't dispose the RSA instance here
+            // because RsaSecurityKey takes ownership and the key must remain
+            // valid for the entire application lifetime for JWT validation.
+            return new RsaSecurityKey(rsa);
+        }
+        catch (Exception ex) when (ex is FormatException || ex is CryptographicException)
+        {
+            throw new ArgumentException(
+                "Invalid RSA public key format. Ensure the key is Base64-encoded in SubjectPublicKeyInfo format.",
+                nameof(publicKeyBase64),
+                ex);
+        }
     }
 
     /// <summary>

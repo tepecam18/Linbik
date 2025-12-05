@@ -7,7 +7,7 @@ namespace Linbik.Core.Middleware;
 public sealed class UnauthorizedPayloadMiddleware
 {
     private const string JsonContentType = "application/json; charset=utf-8";
-    
+
     private readonly RequestDelegate _next;
 
     public UnauthorizedPayloadMiddleware(RequestDelegate next)

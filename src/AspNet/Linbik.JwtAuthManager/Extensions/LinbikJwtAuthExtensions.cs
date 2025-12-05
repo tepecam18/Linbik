@@ -28,9 +28,9 @@ public static class LinbikJwtAuthExtensions
         configureOptions(options);
         services.Configure(configureOptions);
         services.AddSingleton<IJwtHelper, JwtHelperService>();
-        
+
         AddLinbikAuthentication(services, options);
-        
+
         return services;
     }
 
@@ -54,9 +54,9 @@ public static class LinbikJwtAuthExtensions
         var options = configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>() ?? new JwtAuthOptions();
         services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
         services.AddSingleton<IJwtHelper, JwtHelperService>();
-        
+
         AddLinbikAuthentication(services, options);
-        
+
         return services;
     }
 

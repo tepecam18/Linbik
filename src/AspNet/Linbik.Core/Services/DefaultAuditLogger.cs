@@ -49,7 +49,7 @@ public class DefaultAuditLogger : IAuditLogger
                 entry.IpAddress ?? "unknown",
                 entry.IsSuccess,
                 entry.DurationMs,
-                entry.Message ?? "");
+                entry.Message ?? string.Empty);
         }
 
         return Task.CompletedTask;

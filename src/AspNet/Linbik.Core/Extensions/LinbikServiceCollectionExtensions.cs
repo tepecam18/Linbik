@@ -10,6 +10,9 @@ using Polly;
 
 namespace Linbik.Core.Extensions;
 
+/// <summary>
+/// Extension methods for adding Linbik authentication services to the DI container.
+/// </summary>
 public static class LinbikServiceCollectionExtensions
 {
     /// <summary>
@@ -17,31 +20,76 @@ public static class LinbikServiceCollectionExtensions
     /// </summary>
     public const string LinbikHttpClientName = "LinbikAuthClient";
 
+    /// <summary>
+    /// Adds Linbik authentication services with custom options configuration.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configureOptions">Action to configure <see cref="LinbikOptions"/>.</param>
+    /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when configureOptions is null.</exception>
     public static LinbikBuilder AddLinbik(this IServiceCollection services, Action<LinbikOptions> configureOptions)
     {
+        ArgumentNullException.ThrowIfNull(configureOptions);
         services.Configure(configureOptions);
+        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
         AddCommonAuthServices(services);
         return new LinbikBuilder(services);
     }
 
+    /// <summary>
+    /// Adds Linbik authentication services using configuration from IConfiguration.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration instance containing 'Linbik' section.</param>
+    /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when configuration is null.</exception>
     public static LinbikBuilder AddLinbik(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
         services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
+        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
         AddCommonAuthServices(services);
         return new LinbikBuilder(services);
     }
 
+    /// <summary>
+    /// Adds Linbik authentication services using IConfiguration from DI container.
+    /// Configuration is resolved at runtime, not at registration time.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
+    /// <remarks>
+    /// This overload uses PostConfigure to bind configuration, avoiding the anti-pattern
+    /// of calling BuildServiceProvider() during service registration.
+    /// </remarks>
     public static LinbikBuilder AddLinbik(this IServiceCollection services)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var configuration = serviceProvider.GetService<IConfiguration>();
+        // Use PostConfigure to defer configuration binding until runtime
+        // This avoids the BuildServiceProvider() anti-pattern which can cause:
+        // - Memory leaks from creating multiple service providers
+        // - Issues with singleton lifetime services
+        // - Unexpected behavior with scoped services
+        services.AddOptions<LinbikOptions>()
+            .Configure<IConfiguration>((options, config) =>
+            {
+                var section = config.GetSection("Linbik");
+                if (!section.Exists())
+                {
+                    throw new InvalidOperationException(
+                        "Linbik configuration section not found. " +
+                        "Add a 'Linbik' section to your appsettings.json or use AddLinbik(configuration) overload.");
+                }
+                section.Bind(options);
+            });
 
-        services.Configure<LinbikOptions>(configuration?.GetSection("Linbik") ?? throw new InvalidOperationException("Linbik configuration section not found"));
+        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
         AddCommonAuthServices(services);
         return new LinbikBuilder(services);
     }
 
-    // Ortak servis kayıtlarını tek bir yerde topladık.
+    /// <summary>
+    /// Adds common authentication services shared by all overloads.
+    /// </summary>
     private static void AddCommonAuthServices(IServiceCollection services)
     {
         // Add HttpContextAccessor for session access

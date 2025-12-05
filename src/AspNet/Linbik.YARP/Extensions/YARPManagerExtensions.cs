@@ -2,10 +2,8 @@
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
 using Linbik.YARP.Services;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Transforms;

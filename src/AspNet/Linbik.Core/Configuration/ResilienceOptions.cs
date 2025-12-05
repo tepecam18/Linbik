@@ -111,6 +111,36 @@ public class RateLimitOptions
     /// Default: 4
     /// </summary>
     public int SegmentsPerWindow { get; set; } = 4;
+
+    /// <summary>
+    /// Multiplier for general policy permit limit (relative to PermitLimit)
+    /// Default: 5 (5x more permissive than auth policy)
+    /// </summary>
+    public int GeneralPolicyMultiplier { get; set; } = 5;
+
+    /// <summary>
+    /// Maximum token burst for strict (token bucket) policy
+    /// Default: 5
+    /// </summary>
+    public int StrictTokenLimit { get; set; } = 5;
+
+    /// <summary>
+    /// Token replenishment period in seconds for strict policy
+    /// Default: 10
+    /// </summary>
+    public int StrictReplenishmentPeriodSeconds { get; set; } = 10;
+
+    /// <summary>
+    /// Tokens added per replenishment period for strict policy
+    /// Default: 2
+    /// </summary>
+    public int StrictTokensPerPeriod { get; set; } = 2;
+
+    /// <summary>
+    /// Queue limit for strict policy (0 = no queuing)
+    /// Default: 0
+    /// </summary>
+    public int StrictQueueLimit { get; set; } = 0;
 }
 
 /// <summary>

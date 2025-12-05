@@ -1,0 +1,98 @@
+using Microsoft.Extensions.Options;
+
+namespace Linbik.Core.Configuration;
+
+/// <summary>
+/// Validates <see cref="LinbikOptions"/> configuration at startup.
+/// Ensures all required values are provided and valid before application starts.
+/// </summary>
+public class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
+{
+    /// <summary>
+    /// Validates the Linbik options configuration.
+    /// </summary>
+    /// <param name="name">The name of the options instance being validated.</param>
+    /// <param name="options">The options instance to validate.</param>
+    /// <returns>A <see cref="ValidateOptionsResult"/> indicating success or failure.</returns>
+    public ValidateOptionsResult Validate(string? name, LinbikOptions options)
+    {
+        var errors = new List<string>();
+
+        // Validate LinbikUrl
+        if (string.IsNullOrWhiteSpace(options.LinbikUrl))
+        {
+            errors.Add("Linbik:LinbikUrl is required. Set the Linbik server base URL (e.g., 'https://linbik.com').");
+        }
+        else if (!Uri.TryCreate(options.LinbikUrl, UriKind.Absolute, out var uri) ||
+                 (uri.Scheme != "http" && uri.Scheme != "https"))
+        {
+            errors.Add($"Linbik:LinbikUrl must be a valid HTTP/HTTPS URL. Current value: '{options.LinbikUrl}'.");
+        }
+
+        // Validate ServiceId
+        if (string.IsNullOrWhiteSpace(options.ServiceId))
+        {
+            errors.Add("Linbik:ServiceId is required. Get this from Linbik service registration.");
+        }
+        else if (!Guid.TryParse(options.ServiceId, out _))
+        {
+            errors.Add($"Linbik:ServiceId must be a valid GUID. Current value: '{options.ServiceId}'.");
+        }
+
+        // Validate ClientId
+        if (string.IsNullOrWhiteSpace(options.ClientId))
+        {
+            errors.Add("Linbik:ClientId is required. Get this from Linbik client registration.");
+        }
+        else if (!Guid.TryParse(options.ClientId, out _))
+        {
+            errors.Add($"Linbik:ClientId must be a valid GUID. Current value: '{options.ClientId}'.");
+        }
+
+        // Validate ApiKey
+        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        {
+            errors.Add("Linbik:ApiKey is required. Get this from Linbik service registration.");
+        }
+        else if (options.ApiKey.Length < 32)
+        {
+            errors.Add("Linbik:ApiKey appears to be too short. Verify the API key from Linbik service registration.");
+        }
+
+        // Validate token lifetimes
+        if (options.AuthorizationCodeLifetimeMinutes < 1 || options.AuthorizationCodeLifetimeMinutes > 60)
+        {
+            errors.Add($"Linbik:AuthorizationCodeLifetimeMinutes must be between 1 and 60. Current value: {options.AuthorizationCodeLifetimeMinutes}.");
+        }
+
+        if (options.AccessTokenLifetimeMinutes < 1 || options.AccessTokenLifetimeMinutes > 1440)
+        {
+            errors.Add($"Linbik:AccessTokenLifetimeMinutes must be between 1 and 1440 (24 hours). Current value: {options.AccessTokenLifetimeMinutes}.");
+        }
+
+        if (options.RefreshTokenLifetimeDays < 1 || options.RefreshTokenLifetimeDays > 365)
+        {
+            errors.Add($"Linbik:RefreshTokenLifetimeDays must be between 1 and 365. Current value: {options.RefreshTokenLifetimeDays}.");
+        }
+
+        // Validate endpoints
+        if (!options.AuthorizationEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:AuthorizationEndpoint must start with '/'. Current value: '{options.AuthorizationEndpoint}'.");
+        }
+
+        if (!options.TokenEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:TokenEndpoint must start with '/'. Current value: '{options.TokenEndpoint}'.");
+        }
+
+        if (!options.RefreshEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:RefreshEndpoint must start with '/'. Current value: '{options.RefreshEndpoint}'.");
+        }
+
+        return errors.Count > 0
+            ? ValidateOptionsResult.Fail(errors)
+            : ValidateOptionsResult.Success;
+    }
+}

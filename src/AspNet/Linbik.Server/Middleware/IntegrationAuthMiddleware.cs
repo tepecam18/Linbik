@@ -33,7 +33,7 @@ public class IntegrationAuthMiddleware
         // Skip validation for anonymous endpoints
         var endpoint = context.GetEndpoint();
         var allowAnonymous = endpoint?.Metadata?.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() != null;
-        
+
         if (allowAnonymous)
         {
             await _next(context);

@@ -27,6 +27,10 @@
     {
       "path": "../ptts/src/Clients/Linbik.App",
       "name": "Linbik.App"
+    },
+    {
+      "path": "../ptts/src/Clients/Linbik.Mobil",
+      "name": "Linbik.Mobil"
     }
   ],
   "settings": {},

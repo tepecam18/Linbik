@@ -2,16 +2,11 @@ using AspNet.Models;
 using Linbik.Core.Interfaces;
 using Linbik.Core.Models;
 using Linbik.Core.Services;
-using Linbik.JwtAuthManager.Extensions;
-using Linbik.Server.Extensions;
+using Linbik.JwtAuthManager.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace AspNet.Controllers;
 
@@ -48,7 +43,7 @@ public class TestController : Controller
             {
                 var handler = new JwtSecurityTokenHandler();
                 var jwt = handler.ReadJwtToken(authToken);
-                
+
                 var userId = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
                 var userName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
                 var displayName = jwt.Claims.FirstOrDefault(c => c.Type == "display_name")?.Value;
@@ -152,7 +147,7 @@ public class TestController : Controller
     public async Task<IActionResult> TestRefreshToken()
     {
         var refreshToken = Request.Cookies[RefreshTokenCookie];
-        
+
         if (string.IsNullOrEmpty(refreshToken))
         {
             return Json(new
@@ -167,7 +162,7 @@ public class TestController : Controller
         try
         {
             var result = await _authService.RefreshTokensAsync(HttpContext);
-            
+
             if (result)
             {
                 return Json(new
@@ -405,7 +400,8 @@ public class TestController : Controller
         var refreshToken = Request.Cookies[RefreshTokenCookie];
         var integrationTokens = Request.Cookies
             .Where(c => c.Key.StartsWith(IntegrationTokenPrefix))
-            .Select(c => new { 
+            .Select(c => new
+            {
                 packageName = c.Key.Substring(IntegrationTokenPrefix.Length),
                 tokenLength = c.Value?.Length ?? 0
             })

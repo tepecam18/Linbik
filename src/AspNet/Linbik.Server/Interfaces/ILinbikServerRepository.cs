@@ -1,5 +1,4 @@
 ﻿using Linbik.Core.Interfaces;
-using Linbik.Server.Models;
 
 namespace Linbik.Server.Interfaces;
 

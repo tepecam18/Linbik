@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 
-namespace Linbik.Server.Extensions;
+namespace Linbik.Server.Attributes;
 
 /// <summary>
 /// Authorize attribute for Linbik integration service endpoints.

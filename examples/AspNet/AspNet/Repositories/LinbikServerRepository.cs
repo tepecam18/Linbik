@@ -1,6 +1,5 @@
 ﻿using Linbik.Core.Interfaces;
 using Linbik.Server.Interfaces;
-using Linbik.Server.Models;
 
 namespace AspNet.Repositories;
 

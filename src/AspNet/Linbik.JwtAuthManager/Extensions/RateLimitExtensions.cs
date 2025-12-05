@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 
 namespace Linbik.JwtAuthManager.Extensions;
@@ -40,7 +39,7 @@ public static class RateLimitExtensions
                 var logger = context.HttpContext.RequestServices.GetService<ILogger<RateLimitOptions>>();
                 var auditLogger = context.HttpContext.RequestServices.GetService<IAuditLogger>();
                 var metrics = context.HttpContext.RequestServices.GetService<LinbikMetrics>();
-                
+
                 var ipAddress = GetClientIpAddress(context.HttpContext);
                 var endpoint = context.HttpContext.Request.Path.Value;
                 var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -57,7 +56,7 @@ public static class RateLimitExtensions
                 metrics?.RecordRateLimitHit(endpoint ?? "unknown");
 
                 context.HttpContext.Response.ContentType = "application/json";
-                
+
                 var retryAfterSeconds = 0;
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
                 {
@@ -99,7 +98,7 @@ public static class RateLimitExtensions
             // Add a more permissive policy for general endpoints
             options.AddFixedWindowLimiter("LinbikGeneral", limiterOptions =>
             {
-                limiterOptions.PermitLimit = rateLimitOptions.PermitLimit * 5; // 5x more permissive
+                limiterOptions.PermitLimit = rateLimitOptions.PermitLimit * rateLimitOptions.GeneralPolicyMultiplier;
                 limiterOptions.Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds);
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 limiterOptions.QueueLimit = rateLimitOptions.QueueLimit;
@@ -108,11 +107,11 @@ public static class RateLimitExtensions
             // Add a strict policy for sensitive operations like token exchange
             options.AddTokenBucketLimiter("LinbikStrict", limiterOptions =>
             {
-                limiterOptions.TokenLimit = 5; // Max burst
-                limiterOptions.ReplenishmentPeriod = TimeSpan.FromSeconds(10); // Refill every 10 seconds
-                limiterOptions.TokensPerPeriod = 2; // 2 tokens per period
+                limiterOptions.TokenLimit = rateLimitOptions.StrictTokenLimit;
+                limiterOptions.ReplenishmentPeriod = TimeSpan.FromSeconds(rateLimitOptions.StrictReplenishmentPeriodSeconds);
+                limiterOptions.TokensPerPeriod = rateLimitOptions.StrictTokensPerPeriod;
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = 0; // No queuing for strict policy
+                limiterOptions.QueueLimit = rateLimitOptions.StrictQueueLimit;
             });
         });
 

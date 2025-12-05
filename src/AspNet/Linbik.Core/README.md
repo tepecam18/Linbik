@@ -10,10 +10,18 @@ Core library for the Linbik Authentication Framework with Authorization Code Flo
 - **Refresh Token Management** - Long-lived token renewal
 - **Per-Service RSA Keys** - Each service gets its own key pair
 - **Service Repository** - Manage service registration and validation
+- **Rate Limiting** - Built-in protection against abuse
+- **HTTP Resilience** - Polly-based retry policies
 
-### Legacy Features (Deprecated)
-- Simple JWT authentication (use authorization code flow instead)
-- Basic token validation (use per-service validation)
+### Configuration Validation
+- Startup-time validation with `IValidateOptions<T>`
+- Detailed error messages for missing or invalid configuration
+
+### Exception Handling
+- `LinbikException` - Base exception class
+- `LinbikAuthenticationException` - Authentication failures
+- `LinbikConfigurationException` - Configuration errors
+- `LinbikTokenException` - Token operation failures
 
 ## 📦 Installation
 
@@ -26,174 +34,185 @@ dotnet add package Linbik.Core
 ### Authorization Code Setup (Recommended)
 
 ```csharp
-services.AddLinbik(options =>
+// In Program.cs
+builder.Services.AddLinbik(builder.Configuration);
+```
+
+```json
+// In appsettings.json
 {
-    options.ServerUrl = "https://linbik.com";
-    options.AuthorizationEndpoint = "/auth";
-    options.TokenEndpoint = "/oauth/token";
-    options.RefreshEndpoint = "/oauth/refresh";
-    options.AuthorizationCodeLifetimeMinutes = 10;
-    options.AccessTokenLifetimeMinutes = 60;
-    options.RefreshTokenLifetimeDays = 30;
-    options.EnablePKCE = true;
-    options.JwtIssuer = "linbik";
-});
+  "Linbik": {
+    "LinbikUrl": "https://linbik.com",
+    "ServiceId": "your-service-guid",
+    "ClientId": "your-client-guid",
+    "ApiKey": "your-api-key",
+    "AuthorizationEndpoint": "/auth",
+    "TokenEndpoint": "/oauth/token",
+    "RefreshEndpoint": "/oauth/refresh",
+    "AccessTokenLifetimeMinutes": 60,
+    "RefreshTokenLifetimeDays": 14
+  }
+}
+```
+
+### Configuration Validation
+
+Options are validated at startup. If configuration is invalid, the application will fail to start with a clear error message:
+
+```
+OptionsValidationException: Linbik:LinbikUrl is required.
+OptionsValidationException: Linbik:ApiKey is required and cannot be empty.
 ```
 
 ## 📚 Main Interfaces
 
-### IJwtHelper
-RSA-256 JWT token signing and validation for multi-service authentication.
+### IAuthService
+Main authentication service interface with full CancellationToken support.
 
 ```csharp
-public interface IJwtHelper
+public interface IAuthService
 {
-    Task<string> CreateTokenAsync(Claim[] claims, string privateKey, string audience, int expirationMinutes = 60);
-    Task<bool> ValidateTokenAsync(string token, string publicKey, string expectedAudience, string expectedIssuer = "linbik");
-    Dictionary<string, string> GetTokenClaims(string token);
-}
-```
-
-### IAuthorizationCodeService
-Manages authorization codes (5-10 minute validity, single-use).
-
-```csharp
-public interface IAuthorizationCodeService
-{
-    Task<string> GenerateCodeAsync(/* parameters */);
-    Task<(bool isValid, AuthorizationCodeData? data)> ValidateAndUseCodeAsync(string code, Guid serviceId);
-    Task<bool> IsCodeValidAsync(string code);
-}
-```
-
-### IServiceRepository
-Service registration and management.
-
-```csharp
-public interface IServiceRepository
-{
-    Task<ServiceData?> GetServiceByIdAsync(Guid serviceId);
-    Task<ServiceData?> GetServiceByApiKeyAsync(string apiKey);
-    Task<List<ServiceData>> GetGrantedIntegrationServicesAsync(Guid userId, Guid mainServiceId);
-    Task<bool> IsIpAllowedAsync(Guid serviceId, string ipAddress);
-}
-```
-
-### IRefreshTokenService
-Refresh token lifecycle management (30-day validity by default).
-
-```csharp
-public interface IRefreshTokenService
-{
-    Task<string> CreateRefreshTokenAsync(/* parameters */);
-    Task<(bool isValid, RefreshTokenData? data)> ValidateRefreshTokenAsync(string token, Guid serviceId);
-    Task<bool> RevokeRefreshTokenAsync(string token);
+    Task RedirectToLinbikAsync(HttpContext context, string? returnUrl = null, 
+        string? codeChallenge = null, CancellationToken cancellationToken = default);
+    
+    Task<LinbikTokenResponse?> ExchangeCodeForTokensAsync(string code, 
+        CancellationToken cancellationToken = default);
+    
+    Task<UserProfile?> GetUserProfileAsync(HttpContext context, 
+        CancellationToken cancellationToken = default);
+    
+    Task<List<LinbikIntegrationToken>> GetIntegrationTokensAsync(HttpContext context, 
+        CancellationToken cancellationToken = default);
+    
+    Task<bool> RefreshTokensAsync(HttpContext context, 
+        CancellationToken cancellationToken = default);
+    
+    Task LogoutAsync(HttpContext context, 
+        CancellationToken cancellationToken = default);
 }
 ```
 
 ### ILinbikAuthClient
-HTTP client for communicating with Linbik.App OAuth endpoints.
+HTTP client for communicating with Linbik OAuth endpoints.
 
 ```csharp
 public interface ILinbikAuthClient
 {
-    /// <summary>
-    /// Exchange authorization code for tokens
-    /// POST {LinbikUrl}/oauth/token
-    /// </summary>
-    Task<LinbikTokenResponse?> ExchangeCodeAsync(string code);
+    Task<LinbikTokenResponse?> ExchangeCodeAsync(string code, 
+        CancellationToken cancellationToken = default);
     
-    /// <summary>
-    /// Refresh tokens using refresh token
-    /// POST {LinbikUrl}/oauth/refresh
-    /// </summary>
-    Task<LinbikTokenResponse?> RefreshTokensAsync(string refreshToken);
+    Task<LinbikTokenResponse?> RefreshTokensAsync(string refreshToken, 
+        CancellationToken cancellationToken = default);
 }
 ```
 
-**Usage:**
-```csharp
-// In Program.cs - automatically registered with AddLinbik()
-builder.Services.AddLinbik(builder.Configuration);
+## 🛡️ Exception Handling
 
-// In your code
-public class MyService
+The library provides typed exceptions for better error handling:
+
+```csharp
+try
 {
-    private readonly ILinbikAuthClient _linbikClient;
-    
-    public MyService(ILinbikAuthClient linbikClient)
-    {
-        _linbikClient = linbikClient;
-    }
-    
-    public async Task HandleCallback(string code)
-    {
-        var response = await _linbikClient.ExchangeCodeAsync(code);
-        if (response != null)
-        {
-            // response.UserId
-            // response.Username
-            // response.Integrations (list of JWT tokens for each service)
-            // response.RefreshToken
-        }
-    }
+    var tokens = await authService.ExchangeCodeForTokensAsync(code);
+}
+catch (LinbikAuthenticationException ex) when (ex.ErrorCode == LinbikAuthenticationException.InvalidCodeError)
+{
+    // Handle invalid authorization code
+    return RedirectToAction("Login");
+}
+catch (LinbikTokenException ex) when (ex.ErrorCode == LinbikTokenException.TokenExpiredError)
+{
+    // Handle expired token
+    await authService.RefreshTokensAsync(context);
+}
+catch (LinbikConfigurationException ex)
+{
+    // Configuration error - check appsettings.json
+    logger.LogError(ex, "Configuration error: {Key}", ex.ConfigurationKey);
 }
 ```
 
 ## 📋 Models
 
-### MultiServiceTokenResponse
+### LinbikTokenResponse
 Response format for token exchange endpoint.
 
 ```csharp
-public class MultiServiceTokenResponse
+public class LinbikTokenResponse
 {
     public Guid UserId { get; set; }
     public string UserName { get; set; }
     public string NickName { get; set; }
-    public List<IntegrationToken> Integrations { get; set; }
+    public List<LinbikIntegrationToken> Integrations { get; set; }
     public string RefreshToken { get; set; }
-    public long RefreshTokenExpiresAt { get; set; }
+    public long? RefreshTokenExpiresAt { get; set; }
     public string? CodeChallenge { get; set; }  // For PKCE validation
 }
 ```
 
-### IntegrationToken
+### LinbikIntegrationToken
 Per-service JWT token data.
 
 ```csharp
-public class IntegrationToken
+public class LinbikIntegrationToken
 {
-    public Guid ServiceId { get; set; }
+    public string PackageName { get; set; }
     public string ServiceName { get; set; }
-    public string ServicePackage { get; set; }
-    public string BaseUrl { get; set; }
     public string Token { get; set; }           // JWT signed with service's private key
-    public int ExpiresIn { get; set; }          // Seconds
-    public DateTime ExpiresAt { get; set; }
+    public string ServiceUrl { get; set; }
 }
 ```
 
-## 🔄 Migration from v1.x
-
-Legacy properties are marked with `[Obsolete]` but still functional:
+### UserProfile
+User profile information extracted from JWT.
 
 ```csharp
-// ❌ Old way (v1.x)
-options.PublicKey = "single-key-for-all";
-options.AllowAllApp = true;
+public class UserProfile
+{
+    public Guid UserId { get; set; }
+    public string UserName { get; set; }
+    public string NickName { get; set; }
+}
+```
 
-// ✅ New way (v2.0+)
-// Use IServiceRepository for service registration
-// Use per-service RSA key pairs
-// Use proper API key validation
+## 🔒 Rate Limiting
+
+Built-in rate limiting to protect authentication endpoints:
+
+```csharp
+// In Program.cs
+builder.Services.AddLinbikRateLimiting(builder.Configuration);
+
+// In middleware pipeline
+app.UseLinbikRateLimiting();
+```
+
+```json
+// In appsettings.json
+{
+  "Linbik": {
+    "RateLimiting": {
+      "PermitLimit": 100,
+      "WindowSeconds": 60,
+      "QueueLimit": 2
+    },
+    "Resilience": {
+      "StrictTokenLimit": 10,
+      "StrictReplenishmentPeriodSeconds": 60,
+      "StrictTokensPerPeriod": 5,
+      "StrictQueueLimit": 0
+    }
+  }
+}
 ```
 
 ## 📖 Documentation
 
 - [Full Documentation](https://github.com/tepecam18/Linbik)
-- [Migration Guide](../../../MIGRATION_GUIDE.md)
 - [Examples](../../../examples/AspNet/AspNet)
+- [Linbik.JwtAuthManager](../Linbik.JwtAuthManager/README.md)
+- [Linbik.Server](../Linbik.Server/README.md)
+- [Linbik.YARP](../Linbik.YARP/README.md)
 
 ## 📄 License
 
@@ -203,5 +222,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (Authorization Code Support)  
-**Last Updated**: 1 Kasım 2025
+**Version**: 2.1.0  
+**Last Updated**: 1 Aralık 2025

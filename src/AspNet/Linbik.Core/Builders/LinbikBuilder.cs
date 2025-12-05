@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Linbik.Core.Builders;
 
