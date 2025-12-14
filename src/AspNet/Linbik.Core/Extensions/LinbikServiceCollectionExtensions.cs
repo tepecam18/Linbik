@@ -92,16 +92,8 @@ public static class LinbikServiceCollectionExtensions
     /// </summary>
     private static void AddCommonAuthServices(IServiceCollection services)
     {
-        // Add HttpContextAccessor for session access
+        // Add HttpContextAccessor for cookie-based authentication
         services.AddHttpContextAccessor();
-
-        // Add session services
-        services.AddSession(options =>
-        {
-            options.IdleTimeout = TimeSpan.FromHours(24); // 24 hour session
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-        });
 
         // Configure resilience options
         services.AddOptions<ResilienceOptions>()

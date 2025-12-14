@@ -239,8 +239,10 @@ Legacy methods still work but are marked `[Obsolete]`:
 ## 📖 Documentation
 
 - [Full Documentation](https://github.com/tepecam18/Linbik)
-- [Migration Guide](../../../MIGRATION_GUIDE.md)
 - [Examples](../../../examples/AspNet/AspNet)
+- [Linbik.Core](../Linbik.Core/README.md)
+- [Linbik.Server](../Linbik.Server/README.md)
+- [Linbik.YARP](../Linbik.YARP/README.md)
 
 ## 📄 License
 
@@ -250,5 +252,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (RSA-256 Support)  
-**Last Updated**: 1 Kasım 2025
+**Version**: 2.2.0  
+**Last Updated**: 5 Aralık 2025

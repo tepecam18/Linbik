@@ -182,7 +182,7 @@ After OAuth callback:
 [HttpGet("/oauth/callback")]
 public async Task<IActionResult> Callback(string code)
 {
-    // Exchange code for tokens and store in session
+    // Exchange code for tokens and store in cookies
     await _tokenProvider.ExchangeAuthorizationCodeAsync(code, HttpContext);
     
     return RedirectToAction("Dashboard");
@@ -239,44 +239,31 @@ services.AddReverseProxy()
 ### 4. Complete Example
 
 ```csharp
-// Startup.cs
-public void ConfigureServices(IServiceCollection services)
-{
-    // Add Linbik YARP
-    services.AddLinbikYARP(options =>
-    {
-        options.LinbikServerUrl = "https://linbik.com";
-        options.MainServiceId = Guid.Parse("main-service-guid");
-        options.MainServiceApiKey = "linbik_api_key";
-        options.EnableAutomaticRefresh = true;
-    });
-    
-    // Add YARP with Linbik transforms
-    services.AddReverseProxy()
-        .LoadFromConfig(Configuration.GetSection("ReverseProxy"))
-        .AddTransforms<LinbikTokenTransformFactory>();
-    
-    services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromHours(1);
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-    });
-}
+// Program.cs
+var builder = WebApplication.CreateBuilder(args);
 
-public void Configure(IApplicationBuilder app)
-{
-    app.UseSession();
-    app.UseRouting();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapReverseProxy();
-        endpoints.MapControllers();
-    });
-}
+// Add Linbik services
+builder.Services.AddLinbik(builder.Configuration);
+builder.Services.AddLinbikJwtAuth(builder.Configuration);
+
+// Add YARP with Linbik transforms
+builder.Services.AddLinbikYarp(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Map Linbik endpoints (login, logout, refresh)
+app.MapLinbikEndpoints();
+
+// Map integration proxy (automatic token injection from cookies)
+app.MapLinbikIntegrationProxy();
+
+app.MapControllers();
+
+app.Run();
 ```
 
 ## 🔄 Token Flow
@@ -284,77 +271,60 @@ public void Configure(IApplicationBuilder app)
 ### Initial Authorization
 
 ```
-User → /login → Linbik → Authorization Code → /oauth/callback
-                                                    ↓
-                        ExchangeAuthorizationCodeAsync()
-                                                    ↓
-                        Store tokens in session:
-                        - RefreshToken
-                        - Integrations[]:
-                            - ServicePackage: "payment-gateway"
-                              Token: "jwt_token_1"
-                              ExpiresAt: DateTime
-                            - ServicePackage: "courier-service"
-                              Token: "jwt_token_2"
-                              ExpiresAt: DateTime
+User → /linbik/login → Linbik → Authorization Code → /linbik/login (callback)
+                                                            ↓
+                            ExchangeAuthorizationCodeAsync()
+                                                            ↓
+                            Store tokens in cookies:
+                            - Cookie: linbikRefreshToken = "refresh_abc..."
+                            - Cookie: integration_payment-gateway = "jwt_token_1"
+                            - Cookie: integration_courier-service = "jwt_token_2"
 ```
 
 ### Request Proxying
 
 ```
-Client Request → YARP Middleware → LinbikTokenTransform
-                                          ↓
-                        Read X-Service-Package header
-                                          ↓
-                        GetTokenForServiceAsync("payment-gateway")
-                                          ↓
-                        Check cache: expired?
-                        - No → Return cached token
-                        - Yes → RefreshTokensAsync() → Return new token
-                                          ↓
-                        Inject Authorization: Bearer {token}
-                                          ↓
-                        Proxy to target service
+Client Request → MapLinbikIntegrationProxy()
+                        ↓
+        Extract {packageName} from URL path
+                        ↓
+        Read cookie: integration_{packageName}
+                        ↓
+        Lookup BaseUrl from IntegrationServices config
+                        ↓
+        Inject Authorization: Bearer {token}
+                        ↓
+        Proxy to target service
 ```
 
-## 📋 Token Cache Structure
+## 📋 Cookie Storage Structure
 
-Session storage format:
+Cookies format:
 
-```json
-{
-  "linbik_refresh_token": "refresh_abc123...",
-  "linbik_refresh_expires": "2025-11-30T12:00:00Z",
-  "linbik_tokens": {
-    "payment-gateway": {
-      "token": "eyJhbGci...",
-      "expiresAt": "2025-11-01T13:00:00Z"
-    },
-    "courier-service": {
-      "token": "eyJhbGci...",
-      "expiresAt": "2025-11-01T13:00:00Z"
-    }
-  }
-}
+```
+Cookie: linbikRefreshToken = "refresh_abc123..." (HttpOnly, Secure, 14 days)
+Cookie: integration_payment-gateway = "eyJhbGci..." (HttpOnly, Secure, 1 hour)
+Cookie: integration_courier-service = "eyJhbGci..." (HttpOnly, Secure, 1 hour)
 ```
 
 ## 🔒 Security Features
 
-### Automatic Token Refresh
-✅ Tokens refresh before expiration (default: 5min before)  
-✅ Refresh token stored securely in session  
-✅ Failed refresh clears cache and requires re-authentication
+### Cookie-Based Token Storage
+✅ Tokens stored in HttpOnly cookies (prevents XSS)  
+✅ Secure flag for HTTPS-only transmission  
+✅ SameSite=None for cross-origin requests  
+✅ Short expiration for integration tokens (1 hour)  
+✅ Longer expiration for refresh token (14 days)
 
-### Session Security
-✅ HttpOnly cookies prevent XSS attacks  
-✅ Secure flag for HTTPS-only cookies  
-✅ SameSite=Lax for CSRF protection  
-✅ Configurable session timeout (default: 1 hour)
+### Automatic Token Refresh
+✅ Refresh tokens before expiration  
+✅ Refresh token stored securely in HttpOnly cookie  
+✅ Failed refresh clears cookies and requires re-authentication
 
 ### Token Validation
-✅ Expiration check before each use  
+✅ Expiration check on each request  
 ✅ Service package name validation  
-✅ Automatic cache invalidation on errors
+✅ Automatic cookie clearing on errors
 
 ## 🎯 Use Cases
 
@@ -395,20 +365,23 @@ Each microservice gets its own JWT token with specific claims.
 var token = await _tokenProvider.GetTokenAsync(context);
 context.Request.Headers["Authorization"] = $"Bearer {token}";
 
-// ✅ New way (v2.0+ - Per-service tokens)
+// ✅ New way (v2.0+ - Per-service tokens from cookies)
 var token = await _tokenProvider.GetTokenForServiceAsync("payment-gateway", context);
 context.Request.Headers["Authorization"] = $"Bearer {token}";
 
-// Even better: Use YARP transform (automatic)
+// Even better: Use MapLinbikIntegrationProxy (automatic)
 // No manual token management needed!
+// Tokens are read from cookies and injected automatically.
 ```
 
 ## 📖 Documentation
 
 - [Full Documentation](https://github.com/tepecam18/Linbik)
 - [YARP Documentation](https://microsoft.github.io/reverse-proxy/)
-- [Migration Guide](../../../MIGRATION_GUIDE.md)
 - [Examples](../../../examples/AspNet/AspNet)
+- [Linbik.Core](../Linbik.Core/README.md)
+- [Linbik.JwtAuthManager](../Linbik.JwtAuthManager/README.md)
+- [Linbik.Server](../Linbik.Server/README.md)
 
 ## 📄 License
 
@@ -418,5 +391,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (Multi-Service Token Management)  
-**Last Updated**: 1 Kasım 2025
+**Version**: 2.2.0  
+**Last Updated**: 5 Aralık 2025

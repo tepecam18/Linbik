@@ -57,4 +57,21 @@ public class JwtAuthOptions
     /// Token refresh path
     /// </summary>
     public string RefreshPath { get; set; } = "/linbik/refresh";
+
+    /// <summary>
+    /// Login redirect URL (after successful authentication)
+    /// </summary>
+    public string LoginRedirectUrl { get; set; } = "/";
+
+    /// <summary>
+    /// Error redirect URL (when authentication fails)
+    /// Use {error} placeholder for error message
+    /// Example: "/error?message={error}"
+    /// </summary>
+    public string ErrorRedirectUrl { get; set; } = "/error?message={error}";
+
+    /// <summary>
+    /// Logout redirect URL (after successful logout)
+    /// </summary>
+    public string LogoutRedirectUrl { get; set; } = "/";
 }

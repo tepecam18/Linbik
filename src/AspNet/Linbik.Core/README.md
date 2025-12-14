@@ -222,5 +222,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.1.0  
-**Last Updated**: 1 Aralık 2025
+**Version**: 2.2.0  
+**Last Updated**: 5 Aralık 2025

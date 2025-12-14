@@ -487,8 +487,10 @@ var isValid = await _repository.ValidateUserCredentialsAsync(email, password);
 ## 📖 Documentation
 
 - [Full Documentation](https://github.com/tepecam18/Linbik)
-- [Migration Guide](../../../MIGRATION_GUIDE.md)
 - [Examples](../../../examples/AspNet/AspNet)
+- [Linbik.Core](../Linbik.Core/README.md)
+- [Linbik.JwtAuthManager](../Linbik.JwtAuthManager/README.md)
+- [Linbik.YARP](../Linbik.YARP/README.md)
 
 ## 📄 License
 
@@ -498,5 +500,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.0.0 (Authorization Server)  
-**Last Updated**: 1 Kasım 2025
+**Version**: 2.2.0  
+**Last Updated**: 5 Aralık 2025

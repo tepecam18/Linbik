@@ -29,22 +29,50 @@ public static class JwtAuthManagerExtensions
     private const int MinSecretKeyLength = 32; // 256-bit minimum for HS256
 
     /// <summary>
-    /// Validates that a URL is a safe local URL to prevent Open Redirect attacks
+    /// Check if the request accepts HTML (browser request)
     /// </summary>
-    private static bool IsLocalUrl(string? url)
+    private static bool AcceptsHtml(HttpContext context)
     {
-        if (string.IsNullOrEmpty(url))
-            return false;
+        var accept = context.Request.Headers.Accept.ToString();
+        return accept.Contains("text/html", StringComparison.OrdinalIgnoreCase);
+    }
 
-        // Only allow relative URLs starting with / but not // (protocol-relative)
-        if (url.StartsWith("/") && !url.StartsWith("//") && !url.StartsWith("/\\"))
-            return true;
+    /// <summary>
+    /// Return appropriate response based on Accept header
+    /// For HTML: Redirect to error page
+    /// For JSON/API: Return LBaseResponse
+    /// </summary>
+    private static IResult ReturnError(HttpContext context, JwtAuthOptions options, string errorMessage, int statusCode = 400)
+    {
+        if (AcceptsHtml(context))
+        {
+            var redirectUrl = options.ErrorRedirectUrl.Replace("{error}", Uri.EscapeDataString(errorMessage));
+            return Results.Redirect(redirectUrl);
+        }
 
-        // Also allow ~ for ASP.NET virtual paths
-        if (url.StartsWith("~/"))
-            return true;
+        return statusCode switch
+        {
+            401 => Results.Unauthorized(),
+            403 => Results.Forbid(),
+            _ => Results.BadRequest(new LBaseResponse<object>(errorMessage))
+        };
+    }
 
-        return false;
+    /// <summary>
+    /// Return appropriate success response based on Accept header
+    /// For HTML: Redirect to success page
+    /// For JSON/API: Return LBaseResponse with data
+    /// </summary>
+    private static IResult ReturnSuccess<T>(HttpContext context, string redirectUrl, T? data = default) where T : class
+    {
+        if (AcceptsHtml(context))
+        {
+            return Results.Redirect(redirectUrl);
+        }
+
+        return data is not null
+            ? Results.Ok(new LBaseResponse<T>(data))
+            : Results.Ok(new LBaseResponse<object>(isSuccess: true));
     }
 
     /// <summary>
@@ -78,19 +106,6 @@ public static class JwtAuthManagerExtensions
                 authorizationUrl = $"{baseUrl}/{authEndpoint}/{clientId}";
             }
 
-            // Store return URL in cookie for callback (only if it's a safe local URL)
-            if (IsLocalUrl(returnUrl))
-            {
-                context.Response.Cookies.Append("linbik_return_url", returnUrl!, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Lax,
-                    MaxAge = TimeSpan.FromMinutes(10),
-                    Path = "/"
-                });
-            }
-
             return Results.Redirect(authorizationUrl);
         }).WithTags("Linbik.Auth").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
@@ -111,7 +126,7 @@ public static class JwtAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Authorization code is required", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                    return Results.BadRequest(new LBaseResponse<object>("Authorization code is required"));
+                    return ReturnError(context, options, "Authorization code is required");
                 }
 
                 // Exchange code for tokens
@@ -120,14 +135,22 @@ public static class JwtAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Token exchange failed", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                    return Results.BadRequest(new LBaseResponse<object>("Token exchange failed"));
+                    return ReturnError(context, options, "Token exchange failed");
                 }
 
                 userId = tokenResponse.UserId.ToString();
 
                 // PKCE verification (client-side)
-                if (options.PkceEnabled && !string.IsNullOrEmpty(tokenResponse.CodeChallenge))
+                if (options.PkceEnabled)
                 {
+                    if(string.IsNullOrEmpty(tokenResponse.CodeChallenge))
+                    {
+                        logger.LogWarning("PKCE is enabled but CodeChallenge is missing in token response for user {UserId}", tokenResponse.UserId);
+                        await auditLogger.LogAsync(AuditEventType.PkceValidationFailed, userId, "CodeChallenge missing in token response", false);
+                        metrics.RecordLoginFailure("pkce_failed");
+                        return ReturnError(context, options, "PKCE verification failed");
+                    }
+
                     var verifier = PkceService.GetVerifier(context.Request);
                     if (!string.IsNullOrEmpty(verifier))
                     {
@@ -136,7 +159,7 @@ public static class JwtAuthManagerExtensions
                             logger.LogWarning("PKCE verification failed for user {UserId}", tokenResponse.UserId);
                             await auditLogger.LogAsync(AuditEventType.PkceValidationFailed, userId, "PKCE verification failed", false);
                             metrics.RecordLoginFailure("pkce_failed");
-                            return Results.BadRequest(new LBaseResponse<object>("PKCE verification failed"));
+                            return ReturnError(context, options, "PKCE verification failed");
                         }
                         PkceService.DeleteVerifier(context.Response);
                     }
@@ -192,13 +215,13 @@ public static class JwtAuthManagerExtensions
                 if (string.IsNullOrEmpty(options.SecretKey))
                 {
                     logger.LogError("SecretKey is not configured in JwtAuthOptions. User authentication will not work. Please set 'Linbik:JwtAuth:SecretKey' in appsettings.json");
-                    return Results.Problem("Authentication is not properly configured. SecretKey is missing.");
+                    return ReturnError(context, options, "Authentication is not properly configured");
                 }
 
                 if (options.SecretKey.Length < MinSecretKeyLength)
                 {
                     logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters for HS256. Current length: {CurrentLength}", MinSecretKeyLength, options.SecretKey.Length);
-                    return Results.Problem("Authentication is not properly configured. SecretKey is too weak.");
+                    return ReturnError(context, options, "Authentication is not properly configured");
                 }
 
                 var claims = new List<Claim>
@@ -239,30 +262,27 @@ public static class JwtAuthManagerExtensions
                     Path = "/"
                 });
 
-                // Check for return URL cookie and redirect (with Open Redirect protection)
-                var returnUrl = context.Request.Cookies["linbik_return_url"];
-                context.Response.Cookies.Delete("linbik_return_url", new CookieOptions { Path = "/" });
-
                 // Log successful login
                 timer.Stop();
                 await auditLogger.LogTokenExchangeAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
                 metrics.RecordTokenExchange(true, timer.ElapsedSeconds, linbikOptions.ServiceId);
                 metrics.RecordLoginSuccess(linbikOptions.ClientId);
 
-                if (IsLocalUrl(returnUrl))
+                // Return success based on Accept header
+                return ReturnSuccess(context, options.LoginRedirectUrl, new
                 {
-                    return Results.Redirect(returnUrl!);
-                }
-
-                // Default redirect to home page
-                return Results.Redirect("/");
+                    userId = tokenResponse.UserId,
+                    userName = tokenResponse.Username,
+                    displayName = tokenResponse.DisplayName,
+                    integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
+                });
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Login callback failed");
                 await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, userId, ex.Message, false);
                 metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                return Results.Problem(ex.Message);
+                return ReturnError(context, options, "Login failed. Please try again.");
             }
         }).WithTags("Linbik.Auth").AllowAnonymous().RequireRateLimiting("LinbikStrict");
 
@@ -302,7 +322,7 @@ public static class JwtAuthManagerExtensions
             }
 
             await auditLogger.LogAsync(AuditEventType.LogoutSuccess, userId, "User logged out successfully");
-            return Results.Ok(new LBaseResponse<object>("Logged out successfully"));
+            return ReturnSuccess<object>(context, options.LogoutRedirectUrl, null);
         }).WithTags("Linbik.Auth").RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
         // Refresh endpoint
@@ -322,7 +342,7 @@ public static class JwtAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, null, "No refresh token provided", false);
                     metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
-                    return Results.Unauthorized();
+                    return ReturnError(context, options, "No refresh token provided", 401);
                 }
 
                 var tokenResponse = await linbikClient.RefreshTokensAsync(refreshToken);
@@ -330,7 +350,7 @@ public static class JwtAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, null, "Token refresh returned null", false);
                     metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
-                    return Results.Unauthorized();
+                    return ReturnError(context, options, "Token refresh failed", 401);
                 }
 
                 userId = tokenResponse.UserId.ToString();
@@ -378,13 +398,13 @@ public static class JwtAuthManagerExtensions
                 if (string.IsNullOrEmpty(options.SecretKey))
                 {
                     logger.LogError("SecretKey is not configured in JwtAuthOptions");
-                    return Results.Problem("Authentication is not properly configured");
+                    return ReturnError(context, options, "Authentication is not properly configured");
                 }
 
                 if (options.SecretKey.Length < MinSecretKeyLength)
                 {
                     logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters", MinSecretKeyLength);
-                    return Results.Problem("Authentication is not properly configured");
+                    return ReturnError(context, options, "Authentication is not properly configured");
                 }
 
                 var claims = new List<Claim>
@@ -421,6 +441,7 @@ public static class JwtAuthManagerExtensions
                 await auditLogger.LogTokenRefreshAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
                 metrics.RecordTokenRefresh(true, timer.ElapsedSeconds, linbikOptions.ServiceId);
 
+                // Refresh always returns JSON (typically called by API clients)
                 return Results.Ok(new LBaseResponse<object>(new
                 {
                     userId = tokenResponse.UserId,
@@ -434,7 +455,7 @@ public static class JwtAuthManagerExtensions
                 logger.LogError(ex, "Token refresh failed");
                 await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, userId, ex.Message, false);
                 metrics.RecordTokenRefresh(false, timer.ElapsedSeconds);
-                return Results.Problem(ex.Message);
+                return ReturnError(context, options, "Token refresh failed");
             }
         }).WithTags("Linbik.Auth").RequireRateLimiting("LinbikStrict");
 

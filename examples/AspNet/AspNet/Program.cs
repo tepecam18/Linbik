@@ -9,7 +9,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 
-builder.Services.AddDistributedMemoryCache();
 
 // ✅ Linbik Core - Authentication client services (includes HttpClient resilience)
 builder.Services.AddLinbik(builder.Configuration);

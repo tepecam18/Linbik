@@ -6,11 +6,11 @@ assembly-versioning-scheme: MajorMinorPatch
 branches:
   main:
     regex: ^main$
-    increment: Patch       # main merge → patch artsın
+    increment: Minor       # main merge → minor artsın
     tag: ''
   develop:
     regex: ^dev$
-    increment: Minor       # develop merge → minor artsın
+    increment: Patch       # develop merge → patch artsın
     tag: ''
   feature:
     regex: ^feature\/.*$

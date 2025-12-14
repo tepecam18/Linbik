@@ -16,22 +16,25 @@
 
 		<!-- deterministic/CI -->
 		<Deterministic>true</Deterministic>
-		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
-
-		<!-- Debug bilgisi DLL içine göm -->
+		<!-- Debug bilgisi - HER ZAMAN embedded -->
 		<DebugType>embedded</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 		<EmbedAllSources>true</EmbedAllSources>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+		<!-- Optimizasyonları Debug'da kapat -->
+		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
 		
 
 		<!-- SourceLink’i KAPAT veya paket referansını kaldır -->
 		<PublishRepositoryUrl>false</PublishRepositoryUrl>
 
 		<!-- sourcelink için -->
-		<!--<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>-->
+		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
 	<ItemGroup>
