@@ -3,16 +3,31 @@
 public class ServerOptions
 {
     /// <summary>
-    /// Service ID (GUID) - this integration service's unique identifier
-    /// Used for validating that incoming tokens are intended for this service
-    /// </summary>
-    public Guid ServiceId { get; set; }
-
-    /// <summary>
     /// RSA public key for JWT validation (PEM format or Base64 DER)
     /// This is the public key corresponding to this service's private key
     /// </summary>
     public string PublicKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Package Name of this service (for audience validation)
+    /// </summary>
+    public string PackageName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Require PackageName validation in token audience
+    /// </summary>
+    public bool ValidateAudience { get; set; } = true;
+
+    /// <summary>
+    /// JWT issuer name (default: "Linbik")
+    /// </summary>
+    public string JwtIssuer { get; set; } = "Linbik";
+
+    /// <summary>
+    /// Require issuer validation
+    /// </summary>
+    public bool ValidateIssuer { get; set; } = true;
+
 
     /// <summary>
     /// Authorization code lifetime in minutes (default: 10)
@@ -29,10 +44,6 @@ public class ServerOptions
     /// </summary>
     public int RefreshTokenExpirationDays { get; set; } = 30;
 
-    /// <summary>
-    /// JWT issuer name (default: "Linbik")
-    /// </summary>
-    public string JwtIssuer { get; set; } = "Linbik";
 
     /// <summary>
     /// Enable PKCE (Proof Key for Code Exchange) validation
@@ -48,14 +59,4 @@ public class ServerOptions
     /// Clock skew tolerance for token validation (default: 5 minutes)
     /// </summary>
     public int ClockSkewMinutes { get; set; } = 5;
-
-    /// <summary>
-    /// Require ServiceId validation in token audience
-    /// </summary>
-    public bool ValidateAudience { get; set; } = true;
-
-    /// <summary>
-    /// Require issuer validation
-    /// </summary>
-    public bool ValidateIssuer { get; set; } = true;
 }

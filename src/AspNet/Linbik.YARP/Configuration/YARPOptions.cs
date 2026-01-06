@@ -17,6 +17,8 @@ public class YARPOptions
     /// <summary>
     /// Integration services configuration for proxying
     /// Key: PackageName, Value: Service configuration
+    /// Proxies requests to Linbik.Server integration endpoints
+    /// Example: /api/serverTest/{everything} -> {baseUrl}/api/integration/{everything}
     /// </summary>
     public Dictionary<string, IntegrationServiceOptions> IntegrationServices { get; set; } = new();
 
@@ -27,6 +29,11 @@ public class YARPOptions
     public string IntegrationTokenCookiePrefix { get; set; } = "integration_";
 }
 
+/// <summary>
+
+/// </summary>
+
+
 public class ClusterOptions
 {
     public string Name { get; set; } = string.Empty;
@@ -34,33 +41,31 @@ public class ClusterOptions
 }
 
 /// <summary>
-/// Configuration for a specific integration service
+/// Configuration for a integration service proxy route
+/// Allows proxying requests from one path to another with configurable path rewriting
 /// </summary>
 public class IntegrationServiceOptions
 {
-    /// <summary>
-    /// Integration service package name (unique identifier)
-    /// </summary>
-    public string PackageName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Integration service base URL for proxying
+    /// Source path pattern (e.g., "api/serverTest")
+    /// The {**path} will be automatically appended
     /// </summary>
-    public string BaseUrl { get; set; } = string.Empty;
+    public string SourcePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Service ID (GUID) for validation
+    /// Target base URL (e.g., "https://localhost:5001")
     /// </summary>
-    public Guid ServiceId { get; set; }
+    public string TargetBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Target path pattern (e.g., "api/integration")
+    /// The captured path will be appended here
+    /// </summary>
+    public string TargetPath { get; set; } = string.Empty;
 
     /// <summary>
     /// Optional: Timeout in seconds (default: 30)
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;
-
-    /// <summary>
-    /// Optional: Whether to preserve the original path after package name
-    /// Default: true (e.g., /payment/charge -> /charge)
-    /// </summary>
-    public bool StripPackagePrefix { get; set; } = true;
 }

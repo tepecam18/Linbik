@@ -9,7 +9,7 @@ namespace Linbik.Core.Interfaces;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This service handles the OAuth 2.0 + PKCE flow:
+/// This service handles the OAuth 2.1 + PKCE flow:
 /// 1. <see cref="RedirectToLinbikAsync"/> - Initiates authorization
 /// 2. <see cref="ExchangeCodeForTokensAsync"/> - Exchanges code for tokens
 /// 3. <see cref="RefreshTokensAsync"/> - Refreshes expired tokens

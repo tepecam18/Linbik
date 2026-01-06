@@ -1,5 +1,6 @@
 using Linbik.Core.Extensions;
 using Linbik.JwtAuthManager.Extensions;
+using Linbik.Server.Extensions;
 using Linbik.YARP.Extensions;
 using Scalar.AspNetCore;
 
@@ -15,6 +16,9 @@ builder.Services.AddLinbik();
 
 // ✅ Linbik JwtAuthManager - Login/callback/logout middleware
 builder.Services.AddLinbikJwtAuth();
+
+// ✅ Linbik Server - Integration service endpoints with RS256 JWT validation
+builder.Services.AddLinbikServer();
 
 // ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
 builder.Services.AddLinbikRateLimiting();

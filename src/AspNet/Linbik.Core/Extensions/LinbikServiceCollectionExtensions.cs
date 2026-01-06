@@ -31,67 +31,34 @@ public static class LinbikServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(configureOptions);
         services.Configure(configureOptions);
-        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
-        AddCommonAuthServices(services);
+        services.AddCommonAuthServices();
         return new LinbikBuilder(services);
     }
+
 
     /// <summary>
     /// Adds Linbik authentication services using configuration from IConfiguration.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration instance containing 'Linbik' section.</param>
     /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when configuration is null.</exception>
-    public static LinbikBuilder AddLinbik(this IServiceCollection services, IConfiguration configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
-        services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
-        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
-        AddCommonAuthServices(services);
-        return new LinbikBuilder(services);
-    }
-
-    /// <summary>
-    /// Adds Linbik authentication services using IConfiguration from DI container.
-    /// Configuration is resolved at runtime, not at registration time.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
-    /// <remarks>
-    /// This overload uses PostConfigure to bind configuration, avoiding the anti-pattern
-    /// of calling BuildServiceProvider() during service registration.
-    /// </remarks>
     public static LinbikBuilder AddLinbik(this IServiceCollection services)
     {
-        // Use PostConfigure to defer configuration binding until runtime
-        // This avoids the BuildServiceProvider() anti-pattern which can cause:
-        // - Memory leaks from creating multiple service providers
-        // - Issues with singleton lifetime services
-        // - Unexpected behavior with scoped services
-        services.AddOptions<LinbikOptions>()
-            .Configure<IConfiguration>((options, config) =>
-            {
-                var section = config.GetSection("Linbik");
-                if (!section.Exists())
-                {
-                    throw new InvalidOperationException(
-                        "Linbik configuration section not found. " +
-                        "Add a 'Linbik' section to your appsettings.json or use AddLinbik(configuration) overload.");
-                }
-                section.Bind(options);
-            });
-
-        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
-        AddCommonAuthServices(services);
+        var serviceProvider = services.BuildServiceProvider();
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
+        services.AddCommonAuthServices();
         return new LinbikBuilder(services);
     }
 
     /// <summary>
     /// Adds common authentication services shared by all overloads.
     /// </summary>
-    private static void AddCommonAuthServices(IServiceCollection services)
+    private static IServiceCollection AddCommonAuthServices(this IServiceCollection services)
     {
+
+        services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
+
         // Add HttpContextAccessor for cookie-based authentication
         services.AddHttpContextAccessor();
 
@@ -172,5 +139,7 @@ public static class LinbikServiceCollectionExtensions
 
         // Register main auth service
         services.AddScoped<IAuthService, LinbikAuthService>();
+
+        return services;
     }
 }

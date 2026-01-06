@@ -19,12 +19,18 @@ public class TestController : Controller
     private readonly IAuditLogger _auditLogger;
     private readonly LinbikMetrics _metrics;
     private readonly IAuthService _authService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public TestController(IAuditLogger auditLogger, LinbikMetrics metrics, IAuthService authService)
+    public TestController(
+        IAuditLogger auditLogger, 
+        LinbikMetrics metrics, 
+        IAuthService authService,
+        IHttpClientFactory httpClientFactory)
     {
         _auditLogger = auditLogger;
         _metrics = metrics;
         _authService = authService;
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <summary>
@@ -44,9 +50,9 @@ public class TestController : Controller
                 var handler = new JwtSecurityTokenHandler();
                 var jwt = handler.ReadJwtToken(authToken);
 
-                var userId = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-                var userName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
-                var displayName = jwt.Claims.FirstOrDefault(c => c.Type == "display_name")?.Value;
+                var userId = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+                var userName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.UniqueName)?.Value;
+                var displayName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
 
                 if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
                 {
@@ -442,6 +448,207 @@ public class TestController : Controller
             integrationTokens = integrationTokens,
             timestamp = DateTime.UtcNow
         });
+    }
+
+    #endregion
+
+    #region Server Integration Tests
+
+    /// <summary>
+    /// Test Linbik.Server integration - Public endpoint (no auth required)
+    /// Calls /api/serverTest/health through YARP proxy
+    /// Expected: 200 OK with health status
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> TestServerPublicEndpoint()
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+
+            // Call through YARP proxy: /api/serverTest/health -> /api/integration/health
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var response = await client.GetAsync($"{baseUrl}/api/serverTest/health");
+            var content = await response.Content.ReadAsStringAsync();
+
+            return Json(new
+            {
+                success = response.IsSuccessStatusCode,
+                test = "Server Public Endpoint (No Auth)",
+                endpoint = "/api/serverTest/health -> /api/integration/health",
+                statusCode = (int)response.StatusCode,
+                expectedStatusCode = 200,
+                passed = response.IsSuccessStatusCode,
+                response = TryParseJson(content),
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new
+            {
+                success = false,
+                test = "Server Public Endpoint (No Auth)",
+                error = ex.Message,
+                hint = "Linbik.Server uygulamasının https://localhost:5481 adresinde çalıştığından emin olun",
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Test Linbik.Server integration - Public data endpoint
+    /// Calls /api/serverTest/public-data through YARP proxy
+    /// Expected: 200 OK with sample data
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> TestServerPublicData()
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var response = await client.GetAsync($"{baseUrl}/api/serverTest/public-data");
+            var content = await response.Content.ReadAsStringAsync();
+
+            return Json(new
+            {
+                success = response.IsSuccessStatusCode,
+                test = "Server Public Data Endpoint",
+                endpoint = "/api/serverTest/public-data -> /api/integration/public-data",
+                statusCode = (int)response.StatusCode,
+                expectedStatusCode = 200,
+                passed = response.IsSuccessStatusCode,
+                response = TryParseJson(content),
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return Json(new
+            {
+                success = false,
+                test = "Server Public Data Endpoint",
+                error = ex.Message,
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Run all server integration tests and return summary
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> RunAllServerTests()
+    {
+        var results = new List<object>();
+        var httpClient = _httpClientFactory.CreateClient();
+        httpClient.Timeout = TimeSpan.FromSeconds(10);
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+        // Test 1: Public Health Endpoint
+        try
+        {
+            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/health");
+            results.Add(new
+            {
+                test = "Public Health",
+                endpoint = "/api/serverTest/health",
+                passed = response.IsSuccessStatusCode,
+                statusCode = (int)response.StatusCode,
+                expected = 200
+            });
+        }
+        catch (Exception ex)
+        {
+            results.Add(new { test = "Public Health", passed = false, error = ex.Message });
+        }
+
+        // Test 2: Public Info Endpoint
+        try
+        {
+            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/info");
+            results.Add(new
+            {
+                test = "Public Info",
+                endpoint = "/api/serverTest/info",
+                passed = response.IsSuccessStatusCode,
+                statusCode = (int)response.StatusCode,
+                expected = 200
+            });
+        }
+        catch (Exception ex)
+        {
+            results.Add(new { test = "Public Info", passed = false, error = ex.Message });
+        }
+
+        // Test 3: Public Data Endpoint
+        try
+        {
+            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/public-data");
+            results.Add(new
+            {
+                test = "Public Data",
+                endpoint = "/api/serverTest/public-data",
+                passed = response.IsSuccessStatusCode,
+                statusCode = (int)response.StatusCode,
+                expected = 200
+            });
+        }
+        catch (Exception ex)
+        {
+            results.Add(new { test = "Public Data", passed = false, error = ex.Message });
+        }
+
+        // Test 4: Echo Endpoint
+        try
+        {
+            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/echo");
+            results.Add(new
+            {
+                test = "Echo",
+                endpoint = "/api/serverTest/echo",
+                passed = response.IsSuccessStatusCode,
+                statusCode = (int)response.StatusCode,
+                expected = 200
+            });
+        }
+        catch (Exception ex)
+        {
+            results.Add(new { test = "Echo", passed = false, error = ex.Message });
+        }
+
+        var passedCount = results.Count(r => ((dynamic)r).passed == true);
+        var totalCount = results.Count;
+
+        return Json(new
+        {
+            summary = new
+            {
+                passed = passedCount,
+                failed = totalCount - passedCount,
+                total = totalCount,
+                successRate = $"{(passedCount * 100.0 / totalCount):F1}%"
+            },
+            results,
+            note = "Protected endpoint tests with auth require user to be logged in with integration access",
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    private static object? TryParseJson(string content)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<object>(content);
+        }
+        catch
+        {
+            return content;
+        }
     }
 
     #endregion

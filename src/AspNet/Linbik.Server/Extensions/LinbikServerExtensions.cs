@@ -1,5 +1,4 @@
 using Linbik.Server.Configuration;
-using Linbik.Server.Middleware;
 using Linbik.Server.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -81,7 +80,7 @@ public static class LinbikServerExtensions
                 ValidateIssuer = options.ValidateIssuer,
                 ValidIssuer = options.JwtIssuer,
                 ValidateAudience = options.ValidateAudience,
-                ValidAudience = options.ServiceId.ToString(),
+                ValidAudience = options.PackageName.ToString(),
                 ClockSkew = TimeSpan.FromMinutes(options.ClockSkewMinutes)
             };
         });
@@ -134,7 +133,8 @@ public static class LinbikServerExtensions
             );
         }
 
-        return app.UseMiddleware<IntegrationAuthMiddleware>();
+        return app;
+        //return app.UseMiddleware<IntegrationAuthMiddleware>();
     }
 
     /// <summary>

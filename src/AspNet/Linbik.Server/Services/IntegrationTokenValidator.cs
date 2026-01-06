@@ -55,7 +55,7 @@ public class IntegrationTokenValidator
                     _rsaPublicKey.ImportSubjectPublicKeyInfo(keyBytes, out _);
                 }
 
-                _logger?.LogInformation("RSA public key initialized successfully for service {ServiceId}", _options.ServiceId);
+                _logger?.LogInformation("RSA public key initialized successfully for service {ServiceId}", _options.PackageName);
             }
             catch (Exception ex)
             {
@@ -113,7 +113,7 @@ public class IntegrationTokenValidator
                 ValidateIssuer = _options.ValidateIssuer,
                 ValidIssuer = _options.JwtIssuer,
                 ValidateAudience = _options.ValidateAudience,
-                ValidAudience = _options.ServiceId.ToString(),
+                ValidAudience = _options.PackageName.ToString(),
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(_options.ClockSkewMinutes)
             };
@@ -142,26 +142,22 @@ public class IntegrationTokenValidator
                 claims.UserId = userId;
             }
 
-            var audClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Aud)?.Value;
-            if (Guid.TryParse(audClaim, out var serviceId))
-            {
-                claims.ServiceId = serviceId;
-            }
-
             var azpClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Azp)?.Value;
             if (Guid.TryParse(azpClaim, out var azp))
             {
                 claims.AuthorizedParty = azp;
             }
 
+            claims.PackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Aud)?.Value ?? string.Empty;
+            
             // Extract custom claims
             claims.UserName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username")?.Value ?? string.Empty;
             claims.DisplayName = jwtToken.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value ?? claims.UserName;
 
             // Validate ServiceId matches this service
-            if (_options.ValidateAudience && claims.ServiceId != _options.ServiceId)
+            if (_options.ValidateAudience && claims.PackageName != _options.PackageName)
             {
-                _logger?.LogWarning("Token audience {Audience} does not match service {ServiceId}", claims.ServiceId, _options.ServiceId);
+                _logger?.LogWarning("Token audience {Audience} does not match service {ServiceId}", claims.PackageName, _options.PackageName);
                 return null;
             }
 
@@ -233,9 +229,9 @@ public class IntegrationTokenValidator
     /// <summary>
     /// Get service ID from validated token claims
     /// </summary>
-    public static Guid GetServiceId(LinbikTokenClaims? claims)
+    public static string GetPackageName(LinbikTokenClaims? claims)
     {
-        return claims?.ServiceId ?? Guid.Empty;
+        return claims?.PackageName ?? string.Empty;
     }
 
     /// <summary>

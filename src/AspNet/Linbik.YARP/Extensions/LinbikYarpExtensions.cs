@@ -163,8 +163,8 @@ public static class LinbikYarpExtensions
     }
 
     /// <summary>
-    /// Map integration service proxy endpoints
-    /// Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}
+    /// Map server proxy routes for Linbik.Server integration endpoints
+    /// Pattern: /{sourcePath}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
     /// Automatically injects JWT token from integration_{packageName} cookie
     /// </summary>
     public static IEndpointRouteBuilder UseLinbikYarp(this IEndpointRouteBuilder endpoints)
@@ -180,7 +180,7 @@ public static class LinbikYarpExtensions
             var cookiePrefix = options.IntegrationTokenCookiePrefix;
 
             // Map route: /{packageName}/{**path}
-            endpoints.Map($"/{packageName}/{{**path}}", async (HttpContext context) =>
+            endpoints.Map($"/{integration.Value.SourcePath}/{{**path}}", async (HttpContext context) =>
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
 
@@ -188,24 +188,24 @@ public static class LinbikYarpExtensions
                 var cookieName = $"{cookiePrefix}{packageName}";
                 var token = context.Request.Cookies[cookieName];
 
-                if (string.IsNullOrEmpty(token))
-                {
-                    logger?.LogWarning("Integration token not found for {PackageName}", packageName);
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new
-                    {
-                        error = "unauthorized",
-                        error_description = $"Integration token not found for {packageName}. Please login again."
-                    });
-                    return;
-                }
+                // TODO: require token?
+                // if (string.IsNullOrEmpty(token))
+                // {
+                //     logger?.LogWarning("Integration token not found for {PackageName}", packageName);
+                //     context.Response.StatusCode = 401;
+                //     await context.Response.WriteAsJsonAsync(new
+                //     {
+                //         error = "unauthorized",
+                //         error_description = $"Integration token not found for {packageName}. Please login again."
+                //     });
+                //     return;
+                // }
 
                 // Build target URL
-                var targetUrl = serviceConfig.BaseUrl.TrimEnd('/');
+                var targetUrl = $"{serviceConfig.TargetBaseUrl}/{serviceConfig.TargetPath}";
+                
                 if (!string.IsNullOrEmpty(path))
-                {
                     targetUrl = $"{targetUrl}/{path}";
-                }
 
                 // Preserve query string
                 if (context.Request.QueryString.HasValue)

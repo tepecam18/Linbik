@@ -24,13 +24,38 @@ public static class RateLimitExtensions
     /// <summary>
     /// Add rate limiting services configured for Linbik authentication
     /// </summary>
-    public static IServiceCollection AddLinbikRateLimiting(this IServiceCollection services, IConfiguration? configuration = null)
+    /// <param name="services"></param>
+    /// <param name="configureOptions"></param>
+    /// <returns></returns>
+    public static IServiceCollection AddLinbikRateLimiting(
+        this IServiceCollection services, Action<RateLimitOptions> configureOptions)
+    {
+        var options = new RateLimitOptions();
+        configureOptions(options);
+        services.Configure(configureOptions);
+        return services.AddCommonLinbikRateLimiting(options);
+    }
+
+
+
+    public static IServiceCollection AddLinbikRateLimiting(
+        this IServiceCollection services)
+    {
+        var serviceProvider = services.BuildServiceProvider();
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        var options = configuration.GetSection("Linbik:RateLimit").Get<RateLimitOptions>() ?? new RateLimitOptions();
+        services.Configure<RateLimitOptions>(configuration.GetSection("Linbik:RateLimit"));
+        return services.AddCommonLinbikRateLimiting(options);
+    }
+
+
+    /// <summary>
+    /// Add rate limiting services configured for Linbik authentication
+    /// </summary>
+    private static IServiceCollection AddCommonLinbikRateLimiting(this IServiceCollection services, RateLimitOptions rateLimitOptions)
     {
         services.AddRateLimiter(options =>
         {
-            // Get rate limit options from configuration
-            var rateLimitOptions = new RateLimitOptions();
-            configuration?.GetSection("Linbik:RateLimit").Bind(rateLimitOptions);
 
             // Configure rejection response
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

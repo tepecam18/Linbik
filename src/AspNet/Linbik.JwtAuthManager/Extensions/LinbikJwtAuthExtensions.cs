@@ -35,22 +35,13 @@ public static class LinbikJwtAuthExtensions
     }
 
     /// <summary>
-    /// Add Linbik JWT authentication services with default options
-    /// </summary>
-    public static IServiceCollection AddLinbikJwtAuth(this IServiceCollection services)
-    {
-        services.Configure<JwtAuthOptions>(_ => { });
-        services.AddSingleton<IJwtHelper, JwtHelperService>();
-        return services;
-    }
-
-    /// <summary>
     /// Add Linbik JWT authentication services from configuration
     /// </summary>
     public static IServiceCollection AddLinbikJwtAuth(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
+        var serviceProvider = services.BuildServiceProvider();
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         var options = configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>() ?? new JwtAuthOptions();
         services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
         services.AddSingleton<IJwtHelper, JwtHelperService>();

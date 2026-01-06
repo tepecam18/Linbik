@@ -1,8 +1,8 @@
-# Linbik OAuth 2.0 Test Application# Linbik.WebApi - Example Implementation
+# Linbik OAuth 2.1 Test Application# Linbik.WebApi - Example Implementation
 
 
 
-Bu proje, Linbik OAuth 2.0 Authorization Code Flow'unu test etmek için geliştirilmiş örnek bir ASP.NET Core uygulamasıdır.A complete example web API project demonstrating how to implement and use the Linbik Authentication Framework in a real-world application.
+Bu proje, Linbik OAuth 2.1 Authorization Code Flow'unu test etmek için geliştirilmiş örnek bir ASP.NET Core uygulamasıdır.A complete example web API project demonstrating how to implement and use the Linbik Authentication Framework in a real-world application.
 
 
 
@@ -10,7 +10,7 @@ Bu proje, Linbik OAuth 2.0 Authorization Code Flow'unu test etmek için gelişti
 
 
 
-- ✅ OAuth 2.0 Authorization Code FlowThis project serves as a comprehensive example of how to integrate and use all Linbik components in a production-ready web API. It demonstrates best practices, proper configuration, and real-world usage patterns.
+- ✅ OAuth 2.1 Authorization Code FlowThis project serves as a comprehensive example of how to integrate and use all Linbik components in a production-ready web API. It demonstrates best practices, proper configuration, and real-world usage patterns.
 
 - ✅ Multi-service integration (Birden fazla entegre servis token'ı)
 
@@ -460,7 +460,7 @@ public class UserController : ControllerBase
 
     private readonly ICurrentActor _currentActor;
 
-- [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)    private readonly IUserService _userService;
+- [OAuth 2.1 RFC 6749](https://tools.ietf.org/html/rfc6749)    private readonly IUserService _userService;
 
 - [PKCE RFC 7636](https://tools.ietf.org/html/rfc7636)    
 

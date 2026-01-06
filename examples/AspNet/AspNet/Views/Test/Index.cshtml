@@ -20,6 +20,93 @@
         }
         
         .container { max-width: 900px; margin: 0 auto; }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .notification.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .notification.info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .notification .icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .notification .message {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .notification .close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0.8;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification .close:hover {
+            opacity: 1;
+        }
+
+        @@keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @@keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .notification.hiding {
+            animation: slideOut 0.3s ease-in forwards;
+        }
         
         .card {
             background: white;
@@ -171,6 +258,9 @@
         .btn-rate { background: #f5576c; color: white; }
         .btn-integration { background: #17a2b8; color: white; }
         .btn-info { background: #6c757d; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-primary { background: #667eea; color: white; }
 
         .result-box {
             background: #1a1a2e;
@@ -406,6 +496,65 @@
                     <code>Authorization: Bearer {token}</code> olarak eklenir.
                 </div>
             </div>
+
+            <!-- Server Integration Tests (Linbik.Server) -->
+            <div class="test-group">
+                <div class="test-group-title">
+                    🖥️ Linbik.Server Integration Testleri
+                    <span class="badge badge-success">[LinbikIntegrationAuthorize]</span>
+                </div>
+                
+                <h3 style="margin-top: 16px; margin-bottom: 8px; color: #28a745;">✅ Public Endpoints (Auth Gerektirmez)</h3>
+                <div class="test-buttons">
+                    <button class="btn-test btn-success" onclick="testEndpoint('/Test/TestServerPublicEndpoint', 'server-public')">
+                        💚 Health Check
+                    </button>
+                    <button class="btn-test btn-success" onclick="testEndpoint('/Test/TestServerPublicData', 'server-public')">
+                        📊 Public Data
+                    </button>
+                </div>
+                <div id="server-public-result" class="result-box"></div>
+
+                <h3 style="margin-top: 16px; margin-bottom: 8px; color: #dc3545;">🔒 Protected Endpoints (LinbikIntegrationAuthorize)</h3>
+                <div class="test-buttons">
+                    <button class="btn-test btn-warning" onclick="testEndpoint('/api/serverTest/protected', 'server-protected')">
+                        ⚠️ Protected (Auth Yok - 401 Beklenir)
+                    </button>
+                    <button class="btn-test btn-primary" onclick="testEndpoint('/api/serverTest/protected', 'server-protected-auth')">
+                        🔐 Protected (Auth Var)
+                    </button>
+                    <button class="btn-test btn-primary" onclick="testEndpoint('/api/serverTest/user-profile', 'server-profile')">
+                        👤 User Profile
+                    </button>
+                    <button class="btn-test btn-primary" onclick="testEndpointPost('/api/serverTest/process', 'server-process', {action: 'test', data: 'sample'})">
+                        ⚙️ Process Data (POST)
+                    </button>
+                    <button class="btn-test btn-primary" onclick="testEndpoint('/api/serverTest/user-data', 'server-user-data')">
+                        📁 User Data
+                    </button>
+                </div>
+                <div id="server-protected-result" class="result-box"></div>
+                <div id="server-protected-auth-result" class="result-box"></div>
+                <div id="server-profile-result" class="result-box"></div>
+                <div id="server-process-result" class="result-box"></div>
+                <div id="server-user-data-result" class="result-box"></div>
+
+                <h3 style="margin-top: 16px; margin-bottom: 8px; color: #667eea;">🚀 Tüm Testler</h3>
+                <div class="test-buttons">
+                    <button class="btn-test btn-info" onclick="runAllServerTests()">
+                        ⚡ Tüm Server Testlerini Çalıştır
+                    </button>
+                </div>
+                <div id="server-all-result" class="result-box"></div>
+
+                <div class="note-box">
+                    💡 <strong>Linbik.Server Test Notları:</strong><br/>
+                    • Public endpoint'ler (<code>/api/serverTest/...</code>) auth gerektirmez<br/>
+                    • Protected endpoint'ler (<code>/api/serverTestAuth/...</code>) integration token gerektirir<br/>
+                    • YARP proxy istekleri <code>/api/serverTest/{'{'}path{'}'}</code> → <code>https://localhost:5481/api/integration/{'{'}path{'}'}</code> şeklinde yönlendirir<br/>
+                    • <code>[LinbikIntegrationAuthorize]</code> attribute RS256 JWT doğrulaması yapar
+                </div>
+            </div>
         </div>
 
         @if (Model.Tokens.Count > 0)
@@ -503,6 +652,56 @@
             }
         }
 
+        async function testEndpointPost(url, resultGroup, bodyData) {
+            const resultBox = document.getElementById(resultGroup + '-result');
+            resultBox.classList.add('show');
+            resultBox.innerHTML = `
+                <div class="result-header">
+                    <h4>POST ${url}</h4>
+                    <span class="result-status" style="background: #6c757d;">Loading...</span>
+                </div>
+                <div class="result-body">Fetching...</div>
+            `;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch {
+                    data = await response.text();
+                }
+
+                const statusClass = response.ok ? 'success' : 'error';
+                const statusText = response.ok ? `✓ ${response.status}` : `✗ ${response.status}`;
+
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>POST ${url}</h4>
+                        <span class="result-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="result-body">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</div>
+                `;
+            } catch (error) {
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>POST ${url}</h4>
+                        <span class="result-status error">✗ Error</span>
+                    </div>
+                    <div class="result-body" style="color: #ff6b6b;">Network Error: ${error.message}</div>
+                `;
+            }
+        }
+
         async function testRateLimit(url, type) {
             if (type === 'rate') {
                 rateCounter++;
@@ -513,6 +712,144 @@
 
             await testEndpoint(url, type);
         }
+
+        async function runAllServerTests() {
+            const resultBox = document.getElementById('server-all-result');
+            resultBox.classList.add('show');
+            resultBox.innerHTML = `
+                <div class="result-header">
+                    <h4>🚀 Tüm Server Testleri Çalıştırılıyor...</h4>
+                    <span class="result-status" style="background: #6c757d;">
+                        <span class="loading"></span> Running...
+                    </span>
+                </div>
+                <div class="result-body">Testler çalıştırılıyor, lütfen bekleyin...</div>
+            `;
+
+            try {
+                const response = await fetch('/Test/RunAllServerTests', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch {
+                    data = await response.text();
+                }
+
+                // Format summary
+                let summaryHtml = '';
+                if (data.summary) {
+                    const s = data.summary;
+                    summaryHtml = `
+<strong>📊 Test Özeti:</strong>
+✅ Başarılı: ${s.passed}
+❌ Başarısız: ${s.failed}
+📈 Toplam: ${s.total}
+🎯 Başarı Oranı: ${s.successRate}
+
+`;
+                }
+
+                // Format results
+                let resultsHtml = '<strong>📋 Test Detayları:</strong>\n';
+                if (data.results && Array.isArray(data.results)) {
+                    data.results.forEach(r => {
+                        const icon = r.passed ? '✅' : '❌';
+                        const status = r.passed ? 'PASS' : 'FAIL';
+                        resultsHtml += `\n${icon} [${status}] ${r.test}`;
+                        if (r.endpoint) resultsHtml += ` - ${r.endpoint}`;
+                        if (r.statusCode) resultsHtml += ` (${r.statusCode})`;
+                        if (r.error) resultsHtml += ` - Error: ${r.error}`;
+                        if (r.note) resultsHtml += ` - ${r.note}`;
+                    });
+                }
+
+                // Add note
+                let noteHtml = '';
+                if (data.note) {
+                    noteHtml = `\n\n💡 ${data.note}`;
+                }
+
+                const statusClass = response.ok ? 'success' : 'error';
+                const statusText = response.ok ? '✓ Tamamlandı' : `✗ ${response.status}`;
+
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>🚀 Tüm Server Testleri</h4>
+                        <span class="result-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="result-body">${summaryHtml}${resultsHtml}${noteHtml}</div>
+                `;
+            } catch (error) {
+                resultBox.innerHTML = `
+                    <div class="result-header">
+                        <h4>🚀 Tüm Server Testleri</h4>
+                        <span class="result-status error">✗ Error</span>
+                    </div>
+                    <div class="result-body" style="color: #ff6b6b;">Network Error: ${error.message}
+
+💡 Linbik.Server uygulamasının https://localhost:5481 adresinde çalıştığından emin olun.</div>
+                `;
+            }
+        }
+
+        // Notification System
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            
+            notification.innerHTML = `
+                <div class="icon">${icon}</div>
+                <div class="message">${message}</div>
+                <button class="close" onclick="closeNotification(this)">×</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    closeNotification(notification.querySelector('.close'));
+                }, duration);
+            }
+        }
+
+        function closeNotification(button) {
+            const notification = button.closest('.notification');
+            notification.classList.add('hiding');
+            setTimeout(() => notification.remove(), 300);
+        }
+
+        // Check for query parameters on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Check for error message
+            const errorMsg = urlParams.get('error');
+            if (errorMsg) {
+                showNotification(decodeURIComponent(errorMsg), 'error', 8000);
+                
+                // Clean URL without reloading
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+            
+            // Check for success message
+            const successMsg = urlParams.get('message');
+            if (successMsg) {
+                showNotification(decodeURIComponent(successMsg), 'success', 5000);
+                
+                // Clean URL without reloading
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        });
     </script>
 </body>
 </html>

@@ -21,9 +21,9 @@ public class LinbikTokenClaims
     public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Service ID (aud claim) - the integration service this token is for
+    /// Package Name (aud claim) - the integration service this token is for
     /// </summary>
-    public Guid ServiceId { get; set; }
+    public string PackageName { get; set; } = string.Empty;
 
     /// <summary>
     /// Authorized party (azp claim) - the main service that requested this token
