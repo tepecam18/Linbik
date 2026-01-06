@@ -22,21 +22,6 @@ namespace Linbik.Core.Interfaces;
 public interface IAuthService
 {
     /// <summary>
-    /// Redirects the user to Linbik authorization endpoint.
-    /// </summary>
-    /// <param name="context">The HTTP context for the current request.</param>
-    /// <param name="returnUrl">Optional URL to return to after authentication completes.</param>
-    /// <param name="codeChallenge">Optional PKCE code challenge for enhanced security.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous redirect operation.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when Linbik URL is not configured.</exception>
-    Task RedirectToLinbikAsync(
-        HttpContext context,
-        string? returnUrl = null,
-        string? codeChallenge = null,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Exchanges an authorization code for access and refresh tokens.
     /// </summary>
     /// <param name="code">The authorization code received from Linbik callback.</param>

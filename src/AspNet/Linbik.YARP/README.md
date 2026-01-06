@@ -40,7 +40,7 @@ services.AddLinbikYARP(options =>
 
 ### Simple Proxy Setup (Recommended)
 
-For most use cases, use `MapLinbikIntegrationProxy()`:
+For most use cases, use `UseLinbikYarp()`:
 
 ```csharp
 // In Program.cs
@@ -55,7 +55,7 @@ builder.Services.AddLinbikJwtAuth();
 var app = builder.Build();
 
 // 3. Map integration proxy endpoint
-app.MapLinbikIntegrationProxy();  // Maps /{packageName}/{**path}
+app.UseLinbikYarp();  // Maps /{packageName}/{**path}
 ```
 
 **Endpoint Pattern**: `/{packageName}/{path}` routes to the integration service's BaseUrl.
@@ -94,7 +94,7 @@ app.MapLinbikIntegrationProxy();  // Maps /{packageName}/{**path}
 
 2. Client request → /payment-gateway/api/charge
 
-3. MapLinbikIntegrationProxy():
+3. UseLinbikYarp():
    a. Extract {packageName} from URL → "payment-gateway"
    b. Read cookie: integration_payment-gateway
    c. Lookup BaseUrl from IntegrationServices config
@@ -256,10 +256,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Map Linbik endpoints (login, logout, refresh)
-app.MapLinbikEndpoints();
+app.UseLinbikJwtAuth();
 
 // Map integration proxy (automatic token injection from cookies)
-app.MapLinbikIntegrationProxy();
+app.UseLinbikYarp();
 
 app.MapControllers();
 
@@ -284,7 +284,7 @@ User → /linbik/login → Linbik → Authorization Code → /linbik/login (call
 ### Request Proxying
 
 ```
-Client Request → MapLinbikIntegrationProxy()
+Client Request → UseLinbikYarp()
                         ↓
         Extract {packageName} from URL path
                         ↓
@@ -369,7 +369,7 @@ context.Request.Headers["Authorization"] = $"Bearer {token}";
 var token = await _tokenProvider.GetTokenForServiceAsync("payment-gateway", context);
 context.Request.Headers["Authorization"] = $"Bearer {token}";
 
-// Even better: Use MapLinbikIntegrationProxy (automatic)
+// Even better: Use UseLinbikYarp (automatic)
 // No manual token management needed!
 // Tokens are read from cookies and injected automatically.
 ```

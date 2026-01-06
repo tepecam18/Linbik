@@ -20,7 +20,7 @@ public static class LinbikServerExtensions
     /// Add Linbik Server services for integration services (payment, survey, comments, etc.)
     /// Provides JWT validation with RSA public keys - NO token generation
     /// </summary>
-    public static IServiceCollection AddLinbikIntegrationAuth(
+    public static IServiceCollection AddLinbikServer(
         this IServiceCollection services,
         Action<ServerOptions> configureOptions)
     {
@@ -39,10 +39,11 @@ public static class LinbikServerExtensions
     /// <summary>
     /// Add Linbik Server services from configuration
     /// </summary>
-    public static IServiceCollection AddLinbikIntegrationAuth(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddLinbikServer(
+        this IServiceCollection services)
     {
+        var serviceProvider = services.BuildServiceProvider();
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         var options = configuration.GetSection("Linbik:Server").Get<ServerOptions>() ?? new ServerOptions();
         services.Configure<ServerOptions>(configuration.GetSection("Linbik:Server"));
 
@@ -121,18 +122,28 @@ public static class LinbikServerExtensions
     /// Use integration authentication middleware
     /// Validates JWT tokens from Linbik.App using RSA public keys
     /// </summary>
-    public static IApplicationBuilder UseLinbikIntegrationAuth(this IApplicationBuilder app)
+    public static IApplicationBuilder UseLinbikServer(this IApplicationBuilder app)
     {
+        var validator = app.ApplicationServices.GetService<IntegrationTokenValidator>();
+
+        if (validator == null)
+        {
+            throw new InvalidOperationException(
+                "IntegrationTokenValidator is not registered. " +
+                "Please call services.AddLinbikServer() in Program.cs"
+            );
+        }
+
         return app.UseMiddleware<IntegrationAuthMiddleware>();
     }
 
     /// <summary>
     /// Legacy: Use old server endpoints (deprecated)
     /// </summary>
-    [Obsolete("Use AddLinbikIntegrationAuth() and UseLinbikIntegrationAuth() instead. Old endpoint-based auth is deprecated.")]
-    public static IApplicationBuilder UseLinbikServer(this IApplicationBuilder app)
-    {
-        // Keep for backward compatibility but mark as obsolete
-        return app;
-    }
+    //[Obsolete("Use AddLinbikServer() and UseLinbikServer() instead. Old endpoint-based auth is deprecated.")]
+    //public static IApplicationBuilder UseLinbikServer(this IApplicationBuilder app)
+    //{
+    //    // Keep for backward compatibility but mark as obsolete
+    //    return app;
+    //}
 }

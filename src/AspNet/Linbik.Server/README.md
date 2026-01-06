@@ -63,7 +63,7 @@ builder.Services.AddLinbikServer(options =>
 });
 
 // 2. Use authentication middleware
-app.UseLinbikIntegrationAuth();
+app.UseLinbikServer();
 
 // 3. Access claims in controllers
 [ApiController]
@@ -193,7 +193,7 @@ builder.Services.AddLinbikServer(options =>
 var app = builder.Build();
 
 // Enable Linbik auth middleware
-app.UseLinbikIntegrationAuth();
+app.UseLinbikServer();
 
 app.MapPost("/charge", (HttpContext ctx, ChargeRequest request) =>
 {

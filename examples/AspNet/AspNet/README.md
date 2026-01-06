@@ -926,7 +926,7 @@ OpenTelemetry uyumlu metrikler:
 **OpenTelemetry Entegrasyonu:**
 ```csharp
 builder.Services.AddOpenTelemetry()
-    .WithMetrics(m => m.AddMeter("Linbik.Auth"));
+    .WithMetrics(m => m.AddMeter("Linbik"));
 ```
 
 ### Test Endpoint'leri

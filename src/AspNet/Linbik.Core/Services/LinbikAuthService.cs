@@ -63,34 +63,6 @@ public class LinbikAuthService : IAuthService
     }
 
     /// <inheritdoc />
-    public Task RedirectToLinbikAsync(
-        HttpContext context,
-        string? returnUrl = null,
-        string? codeChallenge = null,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var authUrl = BuildAuthorizationUrl(codeChallenge);
-
-        // Store return URL in cookie (not session)
-        if (!string.IsNullOrEmpty(returnUrl))
-        {
-            context.Response.Cookies.Append(ReturnUrlCookie, returnUrl, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Lax,
-                MaxAge = TimeSpan.FromMinutes(10),
-                Path = "/"
-            });
-        }
-
-        context.Response.Redirect(authUrl);
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
     public async Task<LinbikTokenResponse?> ExchangeCodeForTokensAsync(
         string code,
         CancellationToken cancellationToken = default)
@@ -272,20 +244,6 @@ public class LinbikAuthService : IAuthService
     }
 
     #region Private Methods
-
-    private string BuildAuthorizationUrl(string? codeChallenge = null)
-    {
-        var baseUrl = _options.LinbikUrl.TrimEnd('/');
-        var endpoint = _options.AuthorizationEndpoint.TrimStart('/');
-        var clientId = _options.ClientId;
-
-        if (!string.IsNullOrEmpty(codeChallenge))
-        {
-            return $"{baseUrl}/{endpoint}/{clientId}/{codeChallenge}";
-        }
-
-        return $"{baseUrl}/{endpoint}/{clientId}";
-    }
 
     private void StoreIntegrationCookies(HttpContext context, List<LinbikIntegrationToken> integrations)
     {

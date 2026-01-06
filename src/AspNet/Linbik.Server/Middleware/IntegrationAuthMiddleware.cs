@@ -1,10 +1,9 @@
 using Linbik.Server.Configuration;
-using Linbik.Server.Models;
 using Linbik.Server.Services;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace Linbik.Server.Middleware;
@@ -88,9 +87,9 @@ public class IntegrationAuthMiddleware
         // Build ClaimsPrincipal from validated claims
         var claimsList = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, claims.UserId.ToString()),
-            new(ClaimTypes.Name, claims.UserName),
-            new("display_name", claims.DisplayName),
+            new(JwtRegisteredClaimNames.Sub, claims.UserId.ToString()),
+            new(JwtRegisteredClaimNames.UniqueName, claims.UserName),
+            new(JwtRegisteredClaimNames.Name, claims.DisplayName),
             new("service_id", claims.ServiceId.ToString()),
             new("iss", claims.Issuer)
         };
@@ -116,67 +115,5 @@ public class IntegrationAuthMiddleware
 
         // Continue to next middleware
         await _next(context);
-    }
-}
-
-/// <summary>
-/// Extension methods for IntegrationAuthMiddleware
-/// </summary>
-public static class IntegrationAuthMiddlewareExtensions
-{
-    /// <summary>
-    /// Use integration authentication middleware for JWT validation
-    /// </summary>
-    public static IApplicationBuilder UseIntegrationAuth(this IApplicationBuilder builder)
-    {
-        return builder.UseMiddleware<IntegrationAuthMiddleware>();
-    }
-
-    /// <summary>
-    /// Get LinbikTokenClaims from HttpContext
-    /// </summary>
-    public static LinbikTokenClaims? GetLinbikClaims(this HttpContext context)
-    {
-        return context.Items["LinbikClaims"] as LinbikTokenClaims;
-    }
-
-    /// <summary>
-    /// Get UserId from HttpContext
-    /// </summary>
-    public static Guid GetLinbikUserId(this HttpContext context)
-    {
-        return context.GetLinbikClaims()?.UserId ?? Guid.Empty;
-    }
-
-    /// <summary>
-    /// Get UserName from HttpContext
-    /// </summary>
-    public static string GetLinbikUserName(this HttpContext context)
-    {
-        return context.GetLinbikClaims()?.UserName ?? string.Empty;
-    }
-
-    /// <summary>
-    /// Get DisplayName from HttpContext
-    /// </summary>
-    public static string GetLinbikDisplayName(this HttpContext context)
-    {
-        return context.GetLinbikClaims()?.DisplayName ?? string.Empty;
-    }
-
-    /// <summary>
-    /// Get ServiceId from HttpContext (the service this token was issued for)
-    /// </summary>
-    public static Guid GetLinbikServiceId(this HttpContext context)
-    {
-        return context.GetLinbikClaims()?.ServiceId ?? Guid.Empty;
-    }
-
-    /// <summary>
-    /// Get AuthorizedParty from HttpContext (the main service that requested the token)
-    /// </summary>
-    public static Guid GetLinbikAuthorizedParty(this HttpContext context)
-    {
-        return context.GetLinbikClaims()?.AuthorizedParty ?? Guid.Empty;
     }
 }

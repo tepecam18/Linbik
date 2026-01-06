@@ -39,14 +39,28 @@ public class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
             errors.Add($"Linbik:ServiceId must be a valid GUID. Current value: '{options.ServiceId}'.");
         }
 
-        // Validate ClientId
-        if (string.IsNullOrWhiteSpace(options.ClientId))
+        // Validate Clients
+        if (options.Clients == null || options.Clients.Count == 0)
         {
-            errors.Add("Linbik:ClientId is required. Get this from Linbik client registration.");
+            errors.Add("Linbik:Clients configuration is required. Define at least one Linbik client.");
         }
-        else if (!Guid.TryParse(options.ClientId, out _))
+        else
         {
-            errors.Add($"Linbik:ClientId must be a valid GUID. Current value: '{options.ClientId}'.");
+            foreach (var client in options.Clients)
+            {
+                if (string.IsNullOrWhiteSpace(client.ClientId))
+                {
+                    errors.Add($"Linbik client '{client.ClientId}': ClientId is required.");
+                }
+                else if (!Guid.TryParse(client.ClientId, out _))
+                {
+                    errors.Add($"Linbik client '{client.ClientId}': ClientId must be a valid GUID. Current value: '{client.ClientId}'.");
+                }
+                if (client.ClientType != LinbikClientType.Web && client.ClientType != LinbikClientType.Mobile)
+                {
+                    errors.Add($"Linbik client '{client.ClientId}': ClientType must be either 'Web' or 'Mobile'. Current value: '{client.ClientType}'.");
+                }
+            }
         }
 
         // Validate ApiKey

@@ -7,12 +7,12 @@ public interface ITokenProvider
     /// <summary>
     /// Gets multi-service token response from authorization code
     /// </summary>
-    Task<MultiServiceTokenResponse?> GetMultiServiceTokenAsync(string baseUrl, string authorizationCode, string apiKey);
+    Task<LinbikTokenResponse?> GetMultiServiceTokenAsync(string baseUrl, string authorizationCode, string apiKey);
 
     /// <summary>
     /// Refreshes all service tokens using refresh token
     /// </summary>
-    Task<MultiServiceTokenResponse?> RefreshTokensAsync(string baseUrl, string refreshToken, string apiKey, string serviceId);
+    Task<LinbikTokenResponse?> RefreshTokensAsync(string baseUrl, string refreshToken, string apiKey, string serviceId);
 
     /// <summary>
     /// Gets a specific integration service token from cache
@@ -22,7 +22,7 @@ public interface ITokenProvider
     /// <summary>
     /// Stores multi-service token response in cache
     /// </summary>
-    void CacheTokenResponse(MultiServiceTokenResponse tokenResponse);
+    void CacheTokenResponse(LinbikTokenResponse tokenResponse);
 
     /// <summary>
     /// Clears all cached tokens

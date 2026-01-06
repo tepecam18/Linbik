@@ -42,9 +42,11 @@ public static class LinbikYarpExtensions
     /// Add Linbik YARP services from configuration
     /// </summary>
     public static IServiceCollection AddLinbikYarp(
-        this IServiceCollection services,
-        IConfiguration configuration)
+        this IServiceCollection services)
     {
+
+        var serviceProvider = services.BuildServiceProvider();
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         services.Configure<YARPOptions>(configuration.GetSection("Linbik:YARP"));
 
         // Add token provider
@@ -165,7 +167,7 @@ public static class LinbikYarpExtensions
     /// Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}
     /// Automatically injects JWT token from integration_{packageName} cookie
     /// </summary>
-    public static IEndpointRouteBuilder MapLinbikIntegrationProxy(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder UseLinbikYarp(this IEndpointRouteBuilder endpoints)
     {
         var options = endpoints.ServiceProvider.GetRequiredService<IOptions<YARPOptions>>().Value;
         var httpClientFactory = endpoints.ServiceProvider.GetRequiredService<IHttpClientFactory>();

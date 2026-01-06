@@ -47,7 +47,7 @@ builder.Services.AddLinbik(builder.Configuration);
 builder.Services.AddLinbikJwtAuth();
 
 // 2. Map endpoints
-app.MapLinbikEndpoints();  // Maps /linbik/login, /linbik/logout, /linbik/refresh
+app.UseLinbikJwtAuth();  // Maps /linbik/login, /linbik/logout, /linbik/refresh
 ```
 
 **Endpoints:**

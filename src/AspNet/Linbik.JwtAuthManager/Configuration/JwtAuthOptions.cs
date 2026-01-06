@@ -41,37 +41,20 @@ public class JwtAuthOptions
     /// <summary>
     /// Login path (redirects to Linbik authorization)
     /// </summary>
-    public string LoginPath { get; set; } = "/linbik/login";
+    public string LoginPath { get; set; } = "/api/linbik/login";
 
     /// <summary>
     /// Login callback path (receives authorization code)
     /// </summary>
-    public string LoginCallbackPath { get; set; } = "/linbik/callback";
+    public string LoginCallbackPath { get; set; } = "/api/linbik/callback";
 
     /// <summary>
     /// Logout path
     /// </summary>
-    public string LogoutPath { get; set; } = "/linbik/logout";
+    public string LogoutPath { get; set; } = "/api/linbik/logout";
 
     /// <summary>
     /// Token refresh path
     /// </summary>
-    public string RefreshPath { get; set; } = "/linbik/refresh";
-
-    /// <summary>
-    /// Login redirect URL (after successful authentication)
-    /// </summary>
-    public string LoginRedirectUrl { get; set; } = "/";
-
-    /// <summary>
-    /// Error redirect URL (when authentication fails)
-    /// Use {error} placeholder for error message
-    /// Example: "/error?message={error}"
-    /// </summary>
-    public string ErrorRedirectUrl { get; set; } = "/error?message={error}";
-
-    /// <summary>
-    /// Logout redirect URL (after successful logout)
-    /// </summary>
-    public string LogoutRedirectUrl { get; set; } = "/";
+    public string RefreshPath { get; set; } = "/api/linbik/refresh";
 }

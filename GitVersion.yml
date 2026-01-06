@@ -10,7 +10,7 @@ branches:
     tag: ''
   develop:
     regex: ^dev$
-    increment: Patch       # develop merge → patch artsın
+    increment: Inherit       # develop merge → patch artsın
     tag: ''
   feature:
     regex: ^feature\/.*$

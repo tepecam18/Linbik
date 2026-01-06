@@ -66,6 +66,11 @@ public class LinbikTokenResponse
     /// Access token expiration timestamp (Unix epoch seconds)
     /// </summary>
     public long? AccessTokenExpiresAt { get; set; }
+
+    /// <summary>
+    /// OAuth client ID (if applicable)
+    /// </summary>
+    public Guid? ClientId { get; set; }
 }
 
 /// <summary>
