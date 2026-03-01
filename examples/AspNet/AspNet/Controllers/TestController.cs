@@ -1,7 +1,7 @@
 using AspNet.Models;
-using Linbik.Core.Interfaces;
 using Linbik.Core.Models;
 using Linbik.Core.Services;
+using Linbik.Core.Services.Interfaces;
 using Linbik.JwtAuthManager.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,28 +10,14 @@ using System.Security.Claims;
 
 namespace AspNet.Controllers;
 
-public class TestController : Controller
+public sealed class TestController(
+    LinbikMetrics metrics,
+    IAuthService authService,
+    IHttpClientFactory httpClientFactory) : Controller
 {
     private const string AuthTokenCookie = "authToken";
     private const string RefreshTokenCookie = "linbikRefreshToken";
     private const string IntegrationTokenPrefix = "integration_";
-
-    private readonly IAuditLogger _auditLogger;
-    private readonly LinbikMetrics _metrics;
-    private readonly IAuthService _authService;
-    private readonly IHttpClientFactory _httpClientFactory;
-
-    public TestController(
-        IAuditLogger auditLogger, 
-        LinbikMetrics metrics, 
-        IAuthService authService,
-        IHttpClientFactory httpClientFactory)
-    {
-        _auditLogger = auditLogger;
-        _metrics = metrics;
-        _authService = authService;
-        _httpClientFactory = httpClientFactory;
-    }
 
     /// <summary>
     /// Ana dashboard sayfası - Kullanıcı durumu ve token bilgilerini gösterir
@@ -39,7 +25,7 @@ public class TestController : Controller
     public IActionResult Index()
     {
         UserProfile? profile = null;
-        var tokens = new List<LinbikIntegrationToken>();
+        List<LinbikIntegrationToken> tokens = [];
 
         // Check for auth token cookie
         var authToken = Request.Cookies[AuthTokenCookie];
@@ -51,7 +37,7 @@ public class TestController : Controller
                 var jwt = handler.ReadJwtToken(authToken);
 
                 var userId = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-                var userName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.UniqueName)?.Value;
+                var userName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.PreferredUsername)?.Value;
                 var displayName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
 
                 if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
@@ -167,7 +153,7 @@ public class TestController : Controller
 
         try
         {
-            var result = await _authService.RefreshTokensAsync(HttpContext);
+            var result = await authService.RefreshTokensAsync(HttpContext);
 
             if (result)
             {
@@ -214,7 +200,7 @@ public class TestController : Controller
     [HttpGet]
     public IActionResult TestRateLimit()
     {
-        _metrics.RecordLoginAttempt("rate-test");
+        metrics.RecordLoginAttempt("rate-test");
 
         return Json(new
         {
@@ -234,7 +220,7 @@ public class TestController : Controller
     [HttpGet]
     public IActionResult TestStrictRateLimit()
     {
-        _metrics.RecordLoginAttempt("strict-test");
+        metrics.RecordLoginAttempt("strict-test");
 
         return Json(new
         {
@@ -252,7 +238,7 @@ public class TestController : Controller
     #region Integration Service Mock Test
 
     /// <summary>
-    /// Mock Integration Service endpoint - Tests [LinbikIntegrationAuthorize]
+    /// Mock Integration Service endpoint - Tests [LinbikUserServiceAuthorize]
     /// Bu endpoint, gerçek bir integration service'in nasıl JWT doğrulaması yapacağını simüle eder.
     /// Authorization header'dan Bearer token bekler (RSA-256 ile imzalanmış)
     /// </summary>
@@ -464,7 +450,7 @@ public class TestController : Controller
     {
         try
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
 
             // Call through YARP proxy: /api/serverTest/health -> /api/integration/health
@@ -507,7 +493,7 @@ public class TestController : Controller
     {
         try
         {
-            var client = _httpClientFactory.CreateClient();
+            var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
 
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
@@ -544,8 +530,8 @@ public class TestController : Controller
     [HttpGet]
     public async Task<IActionResult> RunAllServerTests()
     {
-        var results = new List<object>();
-        var httpClient = _httpClientFactory.CreateClient();
+        List<object> results = [];
+        var httpClient = httpClientFactory.CreateClient();
         httpClient.Timeout = TimeSpan.FromSeconds(10);
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
@@ -652,11 +638,4 @@ public class TestController : Controller
     }
 
     #endregion
-}
-
-public class AuditTestRequest
-{
-    public string? EventType { get; set; }
-    public string? Message { get; set; }
-    public object? TestData { get; set; }
 }

@@ -1,5 +1,5 @@
-﻿using Linbik.Core.Interfaces;
-using Linbik.Core.Models;
+﻿using Linbik.Core.Models;
+using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Interfaces;
 using System.Collections.Concurrent;
 
@@ -8,17 +8,17 @@ namespace Linbik.YARP.Services;
 /// <summary>
 /// Token provider for multi-service authentication with caching
 /// </summary>
-public class MultiJwtTokenProvider : ITokenProvider
+public sealed class MultiJwtTokenProvider(ILinbikAuthClient linbikAuthClient) : ITokenProvider
 {
     private const int TokenExpiryBufferMinutes = 5;
 
-    private class TokenCacheItem
+    private sealed class TokenCacheItem
     {
         public string Token { get; set; } = string.Empty;
         public DateTime Expiry { get; set; }
     }
 
-    private class MultiServiceTokenCache
+    private sealed class MultiServiceTokenCache
     {
         public LinbikTokenResponse Response { get; set; } = null!;
         public DateTime RefreshTokenExpiry { get; set; }
@@ -27,12 +27,6 @@ public class MultiJwtTokenProvider : ITokenProvider
 
     private MultiServiceTokenCache? _multiServiceCache;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly ILinbikAuthClient _linbikAuthClient;
-
-    public MultiJwtTokenProvider(ILinbikAuthClient linbikAuthClient)
-    {
-        _linbikAuthClient = linbikAuthClient ?? throw new ArgumentNullException(nameof(linbikAuthClient));
-    }
 
     /// <summary>
     /// Gets multi-service token response from authorization code
@@ -47,7 +41,7 @@ public class MultiJwtTokenProvider : ITokenProvider
         try
         {
             // Use LinbikAuthClient instead of manual HTTP call
-            var tokenResponse = await _linbikAuthClient.ExchangeCodeAsync(authorizationCode);
+            var tokenResponse = await linbikAuthClient.ExchangeCodeAsync(authorizationCode);
 
             if (tokenResponse != null)
             {
@@ -75,7 +69,7 @@ public class MultiJwtTokenProvider : ITokenProvider
         try
         {
             // Use LinbikAuthClient instead of manual HTTP call
-            var tokenResponse = await _linbikAuthClient.RefreshTokensAsync(refreshToken);
+            var tokenResponse = await linbikAuthClient.RefreshTokensAsync(refreshToken);
 
             if (tokenResponse != null)
             {

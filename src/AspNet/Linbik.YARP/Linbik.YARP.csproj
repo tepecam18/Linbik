@@ -28,10 +28,7 @@
 		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
 		
 
-		<!-- SourceLink’i KAPAT veya paket referansını kaldır -->
-		<PublishRepositoryUrl>false</PublishRepositoryUrl>
-
-		<!-- sourcelink için -->
+		<!-- sourcelink -->
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>

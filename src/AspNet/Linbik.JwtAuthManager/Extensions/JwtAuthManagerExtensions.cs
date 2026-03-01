@@ -1,7 +1,8 @@
-﻿using Linbik.Core.Interfaces;
-using Linbik.Core.Responses;
+﻿using Linbik.Core.Responses;
 using Linbik.Core.Services;
+using Linbik.Core.Services.Interfaces;
 using Linbik.JwtAuthManager.Configuration;
+using Linbik.JwtAuthManager.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,27 +18,129 @@ using System.Text;
 namespace Linbik.JwtAuthManager.Extensions;
 
 /// <summary>
-/// Login callback response data
-/// </summary>
-public class LoginCallbackResponse
-{
-    public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
-    public string DisplayName { get; set; } = string.Empty;
-    public List<string> Integrations { get; set; } = new();
-    public string? RedirectPath { get; set; }
-}
-
-/// <summary>
 /// Extension methods for Linbik JWT authentication endpoints
 /// </summary>
 public static class JwtAuthManagerExtensions
 {
-    private const string AuthTokenCookie = "authToken";
-    private const string LinbikRefreshTokenCookie = "linbikRefreshToken";
-    private const string UserNameCookie = "userName";
-    private const string IntegrationTokenPrefix = "integration_";
+    private const string AuthTokenCookie = Core.LinbikDefaults.AuthTokenCookie;
+    private const string LinbikRefreshTokenCookie = Core.LinbikDefaults.RefreshTokenCookie;
+    private const string UserNameCookie = Core.LinbikDefaults.UserNameCookie;
+    private const string IntegrationTokenPrefix = Core.LinbikDefaults.IntegrationTokenPrefix;
     private const int MinSecretKeyLength = 32; // 256-bit minimum for HS256
+
+    /// <summary>
+    /// Calculate token expiry from Unix timestamp or use default
+    /// </summary>
+    private static DateTime CalculateExpiry(long? unixTimestamp, DateTime defaultExpiry)
+    {
+        return unixTimestamp.HasValue && unixTimestamp.Value > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(unixTimestamp.Value).UtcDateTime
+            : defaultExpiry;
+    }
+
+    /// <summary>
+    /// Create a local JWT access token for cookie-based authentication
+    /// </summary>
+    private static string? CreateLocalAccessToken(
+        JwtAuthOptions options,
+        Core.Models.LinbikTokenResponse tokenResponse,
+        DateTime accessTokenExpiry,
+        ILogger logger)
+    {
+        if (string.IsNullOrEmpty(options.SecretKey))
+        {
+            logger.LogError("SecretKey is not configured in JwtAuthOptions. Please set 'Linbik:JwtAuth:SecretKey' in appsettings.json");
+            return null;
+        }
+
+        if (options.SecretKey.Length < MinSecretKeyLength)
+        {
+            logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters for HS256. Current length: {CurrentLength}",
+                MinSecretKeyLength, options.SecretKey.Length);
+            return null;
+        }
+
+        List<Claim> claims =
+        [
+            new(JwtRegisteredClaimNames.Sub, tokenResponse.UserId.ToString()),
+            new(JwtRegisteredClaimNames.PreferredUsername, tokenResponse.Username),
+            new(JwtRegisteredClaimNames.Name, tokenResponse.DisplayName ?? tokenResponse.Username)
+        ];
+
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: options.JwtIssuer,
+            audience: options.JwtAudience,
+            claims: claims,
+            expires: accessTokenExpiry,
+            signingCredentials: credentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// Set all authentication cookies (refresh token, integration tokens, auth JWT, username)
+    /// </summary>
+    private static void SetAuthCookies(
+        HttpContext context,
+        Core.Models.LinbikTokenResponse tokenResponse,
+        string accessToken,
+        DateTime accessTokenExpiry,
+        DateTime refreshTokenExpiry)
+    {
+        // Refresh token cookie
+        if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
+        {
+            context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = refreshTokenExpiry,
+                Path = "/"
+            });
+        }
+
+        // Integration token cookies
+        if (tokenResponse.Integrations?.Count > 0)
+        {
+            foreach (var integration in tokenResponse.Integrations)
+            {
+                var cookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
+                context.Response.Cookies.Append(cookieName, integration.Token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = accessTokenExpiry,
+                    Path = "/"
+                });
+            }
+        }
+
+        // Local auth JWT cookie
+        context.Response.Cookies.Append(AuthTokenCookie, accessToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Expires = accessTokenExpiry,
+            Path = "/"
+        });
+
+        // Username cookie (accessible by JS for display)
+        context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Expires = refreshTokenExpiry,
+            Path = "/"
+        });
+    }
 
     /// <summary>
     /// Check if the client is a mobile client
@@ -190,6 +293,15 @@ public static class JwtAuthManagerExtensions
                 authorizationUrl = $"{authorizationUrl}?returnPath={Uri.EscapeDataString(returnPath)}";
             }
 
+            if(IsMobileClient(clientConfig))
+            {
+                // For mobile clients, return the URL in JSON
+                return Results.Ok(new LBaseResponse<LoginResponse>(new LoginResponse
+                {
+                    RedirectPath = authorizationUrl
+                }));
+            }
+
             return Results.Redirect(authorizationUrl);
         }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
@@ -280,102 +392,24 @@ public static class JwtAuthManagerExtensions
                     }
                 }
 
-                // Calculate expiry (check > 0 to avoid 1970 epoch date when value is 0)
-                var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue && tokenResponse.AccessTokenExpiresAt.Value > 0
-                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                    : DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes);
+                // Calculate expiry
+                var accessTokenExpiry = CalculateExpiry(
+                    tokenResponse.AccessTokenExpiresAt,
+                    DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes));
 
-                var refreshTokenExpiry = tokenResponse.RefreshTokenExpiresAt.HasValue && tokenResponse.RefreshTokenExpiresAt.Value > 0
-                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                    : DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays);
+                var refreshTokenExpiry = CalculateExpiry(
+                    tokenResponse.RefreshTokenExpiresAt,
+                    DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays));
 
-                var cookieOptions = new CookieOptions
+                // Create local JWT access token
+                var accessToken = CreateLocalAccessToken(options, tokenResponse, accessTokenExpiry, logger);
+                if (accessToken is null)
                 {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None
-                };
-
-                // Store refresh token
-                if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
-                {
-                    context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = refreshTokenExpiry,
-                        Path = "/"
-                    });
-                }
-
-                // Store integration tokens
-                if (tokenResponse.Integrations?.Count > 0)
-                {
-                    foreach (var integration in tokenResponse.Integrations)
-                    {
-                        var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                        context.Response.Cookies.Append(integrationCookieName, integration.Token, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.None,
-                            Expires = accessTokenExpiry,
-                            Path = "/"
-                        });
-                    }
-                }
-
-                // Create local access token (for cookie auth)
-                if (string.IsNullOrEmpty(options.SecretKey))
-                {
-                    logger.LogError("SecretKey is not configured in JwtAuthOptions. User authentication will not work. Please set 'Linbik:JwtAuth:SecretKey' in appsettings.json");
                     return ReturnAuthError(context, clientConfig, redirectPath, "Authentication is not properly configured");
                 }
 
-                if (options.SecretKey.Length < MinSecretKeyLength)
-                {
-                    logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters for HS256. Current length: {CurrentLength}", MinSecretKeyLength, options.SecretKey.Length);
-                    return ReturnAuthError(context, clientConfig, redirectPath, "Authentication is not properly configured");
-                }
-
-                var claims = new List<Claim>
-                {
-                    new(JwtRegisteredClaimNames.Sub, tokenResponse.UserId.ToString()),
-                    new(JwtRegisteredClaimNames.UniqueName, tokenResponse.Username),
-                    new(JwtRegisteredClaimNames.Name, tokenResponse.DisplayName ?? tokenResponse.Username)
-                };
-
-                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
-                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-                var token = new JwtSecurityToken(
-                    issuer: options.JwtIssuer,
-                    audience: options.JwtAudience,
-                    claims: claims,
-                    expires: accessTokenExpiry,
-                    signingCredentials: credentials
-                );
-
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                context.Response.Cookies.Append(AuthTokenCookie, tokenString, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = accessTokenExpiry,
-                    Path = "/"
-                });
-
-                context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, new CookieOptions
-                {
-                    HttpOnly = false,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = refreshTokenExpiry,
-                    Path = "/"
-                });
+                // Set all auth cookies
+                SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry);
 
                 // Log successful login
                 timer.Stop();
@@ -389,7 +423,7 @@ public static class JwtAuthManagerExtensions
                     UserId = tokenResponse.UserId,
                     UserName = tokenResponse.Username,
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
-                    Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
+                    Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
 
                 // Return success based on client type
@@ -472,86 +506,24 @@ public static class JwtAuthManagerExtensions
 
                 userId = tokenResponse.UserId.ToString();
 
-                // Calculate expiry (check > 0 to avoid 1970 epoch date when value is 0)
-                var accessTokenExpiry = tokenResponse.AccessTokenExpiresAt.HasValue && tokenResponse.AccessTokenExpiresAt.Value > 0
-                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.AccessTokenExpiresAt.Value).UtcDateTime
-                    : DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes);
+                // Calculate expiry
+                var accessTokenExpiry = CalculateExpiry(
+                    tokenResponse.AccessTokenExpiresAt,
+                    DateTime.UtcNow.AddMinutes(options.AccessTokenExpirationMinutes));
 
-                var refreshTokenExpiry = tokenResponse.RefreshTokenExpiresAt.HasValue && tokenResponse.RefreshTokenExpiresAt.Value > 0
-                    ? DateTimeOffset.FromUnixTimeSeconds(tokenResponse.RefreshTokenExpiresAt.Value).UtcDateTime
-                    : DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays);
+                var refreshTokenExpiry = CalculateExpiry(
+                    tokenResponse.RefreshTokenExpiresAt,
+                    DateTime.UtcNow.AddDays(options.RefreshTokenExpirationDays));
 
-                // Update refresh token
-                if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
+                // Create local JWT access token
+                var accessToken = CreateLocalAccessToken(options, tokenResponse, accessTokenExpiry, logger);
+                if (accessToken is null)
                 {
-                    context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = refreshTokenExpiry,
-                        Path = "/"
-                    });
-                }
-
-                // Update integration tokens
-                if (tokenResponse.Integrations?.Count > 0)
-                {
-                    foreach (var integration in tokenResponse.Integrations)
-                    {
-                        var integrationCookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                        context.Response.Cookies.Append(integrationCookieName, integration.Token, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.None,
-                            Expires = accessTokenExpiry,
-                            Path = "/"
-                        });
-                    }
-                }
-
-                // Update local access token
-                if (string.IsNullOrEmpty(options.SecretKey))
-                {
-                    logger.LogError("SecretKey is not configured in JwtAuthOptions");
                     return Results.BadRequest(new LBaseResponse<object>("Authentication is not properly configured"));
                 }
 
-                if (options.SecretKey.Length < MinSecretKeyLength)
-                {
-                    logger.LogError("SecretKey is too short. Minimum length is {MinLength} characters", MinSecretKeyLength);
-                    return Results.BadRequest(new LBaseResponse<object>("Authentication is not properly configured"));
-                }
-
-                var claims = new List<Claim>
-                {
-                    new(JwtRegisteredClaimNames.Sub, tokenResponse.UserId.ToString()),
-                    new(JwtRegisteredClaimNames.UniqueName, tokenResponse.Username),
-                    new(JwtRegisteredClaimNames.Name, tokenResponse.DisplayName ?? tokenResponse.Username)
-                };
-
-                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
-                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-                var token = new JwtSecurityToken(
-                    issuer: options.JwtIssuer,
-                    audience: options.JwtAudience,
-                    claims: claims,
-                    expires: accessTokenExpiry,
-                    signingCredentials: credentials
-                );
-
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                context.Response.Cookies.Append(AuthTokenCookie, tokenString, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = accessTokenExpiry,
-                    Path = "/"
-                });
+                // Set all auth cookies
+                SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry);
 
                 // Log successful refresh
                 timer.Stop();
@@ -564,7 +536,7 @@ public static class JwtAuthManagerExtensions
                     userId = tokenResponse.UserId,
                     userName = tokenResponse.Username,
                     displayName = tokenResponse.DisplayName,
-                    integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? new List<string>()
+                    integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 }));
             }
             catch (Exception ex)

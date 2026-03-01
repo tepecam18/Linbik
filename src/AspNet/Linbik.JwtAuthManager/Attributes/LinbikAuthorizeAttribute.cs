@@ -1,3 +1,4 @@
+using Linbik.Core;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Linbik.JwtAuthManager.Attributes;
@@ -10,10 +11,10 @@ namespace Linbik.JwtAuthManager.Attributes;
 /// [LinbikAuthorize]
 /// public IActionResult ProtectedEndpoint() { ... }
 /// </summary>
-public class LinbikAuthorizeAttribute : AuthorizeAttribute
+public sealed class LinbikAuthorizeAttribute : AuthorizeAttribute
 {
     public LinbikAuthorizeAttribute()
     {
-        AuthenticationSchemes = "LinbikScheme";
+        AuthenticationSchemes = LinbikDefaults.ClientScheme;
     }
 }

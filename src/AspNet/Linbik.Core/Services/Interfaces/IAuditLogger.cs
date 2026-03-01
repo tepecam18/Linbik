@@ -1,4 +1,4 @@
-namespace Linbik.Core.Interfaces;
+namespace Linbik.Core.Services.Interfaces;
 
 /// <summary>
 /// Audit event types for authentication operations
@@ -26,7 +26,7 @@ public enum AuditEventType
 /// <summary>
 /// Audit log entry with detailed information
 /// </summary>
-public class AuditLogEntry
+public sealed class AuditLogEntry
 {
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public AuditEventType EventType { get; set; }

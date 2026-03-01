@@ -1,4 +1,5 @@
-using Linbik.Core.Interfaces;
+using Linbik.Core.Extensions;
+using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -8,31 +9,22 @@ namespace Linbik.Core.Services;
 /// Default audit logger implementation that logs to ILogger
 /// Can be replaced with custom implementation for database/file/external service logging
 /// </summary>
-public class DefaultAuditLogger : IAuditLogger
+public sealed class DefaultAuditLogger(ILogger<DefaultAuditLogger> logger, IHttpContextAccessor httpContextAccessor) : IAuditLogger
 {
-    private readonly ILogger<DefaultAuditLogger> _logger;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public DefaultAuditLogger(ILogger<DefaultAuditLogger> logger, IHttpContextAccessor httpContextAccessor)
-    {
-        _logger = logger;
-        _httpContextAccessor = httpContextAccessor;
-    }
-
     public Task LogAsync(AuditLogEntry entry)
     {
         // Enrich with HTTP context if available
-        var context = _httpContextAccessor.HttpContext;
+        var context = httpContextAccessor.HttpContext;
         if (context != null)
         {
-            entry.IpAddress ??= GetClientIpAddress(context);
+            entry.IpAddress ??= context.GetClientIpAddress();
             entry.UserAgent ??= context.Request.Headers["User-Agent"].FirstOrDefault();
             entry.CorrelationId ??= context.TraceIdentifier;
         }
 
         var logLevel = entry.IsSuccess ? LogLevel.Information : LogLevel.Warning;
 
-        using (_logger.BeginScope(new Dictionary<string, object>
+        using (logger.BeginScope(new Dictionary<string, object>
         {
             ["AuditEventType"] = entry.EventType.ToString(),
             ["UserId"] = entry.UserId ?? "anonymous",
@@ -42,7 +34,7 @@ public class DefaultAuditLogger : IAuditLogger
             ["DurationMs"] = entry.DurationMs
         }))
         {
-            _logger.Log(logLevel,
+            logger.Log(logLevel,
                 "[AUDIT] {EventType} | User: {UserId} | IP: {IpAddress} | Success: {IsSuccess} | Duration: {DurationMs}ms | {Message}",
                 entry.EventType,
                 entry.UserId ?? "anonymous",
@@ -125,22 +117,4 @@ public class DefaultAuditLogger : IAuditLogger
         });
     }
 
-    private static string? GetClientIpAddress(HttpContext context)
-    {
-        // Check for forwarded headers first (for reverse proxy scenarios)
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(forwardedFor))
-        {
-            // Take the first IP in the chain (original client)
-            return forwardedFor.Split(',').First().Trim();
-        }
-
-        var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(realIp))
-        {
-            return realIp;
-        }
-
-        return context.Connection.RemoteIpAddress?.ToString();
-    }
 }

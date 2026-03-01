@@ -5,7 +5,7 @@ namespace Linbik.Core.Models;
 /// POST /auth/token: Headers { Code, ApiKey }, Body { ServiceId }
 /// POST /auth/refresh: Headers { RefreshToken, ApiKey }, Body { ServiceId }
 /// </summary>
-public class LinbikTokenRequest
+public sealed class LinbikTokenRequest
 {
     /// <summary>
     /// Service ID (from Linbik service registration)
@@ -18,7 +18,7 @@ public class LinbikTokenRequest
 /// Returned when exchanging authorization code or refreshing tokens
 /// Matches Linbik.App ServiceTokenResponse format
 /// </summary>
-public class LinbikTokenResponse
+public sealed class LinbikTokenResponse
 {
     /// <summary>
     /// User's profile ID (Guid)
@@ -78,7 +78,7 @@ public class LinbikTokenResponse
 /// Contains JWT token and metadata for a specific integration service
 /// Matches Linbik.App Integration format
 /// </summary>
-public class LinbikIntegrationToken
+public sealed class LinbikIntegrationToken
 {
     /// <summary>
     /// Integration service ID (Guid)
@@ -110,7 +110,7 @@ public class LinbikIntegrationToken
 /// <summary>
 /// Error response from Linbik authorization server
 /// </summary>
-public class LinbikErrorResponse
+public sealed class LinbikErrorResponse
 {
     /// <summary>
     /// Error code (e.g., "invalid_grant", "invalid_request")
@@ -122,3 +122,87 @@ public class LinbikErrorResponse
     /// </summary>
     public string ErrorDescription { get; set; } = string.Empty;
 }
+
+#region S2S (Service-to-Service) Models
+
+/// <summary>
+/// Request body for S2S token endpoint
+/// POST /auth/s2s-token
+/// Headers: { ApiKey }
+/// </summary>
+public sealed class LinbikS2STokenRequest
+{
+    /// <summary>
+    /// Source service ID (the service requesting tokens)
+    /// </summary>
+    public Guid SourceServiceId { get; set; }
+
+    /// <summary>
+    /// List of target integration service IDs to get tokens for
+    /// </summary>
+    public List<Guid> TargetServiceIds { get; set; } = [];
+}
+
+/// <summary>
+/// Response from S2S token endpoint
+/// Contains JWT tokens for each requested integration service
+/// </summary>
+public sealed class LinbikS2STokenResponse
+{
+    /// <summary>
+    /// Source service ID that requested the tokens
+    /// </summary>
+    public Guid SourceServiceId { get; set; }
+
+    /// <summary>
+    /// Source service package name
+    /// </summary>
+    public string SourcePackageName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// List of integration tokens for target services
+    /// </summary>
+    public List<LinbikS2SIntegration> Integrations { get; set; } = [];
+
+    /// <summary>
+    /// Access token expiration timestamp (Unix epoch seconds)
+    /// </summary>
+    public long AccessTokenExpiresAt { get; set; }
+}
+
+/// <summary>
+/// S2S integration token data
+/// Contains JWT token signed with target service's private key
+/// Token contains only service claims (no user information)
+/// </summary>
+public sealed class LinbikS2SIntegration
+{
+    /// <summary>
+    /// Target integration service ID
+    /// </summary>
+    public Guid ServiceId { get; set; }
+
+    /// <summary>
+    /// Target service display name
+    /// </summary>
+    public string ServiceName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Target service package name (URL-safe identifier)
+    /// </summary>
+    public string PackageName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Target service base URL
+    /// </summary>
+    public string ServiceUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// JWT access token for S2S authentication
+    /// Contains: token_type=s2s, source_service_id, source_package_name
+    /// Does NOT contain user information
+    /// </summary>
+    public string Token { get; set; } = string.Empty;
+}
+
+#endregion

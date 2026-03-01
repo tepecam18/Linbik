@@ -11,20 +11,18 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 
 
-// ✅ Linbik Core - Authentication client services (includes HttpClient resilience)
-builder.Services.AddLinbik();
+// ✅ Linbik - Fluent builder pattern for all Linbik services
+builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+    .AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik:JwtAuth"))
+    .AddLinbikServer(builder.Configuration.GetSection("Linbik:Server"))
+    .AddLinbikYarp(builder.Configuration.GetSection("Linbik:YARP"));
 
-// ✅ Linbik JwtAuthManager - Login/callback/logout middleware
-builder.Services.AddLinbikJwtAuth();
-
-// ✅ Linbik Server - Integration service endpoints with RS256 JWT validation
-builder.Services.AddLinbikServer();
+// ✅ Linbik Integration Handler - Handles integration lifecycle events from Linbik platform
+// Override with custom handler: builder.Services.AddLinbikIntegrationHandler<MyCustomHandler>();
+builder.Services.AddLinbikIntegrationHandler();
 
 // ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
-builder.Services.AddLinbikRateLimiting();
-
-// ✅ Linbik YARP - API Gateway with automatic token injection
-builder.Services.AddLinbikYarp();
+builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik:RateLimiting"));
 
 // Logging for development
 builder.Logging.ClearProviders();
@@ -32,6 +30,9 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 var app = builder.Build();
+
+// ✅ Validate all registered Linbik modules at startup (Core + JwtAuth + Server + YARP)
+app.EnsureLinbik();
 
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
@@ -62,6 +63,11 @@ app.MapControllerRoute(
 
 // ✅ Map Linbik OAuth endpoints (login, refresh, logout)
 app.UseLinbikJwtAuth();
+
+// ✅ Map Linbik Integration webhook endpoints
+// Receives notifications when services create/remove/toggle integrations
+// Protected by LinbikS2S authentication
+app.MapLinbikIntegrationEndpoints();
 
 // ✅ Map integration service proxy endpoints
 // Pattern: /{packageName}/{**path} -> {serviceBaseUrl}/{path}

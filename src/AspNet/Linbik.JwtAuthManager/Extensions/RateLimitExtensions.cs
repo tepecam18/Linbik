@@ -1,6 +1,7 @@
 using Linbik.Core.Configuration;
-using Linbik.Core.Interfaces;
+using Linbik.Core.Extensions;
 using Linbik.Core.Services;
+using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,6 +31,8 @@ public static class RateLimitExtensions
     public static IServiceCollection AddLinbikRateLimiting(
         this IServiceCollection services, Action<RateLimitOptions> configureOptions)
     {
+        ArgumentNullException.ThrowIfNull(configureOptions);
+
         var options = new RateLimitOptions();
         configureOptions(options);
         services.Configure(configureOptions);
@@ -38,13 +41,18 @@ public static class RateLimitExtensions
 
 
 
+    /// <summary>
+    /// Add rate limiting services from configuration
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
     public static IServiceCollection AddLinbikRateLimiting(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfigurationSection configuration)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        var options = configuration.GetSection("Linbik:RateLimit").Get<RateLimitOptions>() ?? new RateLimitOptions();
-        services.Configure<RateLimitOptions>(configuration.GetSection("Linbik:RateLimit"));
+        ArgumentNullException.ThrowIfNull(configuration);
+        var options = configuration.Get<RateLimitOptions>() ?? new RateLimitOptions();
+        services.Configure<RateLimitOptions>(configuration);
         return services.AddCommonLinbikRateLimiting(options);
     }
 
@@ -65,7 +73,7 @@ public static class RateLimitExtensions
                 var auditLogger = context.HttpContext.RequestServices.GetService<IAuditLogger>();
                 var metrics = context.HttpContext.RequestServices.GetService<LinbikMetrics>();
 
-                var ipAddress = GetClientIpAddress(context.HttpContext);
+                var ipAddress = context.HttpContext.GetClientIpAddress();
                 var endpoint = context.HttpContext.Request.Path.Value;
                 var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
@@ -146,29 +154,6 @@ public static class RateLimitExtensions
     /// <summary>
     /// Use rate limiting middleware
     /// </summary>
-    public static IApplicationBuilder UseLinbikRateLimiting(this IApplicationBuilder app)
-    {
-        return app.UseRateLimiter();
-    }
-
-    /// <summary>
-    /// Get the client IP address from the HTTP context
-    /// </summary>
-    private static string? GetClientIpAddress(HttpContext context)
-    {
-        // Check for forwarded headers first (for reverse proxy scenarios)
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(forwardedFor))
-        {
-            return forwardedFor.Split(',').First().Trim();
-        }
-
-        var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault();
-        if (!string.IsNullOrEmpty(realIp))
-        {
-            return realIp;
-        }
-
-        return context.Connection.RemoteIpAddress?.ToString();
-    }
+    public static IApplicationBuilder UseLinbikRateLimiting(this IApplicationBuilder app) =>
+        app.UseRateLimiter();
 }

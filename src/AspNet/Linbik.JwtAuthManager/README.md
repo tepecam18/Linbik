@@ -42,11 +42,16 @@ services.AddLinbikJwtAuth(options =>
 ```csharp
 // In Program.cs
 
-// 1. Add services
-builder.Services.AddLinbik(builder.Configuration);
-builder.Services.AddLinbikJwtAuth();
+// 1. Add services (fluent chain)
+builder.Services.AddLinbik(builder.Configuration)
+    .AddLinbikJwtAuth();
 
-// 2. Map endpoints
+var app = builder.Build();
+
+// 2. Validate configuration at startup
+app.EnsureLinbik();
+
+// 3. Map endpoints
 app.UseLinbikJwtAuth();  // Maps /linbik/login, /linbik/logout, /linbik/refresh
 ```
 
@@ -252,5 +257,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.2.0  
-**Last Updated**: 5 Aralık 2025
+**Version**: 2.3.0  
+**Last Updated**: 31 Ocak 2026

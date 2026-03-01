@@ -1,7 +1,7 @@
 ﻿using Linbik.Core.Models;
 using Microsoft.AspNetCore.Http;
 
-namespace Linbik.Core.Interfaces;
+namespace Linbik.Core.Services.Interfaces;
 
 /// <summary>
 /// Core authentication service for communicating with Linbik authorization server.
@@ -92,7 +92,7 @@ public interface IAuthService
 /// Contains the authenticated user's identity and any integration tokens
 /// for accessing third-party services.
 /// </remarks>
-public class UserProfile
+public sealed class UserProfile
 {
     /// <summary>
     /// Gets or sets the unique identifier for the user.
@@ -117,5 +117,5 @@ public class UserProfile
     /// var paymentToken = profile.IntegrationTokens["payment-gateway"];
     /// </code>
     /// </example>
-    public Dictionary<string, string> IntegrationTokens { get; set; } = new();
+    public Dictionary<string, string> IntegrationTokens { get; set; } = [];
 }

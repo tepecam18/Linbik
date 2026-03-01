@@ -1,14 +1,9 @@
-﻿using Linbik.Core.Interfaces;
+﻿using Linbik.Core.Builders.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Linbik.Core.Builders;
 
-public class LinbikBuilder : ILinbikBuilder
+public sealed class LinbikBuilder(IServiceCollection services) : ILinbikBuilder
 {
-    public IServiceCollection Services { get; }
-
-    public LinbikBuilder(IServiceCollection services)
-    {
-        Services = services ?? throw new ArgumentNullException(nameof(services));
-    }
+    public IServiceCollection Services { get; } = services ?? throw new ArgumentNullException(nameof(services));
 }

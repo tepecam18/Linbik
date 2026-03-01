@@ -501,7 +501,7 @@
             <div class="test-group">
                 <div class="test-group-title">
                     🖥️ Linbik.Server Integration Testleri
-                    <span class="badge badge-success">[LinbikIntegrationAuthorize]</span>
+                    <span class="badge badge-success">[LinbikUserServiceAuthorize]</span>
                 </div>
                 
                 <h3 style="margin-top: 16px; margin-bottom: 8px; color: #28a745;">✅ Public Endpoints (Auth Gerektirmez)</h3>
@@ -515,7 +515,7 @@
                 </div>
                 <div id="server-public-result" class="result-box"></div>
 
-                <h3 style="margin-top: 16px; margin-bottom: 8px; color: #dc3545;">🔒 Protected Endpoints (LinbikIntegrationAuthorize)</h3>
+                <h3 style="margin-top: 16px; margin-bottom: 8px; color: #dc3545;">🔒 Protected Endpoints (LinbikUserServiceAuthorize)</h3>
                 <div class="test-buttons">
                     <button class="btn-test btn-warning" onclick="testEndpoint('/api/serverTest/protected', 'server-protected')">
                         ⚠️ Protected (Auth Yok - 401 Beklenir)
@@ -552,7 +552,7 @@
                     • Public endpoint'ler (<code>/api/serverTest/...</code>) auth gerektirmez<br/>
                     • Protected endpoint'ler (<code>/api/serverTestAuth/...</code>) integration token gerektirir<br/>
                     • YARP proxy istekleri <code>/api/serverTest/{'{'}path{'}'}</code> → <code>https://localhost:5481/api/integration/{'{'}path{'}'}</code> şeklinde yönlendirir<br/>
-                    • <code>[LinbikIntegrationAuthorize]</code> attribute RS256 JWT doğrulaması yapar
+                    • <code>[LinbikUserServiceAuthorize]</code> attribute RS256 JWT doğrulaması yapar
                 </div>
             </div>
         </div>

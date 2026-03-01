@@ -4,7 +4,7 @@
 /// JWT authentication configuration options
 /// Used for local JWT token generation and validation
 /// </summary>
-public class JwtAuthOptions
+public sealed class JwtAuthOptions
 {
     /// <summary>
     /// Secret key for symmetric JWT signing (HS256/HS512)
@@ -13,9 +13,9 @@ public class JwtAuthOptions
     public string SecretKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// JWT issuer name (default: "linbik")
+    /// JWT issuer name (default: "Linbik")
     /// </summary>
-    public string JwtIssuer { get; set; } = "linbik";
+    public string JwtIssuer { get; set; } = Core.LinbikDefaults.Issuer;
 
     /// <summary>
     /// JWT audience (default: "linbik-client")

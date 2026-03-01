@@ -34,8 +34,14 @@ dotnet add package Linbik.Core
 ### Authorization Code Setup (Recommended)
 
 ```csharp
-// In Program.cs
-builder.Services.AddLinbik(builder.Configuration);
+// In Program.cs — fluent builder pattern
+builder.Services.AddLinbik(builder.Configuration)
+    .AddLinbikJwtAuth(jwtAuthConfig)    // optional: Linbik.JwtAuthManager
+    .AddLinbikServer(serverConfig)       // optional: Linbik.Server
+    .AddLinbikYarp(yarpConfig);          // optional: Linbik.YARP
+
+var app = builder.Build();
+app.EnsureLinbik(); // Validates all registered Linbik modules at startup
 ```
 
 ```json
@@ -222,5 +228,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.2.0  
-**Last Updated**: 5 Aralık 2025
+**Version**: 2.3.0  
+**Last Updated**: 31 Ocak 2026

@@ -15,7 +15,7 @@ namespace Linbik.Server.Services;
 /// Validates tokens issued by Linbik.App using RSA public keys
 /// Does NOT generate tokens - only validates
 /// </summary>
-public class IntegrationTokenValidator
+public sealed class IntegrationTokenValidator
 {
     private readonly ServerOptions _options;
     private readonly ILogger<IntegrationTokenValidator>? _logger;
@@ -24,6 +24,7 @@ public class IntegrationTokenValidator
 
     public IntegrationTokenValidator(IOptions<ServerOptions> options, ILogger<IntegrationTokenValidator>? logger = null)
     {
+        ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
         _logger = logger;
         InitializePublicKey();
@@ -62,6 +63,19 @@ public class IntegrationTokenValidator
                 _logger?.LogError(ex, "Failed to initialize RSA public key");
                 _rsaPublicKey = null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Check if the token validator is properly configured
+    /// Used by health checks to verify service readiness
+    /// </summary>
+    /// <returns>True if RSA public key is loaded and ready for validation</returns>
+    public bool IsConfigured()
+    {
+        lock (_keyLock)
+        {
+            return _rsaPublicKey != null;
         }
     }
 
@@ -135,13 +149,43 @@ public class IntegrationTokenValidator
                 RawClaims = jwtToken.Claims.ToDictionary(c => c.Type, c => c.Value)
             };
 
-            // Parse standard claims
-            var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-            if (Guid.TryParse(subClaim, out var userId))
+            // Determine token type by checking for token_type claim or user claims presence
+            var tokenTypeClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "token_type")?.Value;
+            var hasUserClaims = jwtToken.Claims.Any(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username");
+
+            if (tokenTypeClaim == "s2s" || !hasUserClaims)
             {
-                claims.UserId = userId;
+                // S2S Token
+                claims.TokenType = LinbikTokenType.S2S;
+
+                var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+                if (Guid.TryParse(subClaim, out var sourceServiceId))
+                {
+                    claims.SourceServiceId = sourceServiceId;
+                }
+
+                claims.SourcePackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == "source_package_name")?.Value;
+
+                _logger?.LogDebug("S2S Token validated successfully for service {SourceServiceId}", claims.SourceServiceId);
+            }
+            else
+            {
+                // User-Service Token
+                claims.TokenType = LinbikTokenType.UserService;
+
+                var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+                if (Guid.TryParse(subClaim, out var userId))
+                {
+                    claims.UserId = userId;
+                }
+
+                claims.UserName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username")?.Value;
+                claims.DisplayName = jwtToken.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value ?? claims.UserName;
+
+                _logger?.LogDebug("User-Service Token validated successfully for user {UserId}", claims.UserId);
             }
 
+            // Common claims for both token types
             var azpClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Azp)?.Value;
             if (Guid.TryParse(azpClaim, out var azp))
             {
@@ -149,10 +193,6 @@ public class IntegrationTokenValidator
             }
 
             claims.PackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Aud)?.Value ?? string.Empty;
-            
-            // Extract custom claims
-            claims.UserName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username")?.Value ?? string.Empty;
-            claims.DisplayName = jwtToken.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value ?? claims.UserName;
 
             // Validate ServiceId matches this service
             if (_options.ValidateAudience && claims.PackageName != _options.PackageName)
@@ -161,7 +201,6 @@ public class IntegrationTokenValidator
                 return null;
             }
 
-            _logger?.LogDebug("Token validated successfully for user {UserId}", claims.UserId);
             return claims;
         }
         catch (SecurityTokenExpiredException)
@@ -189,7 +228,7 @@ public class IntegrationTokenValidator
     /// <summary>
     /// Validate JWT token from Authorization header (async version for interface compatibility)
     /// </summary>
-    public Task<ClaimsPrincipal?> ValidateTokenAsync(HttpContext context, string publicKey)
+    public Task<ClaimsPrincipal?> ValidateTokenAsync(HttpContext context)
     {
         var claims = ValidateToken(context);
         if (claims == null)
@@ -203,42 +242,50 @@ public class IntegrationTokenValidator
     }
 
     /// <summary>
-    /// Get user ID from validated token claims
+    /// Get token type from validated token claims
     /// </summary>
-    public static Guid GetUserId(LinbikTokenClaims? claims)
-    {
-        return claims?.UserId ?? Guid.Empty;
-    }
+    public static LinbikTokenType GetTokenType(LinbikTokenClaims? claims) =>
+        claims?.TokenType ?? LinbikTokenType.UserService;
 
     /// <summary>
-    /// Get user name from validated token claims
+    /// Get user ID from validated token claims (UserService tokens only)
     /// </summary>
-    public static string GetUserName(LinbikTokenClaims? claims)
-    {
-        return claims?.UserName ?? string.Empty;
-    }
+    public static Guid GetUserId(LinbikTokenClaims? claims) =>
+        claims?.UserId ?? Guid.Empty;
 
     /// <summary>
-    /// Get display name from validated token claims
+    /// Get user name from validated token claims (UserService tokens only)
     /// </summary>
-    public static string GetDisplayName(LinbikTokenClaims? claims)
-    {
-        return claims?.DisplayName ?? string.Empty;
-    }
+    public static string GetUserName(LinbikTokenClaims? claims) =>
+        claims?.UserName ?? string.Empty;
+
+    /// <summary>
+    /// Get display name from validated token claims (UserService tokens only)
+    /// </summary>
+    public static string GetDisplayName(LinbikTokenClaims? claims) =>
+        claims?.DisplayName ?? string.Empty;
+
+    /// <summary>
+    /// Get source service ID from validated token claims (S2S tokens only)
+    /// </summary>
+    public static Guid GetSourceServiceId(LinbikTokenClaims? claims) =>
+        claims?.SourceServiceId ?? Guid.Empty;
+
+    /// <summary>
+    /// Get source package name from validated token claims (S2S tokens only)
+    /// </summary>
+    public static string GetSourcePackageName(LinbikTokenClaims? claims) =>
+        claims?.SourcePackageName ?? string.Empty;
 
     /// <summary>
     /// Get service ID from validated token claims
     /// </summary>
-    public static string GetPackageName(LinbikTokenClaims? claims)
-    {
-        return claims?.PackageName ?? string.Empty;
-    }
+    public static string GetPackageName(LinbikTokenClaims? claims) =>
+        claims?.PackageName ?? string.Empty;
 
     /// <summary>
     /// Get authorized party (main service) from validated token claims
     /// </summary>
-    public static Guid GetAuthorizedParty(LinbikTokenClaims? claims)
-    {
-        return claims?.AuthorizedParty ?? Guid.Empty;
-    }
+    public static Guid GetAuthorizedParty(LinbikTokenClaims? claims) =>
+        claims?.AuthorizedParty ?? Guid.Empty;
 }

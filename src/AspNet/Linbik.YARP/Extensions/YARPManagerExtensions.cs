@@ -1,7 +1,10 @@
-﻿using Linbik.Core.Interfaces;
+﻿using Linbik.Core;
+using Linbik.Core.Builders.Interfaces;
+using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
 using Linbik.YARP.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
@@ -33,13 +36,13 @@ public static class YARPManagerExtensions
     /// <summary>
     /// Add Linbik proxy services from configuration
     /// </summary>
-    public static ILinbikBuilder AddProxy(this ILinbikBuilder builder)
+    /// <param name="builder">The Linbik builder.</param>
+    /// <param name="configuration">The application configuration.</param>
+    public static ILinbikBuilder AddProxy(this ILinbikBuilder builder, IConfigurationSection configuration)
     {
-        var serviceProvider = builder.Services.BuildServiceProvider();
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        ArgumentNullException.ThrowIfNull(configuration);
 
-        builder.Services.Configure<List<YARPOptions>>(configuration.GetSection("Linbik:Yarp"));
-
+        builder.Services.Configure<List<YARPOptions>>(configuration);
         var yarpOptions = configuration.GetSection("Linbik:Yarp").Get<List<YARPOptions>>();
 
         if (yarpOptions is not null)
@@ -53,8 +56,16 @@ public static class YARPManagerExtensions
         services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
         services.AddHttpClient();
 
-        var routes = new List<RouteConfig>();
-        var clusters = new List<ClusterConfig>();
+        // Register LinbikProxyPolicy — requires any authenticated user
+        // Works with whatever auth scheme the client app configures (e.g., LinbikScheme)
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(LinbikDefaults.ProxyPolicy, policy =>
+                policy.RequireAuthenticatedUser());
+        });
+
+        List<RouteConfig> routes = [];
+        List<ClusterConfig> clusters = [];
 
         foreach (var option in yarpOptions)
         {
@@ -64,9 +75,9 @@ public static class YARPManagerExtensions
                 RouteId = option.RouteId,
                 ClusterId = option.ClusterId,
                 Match = new RouteMatch { Path = option.PrefixPath + "/{**catch-all}" },
-                AuthorizationPolicy = "LinbikProxyPolicy",
-                Transforms = new List<Dictionary<string, string>>
-                {
+                AuthorizationPolicy = LinbikDefaults.ProxyPolicy,
+                Transforms =
+                [
                     new Dictionary<string, string>
                     {
                         { "PathRemovePrefix", option.PrefixPath }
@@ -75,7 +86,7 @@ public static class YARPManagerExtensions
                     {
                         { "PathPrefix", "/api" }
                     }
-                }
+                ]
             };
             routes.Add(route);
 

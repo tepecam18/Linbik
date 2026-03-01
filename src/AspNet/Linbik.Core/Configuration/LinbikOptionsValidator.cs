@@ -6,7 +6,7 @@ namespace Linbik.Core.Configuration;
 /// Validates <see cref="LinbikOptions"/> configuration at startup.
 /// Ensures all required values are provided and valid before application starts.
 /// </summary>
-public class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
+public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
 {
     /// <summary>
     /// Validates the Linbik options configuration.
@@ -16,7 +16,9 @@ public class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
     /// <returns>A <see cref="ValidateOptionsResult"/> indicating success or failure.</returns>
     public ValidateOptionsResult Validate(string? name, LinbikOptions options)
     {
-        var errors = new List<string>();
+        ArgumentNullException.ThrowIfNull(options);
+
+        List<string> errors = [];
 
         // Validate LinbikUrl
         if (string.IsNullOrWhiteSpace(options.LinbikUrl))

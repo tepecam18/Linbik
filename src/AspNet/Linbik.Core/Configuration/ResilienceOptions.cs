@@ -3,7 +3,7 @@ namespace Linbik.Core.Configuration;
 /// <summary>
 /// Configuration options for HTTP client resilience (retry, circuit breaker, timeout)
 /// </summary>
-public class ResilienceOptions
+public sealed class ResilienceOptions
 {
     /// <summary>
     /// Enable resilience policies (retry, circuit breaker, timeout)
@@ -69,7 +69,7 @@ public class ResilienceOptions
 /// <summary>
 /// Configuration options for rate limiting
 /// </summary>
-public class RateLimitOptions
+public sealed class RateLimitOptions
 {
     /// <summary>
     /// Enable rate limiting
@@ -146,7 +146,7 @@ public class RateLimitOptions
 /// <summary>
 /// Configuration options for audit logging
 /// </summary>
-public class AuditOptions
+public sealed class AuditOptions
 {
     /// <summary>
     /// Enable audit logging

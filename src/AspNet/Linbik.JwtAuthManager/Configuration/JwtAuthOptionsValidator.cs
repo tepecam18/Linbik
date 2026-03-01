@@ -6,7 +6,7 @@ namespace Linbik.JwtAuthManager.Configuration;
 /// Validates <see cref="JwtAuthOptions"/> configuration at startup.
 /// Ensures all required values are provided and valid before application starts.
 /// </summary>
-public class JwtAuthOptionsValidator : IValidateOptions<JwtAuthOptions>
+public sealed class JwtAuthOptionsValidator : IValidateOptions<JwtAuthOptions>
 {
     private const int MinSecretKeyLength = 32; // 256 bits minimum for HS256
 
@@ -18,7 +18,7 @@ public class JwtAuthOptionsValidator : IValidateOptions<JwtAuthOptions>
     /// <returns>A <see cref="ValidateOptionsResult"/> indicating success or failure.</returns>
     public ValidateOptionsResult Validate(string? name, JwtAuthOptions options)
     {
-        var errors = new List<string>();
+        List<string> errors = [];
 
         // Validate SecretKey
         if (string.IsNullOrWhiteSpace(options.SecretKey))

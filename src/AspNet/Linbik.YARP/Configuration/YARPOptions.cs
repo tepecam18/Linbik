@@ -1,6 +1,6 @@
 ﻿namespace Linbik.YARP.Configuration;
 
-public class YARPOptions
+public sealed class YARPOptions
 {
     public string RouteId { get; set; } = string.Empty;
     public string ClusterId { get; set; } = string.Empty;
@@ -11,7 +11,7 @@ public class YARPOptions
     /// </summary>
     public string IntegrationPackageName { get; set; } = string.Empty;
 
-    public List<ClusterOptions> Clusters { get; set; } = new();
+    public List<ClusterOptions> Clusters { get; set; } = [];
     public string PrefixPath { get; set; } = string.Empty;
 
     /// <summary>
@@ -27,14 +27,21 @@ public class YARPOptions
     /// Default: "integration_"
     /// </summary>
     public string IntegrationTokenCookiePrefix { get; set; } = "integration_";
+
+    /// <summary>
+    /// This service's package name (used in X-Linbik-Source-Package header)
+    /// Identifies the calling service in S2S communication
+    /// </summary>
+    public string? SourcePackageName { get; set; }
+
+    /// <summary>
+    /// Default timeout for S2S HTTP requests in seconds
+    /// Default: 30
+    /// </summary>
+    public int S2STimeoutSeconds { get; set; } = 30;
 }
 
-/// <summary>
-
-/// </summary>
-
-
-public class ClusterOptions
+public sealed class ClusterOptions
 {
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
@@ -44,7 +51,7 @@ public class ClusterOptions
 /// Configuration for a integration service proxy route
 /// Allows proxying requests from one path to another with configurable path rewriting
 /// </summary>
-public class IntegrationServiceOptions
+public sealed class IntegrationServiceOptions
 {
 
     /// <summary>

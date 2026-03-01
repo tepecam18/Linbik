@@ -13,8 +13,12 @@ Server-side repository interfaces, JWT validation, and authentication middleware
 - **Repository Pattern** - Clean abstraction for data access
 
 ### Integration Service Features (v2.1+)
+- **Dual JWT Authentication Schemes** - `LinbikUserService` (user context) + `LinbikS2S` (machine context)
+- **[LinbikUserServiceAuthorize]** - RS256 JWT attribute for user-context endpoints
+- **[LinbikS2SAuthorize]** - RS256 JWT attribute for service-to-service endpoints
+- **Role-Based S2S Authorization** - `[LinbikS2SAuthorize("Linbik")]` (platform) / `[LinbikS2SAuthorize("Service")]` (service)
+- **Cross-Scheme Injection Protection** - `OnTokenValidated` events prevent token misuse between schemes
 - **IntegrationTokenValidator** - RSA public key based JWT validation
-- **IntegrationAuthMiddleware** - Automatic JWT validation in request pipeline
 - **LinbikTokenClaims** - Strongly typed claims for user identity
 - **HttpContext Extensions** - Easy access to validated claims
 
@@ -62,24 +66,38 @@ builder.Services.AddLinbikServer(options =>
     options.ValidateIssuer = true;
 });
 
-// 2. Use authentication middleware
-app.UseLinbikServer();
+// 2. Use standard ASP.NET Core middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
-// 3. Access claims in controllers
+// 3. Protect endpoints with attributes
 [ApiController]
 public class PaymentController : ControllerBase
 {
+    // User-context endpoint (kullanıcı bağlamlı)
+    [LinbikUserServiceAuthorize]
     [HttpPost("/charge")]
     public IActionResult Charge([FromBody] ChargeRequest request)
     {
-        // Get validated claims from middleware
         var claims = HttpContext.GetLinbikClaims();
         var userId = HttpContext.GetLinbikUserId();
-        var userName = HttpContext.GetLinbikUserName();
-        
-        // Process payment for this Linbik user...
         return Ok();
     }
+
+    // S2S endpoint — any S2S token accepted
+    [LinbikS2SAuthorize]
+    [HttpPost("/s2s/sync")]
+    public IActionResult SyncData() => Ok();
+
+    // S2S endpoint — only service-to-service tokens (role=Service)
+    [LinbikS2SAuthorize("Service")]
+    [HttpPost("/s2s/webhook/{eventType}")]
+    public IActionResult S2SWebhook(string eventType) => Ok();
+
+    // S2S endpoint — only platform tokens (role=Linbik)
+    [LinbikS2SAuthorize("Linbik")]
+    [HttpPost("/s2s/platform-event")]
+    public IActionResult OnPlatformEvent() => Ok();
 }
 ```
 
@@ -183,17 +201,18 @@ var isAuthenticated = HttpContext.HasLinbikUser();
 // Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Linbik server with public key
-builder.Services.AddLinbikServer(options =>
-{
-    options.ServiceId = "payment-gateway";
-    options.PublicKey = builder.Configuration["Linbik:PublicKey"];
-});
+// Add Linbik server with public key (fluent chain)
+builder.Services.AddLinbik(builder.Configuration)
+    .AddLinbikServer(options =>
+    {
+        options.PackageName = "payment-gateway";
+        options.PublicKey = builder.Configuration["Linbik:PublicKey"];
+    });
 
 var app = builder.Build();
 
-// Enable Linbik auth middleware
-app.UseLinbikServer();
+// Validate all registered Linbik modules at startup
+app.EnsureLinbik();
 
 app.MapPost("/charge", (HttpContext ctx, ChargeRequest request) =>
 {
@@ -500,5 +519,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.2.0  
-**Last Updated**: 5 Aralık 2025
+**Version**: 2.4.0  
+**Last Updated**: 28 Şubat 2026

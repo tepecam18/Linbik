@@ -3,7 +3,7 @@
 /// <summary>
 /// Configuration for a single Linbik client
 /// </summary>
-public class LinbikClientConfig
+public sealed class LinbikClientConfig
 {
     /// <summary>
     /// Client ID (from Linbik client registration)
@@ -48,7 +48,7 @@ public enum LinbikClientType
     Mobile
 }
 
-public class LinbikOptions
+public sealed class LinbikOptions
 {
     /// <summary>
     /// Linbik server base URL (e.g., "https://linbik.com")
@@ -66,7 +66,7 @@ public class LinbikOptions
     /// Key: client identifier (e.g., "web", "mobile", "admin")
     /// Value: Linbik Client configuration
     /// </summary>
-    public List<LinbikClientConfig> Clients { get; set; } = new();
+    public List<LinbikClientConfig> Clients { get; set; } = [];
 
     /// <summary>
     /// Client application's API key (from Linbik service registration)
@@ -111,7 +111,44 @@ public class LinbikOptions
     public bool EnablePKCE { get; set; } = true;
 
     /// <summary>
-    /// JWT issuer name (default: "linbik")
+    /// JWT issuer name (default: "Linbik")
     /// </summary>
-    public string JwtIssuer { get; set; } = "Linbik";
+    public string JwtIssuer { get; set; } = LinbikDefaults.Issuer;
+
+    #region S2S (Service-to-Service) Configuration
+
+    /// <summary>
+    /// S2S token exchange endpoint path (default: "auth/s2s-token")
+    /// Used for service-to-service authentication without user context
+    /// </summary>
+    public string S2STokenEndpoint { get; set; } = "/auth/s2s-token";
+
+    /// <summary>
+    /// S2S access token (JWT) lifetime in minutes (default: 60)
+    /// S2S tokens typically have the same lifetime as user tokens
+    /// </summary>
+    public int S2STokenLifetimeMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// Target services for S2S authentication
+    /// Key: Package name (e.g., "payment-gateway")
+    /// Value: Service ID (GUID from Linbik registration)
+    /// Used by GetS2STokensAsync(packageNames) method
+    /// </summary>
+    public Dictionary<string, Guid> S2STargetServices { get; set; } = [];
+
+    /// <summary>
+    /// Enable automatic S2S token refresh before expiration
+    /// When true, tokens are refreshed automatically when 75% of lifetime has passed
+    /// </summary>
+    public bool S2SAutoRefresh { get; set; } = true;
+
+    /// <summary>
+    /// S2S token refresh threshold as percentage of token lifetime
+    /// Token will be refreshed when this percentage of lifetime has passed
+    /// Default: 0.75 (75% - refresh at 45 mins for 60 min token)
+    /// </summary>
+    public double S2SRefreshThreshold { get; set; } = 0.75;
+
+    #endregion
 }

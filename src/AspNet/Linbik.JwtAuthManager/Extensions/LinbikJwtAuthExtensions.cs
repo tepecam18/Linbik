@@ -1,21 +1,47 @@
-using Linbik.Core.Interfaces;
+using Linbik.Core.Builders.Interfaces;
+using Linbik.Core.Services.Interfaces;
 using Linbik.JwtAuthManager.Configuration;
 using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 namespace Linbik.JwtAuthManager.Extensions;
+
+// Startup validator is defined as a nested class at the bottom of this file
 
 /// <summary>
 /// Extension methods for adding Linbik JWT authentication services
 /// </summary>
 public static class LinbikJwtAuthExtensions
 {
-    private const string LinbikScheme = "LinbikScheme";
-    private const string AuthTokenCookie = "authToken";
+    private const string LinbikScheme = Core.LinbikDefaults.ClientScheme;
+    private const string AuthTokenCookie = Core.LinbikDefaults.AuthTokenCookie;
+
+    /// <summary>
+    /// Add Linbik JWT authentication services with custom options (builder pattern)
+    /// </summary>
+    public static ILinbikBuilder AddLinbikJwtAuth(
+        this ILinbikBuilder builder,
+        Action<JwtAuthOptions> configureOptions)
+    {
+        builder.Services.AddLinbikJwtAuth(configureOptions);
+        return builder;
+    }
+
+    /// <summary>
+    /// Add Linbik JWT authentication services from configuration (builder pattern)
+    /// </summary>
+    public static ILinbikBuilder AddLinbikJwtAuth(
+        this ILinbikBuilder builder,
+        IConfigurationSection configuration)
+    {
+        builder.Services.AddLinbikJwtAuth(configuration);
+        return builder;
+    }
 
     /// <summary>
     /// Add Linbik JWT authentication services with custom options
@@ -28,6 +54,8 @@ public static class LinbikJwtAuthExtensions
         configureOptions(options);
         services.Configure(configureOptions);
         services.AddSingleton<IJwtHelper, JwtHelperService>();
+        services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
+        services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
         AddLinbikAuthentication(services, options);
 
@@ -37,14 +65,18 @@ public static class LinbikJwtAuthExtensions
     /// <summary>
     /// Add Linbik JWT authentication services from configuration
     /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
     public static IServiceCollection AddLinbikJwtAuth(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfigurationSection configuration)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        var options = configuration.GetSection("Linbik:JwtAuth").Get<JwtAuthOptions>() ?? new JwtAuthOptions();
-        services.Configure<JwtAuthOptions>(configuration.GetSection("Linbik:JwtAuth"));
+        ArgumentNullException.ThrowIfNull(configuration);
+        var options = configuration.Get<JwtAuthOptions>() ?? new JwtAuthOptions();
+        services.Configure<JwtAuthOptions>(configuration);
         services.AddSingleton<IJwtHelper, JwtHelperService>();
+        services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
+        services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
         AddLinbikAuthentication(services, options);
 
@@ -90,5 +122,27 @@ public static class LinbikJwtAuthExtensions
         });
 
         services.AddAuthorization();
+    }
+
+    /// <summary>
+    /// Startup validator for Linbik.JwtAuthManager module.
+    /// Forces eager validation of <see cref="JwtAuthOptions"/> and verifies critical service registrations.
+    /// </summary>
+    private sealed class JwtAuthStartupValidator : ILinbikStartupValidator
+    {
+        public string ModuleName => "Linbik.JwtAuthManager";
+        public int Order => 10;
+
+        public void Validate(IServiceProvider services)
+        {
+            // Force eager validation of JwtAuthOptions (triggers JwtAuthOptionsValidator)
+            var options = services.GetRequiredService<IOptions<JwtAuthOptions>>();
+            _ = options.Value;
+
+            // Verify IJwtHelper is registered
+            _ = services.GetService<IJwtHelper>()
+                ?? throw new InvalidOperationException(
+                    "IJwtHelper is not registered. Call services.AddLinbikJwtAuth() or builder.AddLinbikJwtAuth() in Program.cs.");
+        }
     }
 }

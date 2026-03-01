@@ -7,16 +7,17 @@ namespace AspNet.Controllers;
 /// <summary>
 /// Demo Integration Controller for Linbik.Server library.
 /// This controller demonstrates how integration services (Payment Gateway, Survey, etc.)
-/// can implement protected and public endpoints using LinbikIntegrationAuthorize attribute.
+/// can implement protected endpoints using Linbik authorization attributes.
 /// 
 /// Usage in real integration services:
 /// - Copy this pattern to your own integration service
-/// - Use [LinbikIntegrationAuthorize] for endpoints that require user authentication
+/// - Use [LinbikUserServiceAuthorize] for endpoints that require user context (user-initiated requests)
+/// - Use [LinbikS2SAuthorize] for service-to-service endpoints (no user context)
 /// - Public endpoints can be accessed without authentication
 /// </summary>
 [ApiController]
 [Route("api/integration")]
-public class IntegrationController : ControllerBase
+public sealed class IntegrationController : ControllerBase
 {
     #region Public Endpoints (No Authentication Required)
 
@@ -51,7 +52,7 @@ public class IntegrationController : ControllerBase
             service = new
             {
                 name = "Linbik Integration Service Demo",
-                description = "Demonstrates LinbikIntegrationAuthorize attribute for protected endpoints",
+                description = "Demonstrates LinbikUserServiceAuthorize and LinbikS2SAuthorize attributes for protected endpoints",
                 version = "1.0.0",
                 endpoints = new
                 {
@@ -131,13 +132,13 @@ public class IntegrationController : ControllerBase
 
     #endregion
 
-    #region Protected Endpoints (Requires LinbikIntegrationAuthorize)
+    #region Protected Endpoints (Requires LinbikUserServiceAuthorize)
 
     /// <summary>
-    /// Protected endpoint - requires valid Linbik JWT token
-    /// Uses [LinbikIntegrationAuthorize] attribute which validates RS256 signed JWT
+    /// Protected endpoint - requires valid Linbik JWT token with user context
+    /// Uses [LinbikUserServiceAuthorize] attribute which validates RS256 signed JWT
     /// </summary>
-    [LinbikIntegrationAuthorize]
+    [LinbikUserServiceAuthorize]
     [HttpGet("protected")]
     public IActionResult Protected()
     {
@@ -165,7 +166,7 @@ public class IntegrationController : ControllerBase
     /// User profile endpoint - requires authentication
     /// Returns full user profile from JWT claims
     /// </summary>
-    [LinbikIntegrationAuthorize]
+    [LinbikUserServiceAuthorize]
     [HttpGet("user-profile")]
     public IActionResult UserProfile()
     {
@@ -197,7 +198,7 @@ public class IntegrationController : ControllerBase
     /// Process data endpoint - requires authentication
     /// Demonstrates a POST endpoint that processes user data
     /// </summary>
-    [LinbikIntegrationAuthorize]
+    [LinbikUserServiceAuthorize]
     [HttpPost("process")]
     public IActionResult Process([FromBody] ProcessRequest? request)
     {
@@ -228,7 +229,7 @@ public class IntegrationController : ControllerBase
     /// User data endpoint - requires authentication
     /// Returns personalized data for the authenticated user
     /// </summary>
-    [LinbikIntegrationAuthorize]
+    [LinbikUserServiceAuthorize]
     [HttpGet("user-data")]
     public IActionResult UserData()
     {
@@ -268,14 +269,235 @@ public class IntegrationController : ControllerBase
     }
 
     #endregion
+
+    #region S2S Protected Endpoints (Requires LinbikS2SAuthorize)
+
+    /// <summary>
+    /// S2S sync endpoint - requires valid S2S JWT token (no user context)
+    /// Uses [LinbikS2SAuthorize] attribute which validates RS256 signed JWT
+    /// 
+    /// Scenario: Another service calls this endpoint to sync data
+    /// Example: Payment Gateway syncing transaction status with this service
+    /// </summary>
+    [LinbikS2SAuthorize]
+    [HttpPost("s2s/sync")]
+    public IActionResult S2SSync([FromBody] S2SSyncRequest? request)
+    {
+        // Extract S2S claims (no user information!)
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+        var tokenType = User.FindFirst("token_type")?.Value;
+
+        return Ok(new
+        {
+            success = true,
+            message = "✅ S2S sync endpoint accessed with valid S2S JWT!",
+            authScheme = "LinbikS2S (RS256)",
+            sourceService = new
+            {
+                serviceId = sourceServiceId,
+                packageName = sourcePackageName,
+                tokenType
+            },
+            syncResult = new
+            {
+                entityType = request?.EntityType ?? "unknown",
+                entityId = request?.EntityId ?? "unknown",
+                action = request?.Action ?? "sync",
+                status = "synced",
+                syncId = Guid.NewGuid().ToString("N")[..8],
+                syncedAt = DateTime.UtcNow
+            },
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// S2S health check endpoint - requires valid S2S JWT token
+    /// Used by other services to verify this service is accessible
+    /// 
+    /// Scenario: Service discovery or health monitoring between services
+    /// </summary>
+    [LinbikS2SAuthorize]
+    [HttpGet("s2s/health")]
+    public IActionResult S2SHealth()
+    {
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+
+        return Ok(new
+        {
+            success = true,
+            message = "✅ S2S health check - service is accessible",
+            authScheme = "LinbikS2S (RS256)",
+            sourceService = new
+            {
+                serviceId = sourceServiceId,
+                packageName = sourcePackageName
+            },
+            targetService = new
+            {
+                name = "Linbik Integration Service Demo",
+                status = "healthy",
+                uptime = TimeSpan.FromHours(24).ToString()
+            },
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// S2S webhook endpoint - receives callbacks from other services
+    /// Uses [LinbikS2SAuthorize] to ensure only authenticated services can call
+    /// 
+    /// Scenario: Payment Gateway notifying about payment completion
+    /// Example: POST /api/integration/s2s/webhook/payment-completed
+    /// </summary>
+    [LinbikS2SAuthorize("Service")]
+    [HttpPost("s2s/webhook/{eventType}")]
+    public IActionResult S2SWebhook(string eventType, [FromBody] S2SWebhookPayload? payload)
+    {
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+
+        // Log webhook received
+        var webhookId = Guid.NewGuid().ToString("N")[..12];
+
+        return Ok(new
+        {
+            success = true,
+            message = $"✅ S2S webhook received: {eventType}",
+            webhook = new
+            {
+                id = webhookId,
+                eventType,
+                sourceService = new
+                {
+                    serviceId = sourceServiceId,
+                    packageName = sourcePackageName
+                },
+                payload = payload != null ? new
+                {
+                    payload.EventId,
+                    payload.EntityType,
+                    payload.EntityId,
+                    payload.Action,
+                    metadataKeys = payload.Metadata?.Keys.ToArray()
+                } : null,
+                status = "processed",
+                processedAt = DateTime.UtcNow
+            },
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// S2S batch operation endpoint - processes batch data from other services
+    /// 
+    /// Scenario: Bulk data synchronization between services
+    /// Example: Inventory service sending batch stock updates
+    /// </summary>
+    [LinbikS2SAuthorize]
+    [HttpPost("s2s/batch")]
+    public IActionResult S2SBatch([FromBody] S2SBatchRequest? request)
+    {
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+
+        var itemCount = request?.Items?.Count ?? 0;
+        var batchId = Guid.NewGuid().ToString("N")[..8];
+
+        return Ok(new
+        {
+            success = true,
+            message = $"✅ S2S batch processed: {itemCount} items",
+            batch = new
+            {
+                batchId,
+                sourceService = new
+                {
+                    serviceId = sourceServiceId,
+                    packageName = sourcePackageName
+                },
+                operation = request?.Operation ?? "unknown",
+                itemsReceived = itemCount,
+                itemsProcessed = itemCount,
+                itemsFailed = 0,
+                status = "completed",
+                processedAt = DateTime.UtcNow
+            },
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    /// <summary>
+    /// Platform-only endpoint - receives Linbik platform lifecycle events
+    /// Uses [LinbikS2SAuthorize("Linbik")] to ONLY accept tokens from the Linbik platform
+    /// Regular service-to-service tokens will be rejected (403 Forbidden)
+    /// 
+    /// Scenario: Linbik platform notifying about key rotation, integration toggle, etc.
+    /// Example: POST /api/integration/s2s/platform-event
+    /// </summary>
+    [LinbikS2SAuthorize("Linbik")]
+    [HttpPost("s2s/platform-event")]
+    public IActionResult S2SPlatformEvent([FromBody] S2SWebhookPayload? payload)
+    {
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+
+        return Ok(new
+        {
+            success = true,
+            message = "✅ Platform event received (Linbik role verified)",
+            source = sourcePackageName,
+            eventType = payload?.Action ?? "unknown",
+            processedAt = DateTime.UtcNow
+        });
+    }
+
+    #endregion
 }
+
+#region Request Models
 
 /// <summary>
 /// Request model for the Process endpoint
 /// </summary>
-public class ProcessRequest
+public sealed class ProcessRequest
 {
     public string? Action { get; set; }
     public string? Data { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }
 }
+
+/// <summary>
+/// Request model for S2S sync endpoint
+/// </summary>
+public sealed class S2SSyncRequest
+{
+    public string? EntityType { get; set; }
+    public string? EntityId { get; set; }
+    public string? Action { get; set; }
+    public Dictionary<string, object>? Data { get; set; }
+}
+
+/// <summary>
+/// Webhook payload model for S2S webhook endpoint
+/// </summary>
+public sealed class S2SWebhookPayload
+{
+    public string? EventId { get; set; }
+    public string? EntityType { get; set; }
+    public string? EntityId { get; set; }
+    public string? Action { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
+}
+
+/// <summary>
+/// Batch request model for S2S batch endpoint
+/// </summary>
+public sealed class S2SBatchRequest
+{
+    public string? Operation { get; set; }
+    public List<Dictionary<string, object>>? Items { get; set; }
+}
+
+#endregion

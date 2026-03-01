@@ -1,7 +1,8 @@
 ﻿using Linbik.Core.Builders;
+using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Configuration;
-using Linbik.Core.Interfaces;
 using Linbik.Core.Services;
+using Linbik.Core.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -16,7 +17,7 @@ namespace Linbik.Core.Extensions;
 public static class LinbikServiceCollectionExtensions
 {
     /// <summary>
-    /// Default HttpClient name for Linbik authentication client
+    /// Default HttpClient name for Linbik authentication client (handles both user-context and S2S operations)
     /// </summary>
     public const string LinbikHttpClientName = "LinbikAuthClient";
 
@@ -40,13 +41,13 @@ public static class LinbikServiceCollectionExtensions
     /// Adds Linbik authentication services using configuration from IConfiguration.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
     /// <returns>A <see cref="LinbikBuilder"/> for further configuration.</returns>
     /// <exception cref="ArgumentNullException">Thrown when configuration is null.</exception>
-    public static LinbikBuilder AddLinbik(this IServiceCollection services)
+    public static LinbikBuilder AddLinbik(this IServiceCollection services, IConfigurationSection configuration)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        services.Configure<LinbikOptions>(configuration.GetSection("Linbik"));
+        ArgumentNullException.ThrowIfNull(configuration);
+        services.Configure<LinbikOptions>(configuration);
         services.AddCommonAuthServices();
         return new LinbikBuilder(services);
     }
@@ -58,6 +59,7 @@ public static class LinbikServiceCollectionExtensions
     {
 
         services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
+        services.AddSingleton<ILinbikStartupValidator, CoreStartupValidator>();
 
         // Add HttpContextAccessor for cookie-based authentication
         services.AddHttpContextAccessor();
@@ -141,5 +143,27 @@ public static class LinbikServiceCollectionExtensions
         services.AddScoped<IAuthService, LinbikAuthService>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Startup validator for Linbik.Core module.
+    /// Forces eager validation of <see cref="LinbikOptions"/> and verifies critical service registrations.
+    /// </summary>
+    private sealed class CoreStartupValidator : ILinbikStartupValidator
+    {
+        public string ModuleName => "Linbik.Core";
+        public int Order => 0;
+
+        public void Validate(IServiceProvider services)
+        {
+            // Force eager validation of LinbikOptions (triggers LinbikOptionsValidator)
+            var options = services.GetRequiredService<IOptions<LinbikOptions>>();
+            _ = options.Value;
+
+            // Verify critical services are registered
+            _ = services.GetService<ILinbikAuthClient>()
+                ?? throw new InvalidOperationException(
+                    "ILinbikAuthClient is not registered. Call services.AddLinbik() or builder.AddLinbik() in Program.cs.");
+        }
     }
 }

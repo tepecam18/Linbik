@@ -45,9 +45,9 @@ For most use cases, use `UseLinbikYarp()`:
 ```csharp
 // In Program.cs
 
-// 1. Add services with configuration
-builder.Services.AddLinbik(builder.Configuration);
-builder.Services.AddLinbikJwtAuth();
+// 1. Add services with configuration (fluent chain)
+builder.Services.AddLinbik(builder.Configuration)
+    .AddLinbikJwtAuth();
 
 // 2. Configure integration services in appsettings.json
 // See IntegrationServices Configuration section below
@@ -242,15 +242,14 @@ services.AddReverseProxy()
 // Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Linbik services
-builder.Services.AddLinbik(builder.Configuration);
-builder.Services.AddLinbikJwtAuth(builder.Configuration);
-
-// Add YARP with Linbik transforms
-builder.Services.AddLinbikYarp(builder.Configuration);
+// Add Linbik services (fluent chain)
+builder.Services.AddLinbik(builder.Configuration)
+    .AddLinbikJwtAuth(builder.Configuration)
+    .AddLinbikYarp(builder.Configuration);
 
 var app = builder.Build();
 
+app.EnsureLinbik();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -358,6 +357,213 @@ API Gateway (YARP + Linbik)
 Each microservice gets its own JWT token with specific claims.
 ```
 
+## � Service-to-Service (S2S) Communication (v2.4+)
+
+### Overview
+
+S2S allows services to communicate directly without user context. Use cases:
+- **Webhooks/Callbacks**: Payment Gateway → Merchant notification
+- **Background Sync**: Inventory → Order synchronization
+- **Health Checks**: Service monitoring between services
+- **Batch Processing**: Data transfer between services
+
+### Key Difference from User-Context
+
+| Aspect | User-Context | S2S |
+|--------|-------------|-----|
+| Token Type | User JWT (from cookie) | S2S JWT (from API) |
+| Claims | UserId, Username, DisplayName | SourceServiceId, SourcePackageName, Role |
+| Use Case | User-initiated requests | Service-initiated requests |
+| Attribute | `[LinbikUserServiceAuthorize]` | `[LinbikS2SAuthorize]` / `[LinbikS2SAuthorize("Service")]` / `[LinbikS2SAuthorize("Linbik")]` |
+
+### S2S Token Flow
+
+```
+1. Service A needs to call Service B
+2. Service A → Linbik: POST /auth/s2s-token (ApiKey + TargetServiceIds)
+3. Linbik → Service A: S2S JWT tokens for each target
+4. Service A → Service B: Request with S2S JWT
+5. Service B validates JWT with [LinbikS2SAuthorize]
+```
+
+### Configuration
+
+```json
+{
+  "Linbik": {
+    "ServiceId": "your-service-guid",
+    "ApiKey": "linbik_your_api_key",
+    "S2STokenEndpoint": "/auth/s2s-token",
+    "S2STokenLifetimeMinutes": 60,
+    "S2SAutoRefresh": true,
+    "S2SRefreshThreshold": 0.75,
+    "S2STargetServices": {
+      "payment-gateway": "guid-of-payment-service",
+      "courier-service": "guid-of-courier-service"
+    },
+    "YARP": {
+      "SourcePackageName": "my-service",
+      "S2STimeoutSeconds": 30,
+      "IntegrationServices": {
+        "payment-gateway": {
+          "TargetBaseUrl": "https://payment.example.com"
+        }
+      }
+    }
+  }
+}
+```
+
+### Using IS2SServiceClient
+
+The `IS2SServiceClient` provides typed HTTP methods with:
+- ✅ Automatic S2S token injection
+- ✅ `LBaseResponse<T>` enforcement
+- ✅ Token caching and auto-refresh
+- ✅ Both config-based and dynamic targets
+
+#### Config-Based Targets (Package Name)
+
+```csharp
+public class MyController : ControllerBase
+{
+    private readonly IS2SServiceClient _s2sClient;
+
+    // Call by package name (must be in config)
+    public async Task<IActionResult> SyncWithPayment()
+    {
+        var result = await _s2sClient.PostAsync<SyncRequest, SyncResponse>(
+            "payment-gateway",  // package name from config
+            "/api/integration/s2s/sync",
+            new SyncRequest { EntityType = "order", EntityId = "123" }
+        );
+
+        if (!result.IsSuccess)
+        {
+            return BadRequest(result.FriendlyMessage);
+        }
+
+        return Ok(result.Data);
+    }
+}
+```
+
+#### Dynamic Targets (Service ID) - Callbacks/Webhooks
+
+For scenarios where target service is not pre-configured (e.g., callbacks):
+
+```csharp
+public class PaymentController : ControllerBase
+{
+    private readonly IS2SServiceClient _s2sClient;
+
+    // Notify merchant about payment completion
+    public async Task<IActionResult> NotifyMerchant(Order order)
+    {
+        // Merchant's service ID is stored in order (not in config!)
+        var merchantServiceId = order.MerchantLinbikServiceId;
+
+        var result = await _s2sClient.PostByIdAsync<PaymentNotification, NotifyResponse>(
+            merchantServiceId,  // dynamic service ID
+            "/api/webhooks/payment",
+            new PaymentNotification 
+            { 
+                OrderId = order.Id.ToString(),
+                Status = "completed",
+                Amount = order.Amount 
+            }
+        );
+
+        // ServiceUrl fetched automatically from Linbik
+        return result.IsSuccess ? Ok() : StatusCode(500);
+    }
+}
+```
+
+### Protecting S2S Endpoints
+
+Use `[LinbikS2SAuthorize]` attribute on endpoints that receive S2S requests. With optional role parameter, you can restrict access to specific token types:
+
+```csharp
+[ApiController]
+[Route("api/integration")]
+public class IntegrationController : ControllerBase
+{
+    // S2S endpoint - accepts ANY S2S token (service or platform)
+    [LinbikS2SAuthorize]
+    [HttpPost("s2s/sync")]
+    public IActionResult S2SSync([FromBody] SyncRequest request)
+    {
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        var sourcePackageName = User.FindFirst("source_package_name")?.Value;
+        var role = User.FindFirst("role")?.Value; // "Service" or "Linbik"
+
+        return Ok(new { success = true, sourceServiceId, sourcePackageName });
+    }
+
+    // S2S webhook - only accepts service-to-service tokens (role=Service)
+    [LinbikS2SAuthorize("Service")]
+    [HttpPost("s2s/webhook/{eventType}")]
+    public IActionResult S2SWebhook(string eventType, [FromBody] WebhookPayload payload)
+    {
+        var sourceServiceId = User.FindFirst("source_service_id")?.Value;
+        return Ok(new { processed = true, eventType });
+    }
+
+    // Platform event - only accepts platform tokens (role=Linbik)
+    // Use for: key rotation, integration lifecycle, admin commands
+    [LinbikS2SAuthorize("Linbik")]
+    [HttpPost("s2s/platform-event")]
+    public IActionResult OnPlatformEvent([FromBody] PlatformEventPayload payload)
+    {
+        // Only Linbik platform can call this endpoint
+        return Ok(new { processed = true });
+    }
+}
+```
+
+### S2S Claim Types
+
+Claims available in S2S JWT tokens:
+
+```
+token_type = "s2s"
+source_service_id = "guid-of-calling-service"
+source_package_name = "calling-service-package"
+role = "Service" | "Linbik"          // NEW: distinguishes service vs platform tokens
+iat = issued at timestamp
+exp = expiration timestamp
+iss = "Linbik"
+aud = "target-service-guid"
+```
+
+> 🛡️ **Cross-Scheme Protection**: `OnTokenValidated` events in Linbik.Server ensure that S2S tokens cannot be used on `[LinbikUserServiceAuthorize]` endpoints and vice versa. This is enforced via `token_type` claim validation.
+
+### LinbikProxyPolicy
+
+`AddCommonYarpServices()` automatically registers the `LinbikProxyPolicy` authorization policy as `RequireAuthenticatedUser()`. This policy is referenced in YARP route configurations and does not need to be defined by the consumer application.
+
+### IS2STokenProvider API
+
+For advanced scenarios, you can use the token provider directly:
+
+```csharp
+public interface IS2STokenProvider
+{
+    // Config-based (package name)
+    Task<string?> GetS2STokenAsync(string packageName, ...);
+    Task<LinbikS2SIntegration?> GetS2SIntegrationAsync(string packageName, ...);
+    
+    // Dynamic (service ID) - for callbacks
+    Task<LinbikS2SIntegration?> GetS2SIntegrationByIdAsync(Guid targetServiceId, ...);
+    
+    // Cache management
+    Task RefreshS2STokensAsync(...);
+    void ClearCache();
+    TimeSpan? GetTimeUntilExpiry();
+}
+```
+
 ## 🔄 Migration from v1.x
 
 ```csharp
@@ -391,5 +597,5 @@ This library is currently a work in progress and is not ready for production use
 
 ---
 
-**Version**: 2.2.0  
-**Last Updated**: 5 Aralık 2025
+**Version**: 2.4.0  
+**Last Updated**: 28 Şubat 2026

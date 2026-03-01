@@ -1,6 +1,6 @@
 ﻿namespace Linbik.Core.Responses;
 
-public class LBaseResponse<T> where T : class
+public sealed class LBaseResponse<T> where T : class
 {
     public bool IsSuccess { get; set; }
     public LFriendlyMessageResponse? FriendlyMessage { get; set; }

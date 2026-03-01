@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Linbik.Core.Interfaces;
+namespace Linbik.Core.Services.Interfaces;
 
 /// <summary>
 /// JWT token generation and validation helper for multi-service authentication
@@ -23,9 +23,9 @@ public interface IJwtHelper
     /// <param name="token">JWT token to validate</param>
     /// <param name="publicKey">Base64-encoded RSA public key (X.509 SPKI format)</param>
     /// <param name="expectedAudience">Expected audience claim value</param>
-    /// <param name="expectedIssuer">Expected issuer claim value (default: "linbik")</param>
+    /// <param name="expectedIssuer">Expected issuer claim value (default: "Linbik")</param>
     /// <returns>True if token is valid, false otherwise</returns>
-    Task<bool> ValidateTokenAsync(string token, string publicKey, string expectedAudience, string expectedIssuer = "linbik");
+    Task<bool> ValidateTokenAsync(string token, string publicKey, string expectedAudience, string expectedIssuer = LinbikDefaults.Issuer);
 
     /// <summary>
     /// Extracts claims from a JWT token without validation

@@ -1,6 +1,6 @@
 using Linbik.Core.Configuration;
-using Linbik.Core.Interfaces;
 using Linbik.Core.Models;
+using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,39 +28,26 @@ namespace Linbik.Core.Services;
 /// </list>
 /// </para>
 /// </remarks>
-public class LinbikAuthService : IAuthService
+public sealed class LinbikAuthService(
+    ILinbikAuthClient authClient,
+    IOptions<LinbikOptions> options,
+    ILogger<LinbikAuthService> logger) : IAuthService
 {
-    private readonly ILinbikAuthClient _authClient;
-    private readonly LinbikOptions _options;
-    private readonly ILogger<LinbikAuthService> _logger;
+    private readonly ILinbikAuthClient _authClient = authClient ?? throw new ArgumentNullException(nameof(authClient));
+    private readonly LinbikOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+    private readonly ILogger<LinbikAuthService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    // Cookie names
-    private const string AuthTokenCookie = "authToken";
-    private const string RefreshTokenCookie = "linbikRefreshToken";
-    private const string IntegrationTokenPrefix = "integration_";
-    private const string ReturnUrlCookie = "linbik_return_url";
+    // Cookie names from LinbikDefaults
+    private const string AuthTokenCookie = LinbikDefaults.AuthTokenCookie;
+    private const string RefreshTokenCookie = LinbikDefaults.RefreshTokenCookie;
+    private const string IntegrationTokenPrefix = LinbikDefaults.IntegrationTokenPrefix;
+    private const string ReturnUrlCookie = LinbikDefaults.ReturnUrlCookie;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true
     };
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LinbikAuthService"/> class.
-    /// </summary>
-    /// <param name="authClient">The HTTP client for Linbik API communication.</param>
-    /// <param name="options">The Linbik configuration options.</param>
-    /// <param name="logger">The logger instance.</param>
-    public LinbikAuthService(
-        ILinbikAuthClient authClient,
-        IOptions<LinbikOptions> options,
-        ILogger<LinbikAuthService> logger)
-    {
-        _authClient = authClient ?? throw new ArgumentNullException(nameof(authClient));
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     /// <inheritdoc />
     public async Task<LinbikTokenResponse?> ExchangeCodeForTokensAsync(
@@ -130,7 +117,7 @@ public class LinbikAuthService : IAuthService
         cancellationToken.ThrowIfCancellationRequested();
 
         // Get integration tokens from cookies
-        var tokens = new List<LinbikIntegrationToken>();
+        List<LinbikIntegrationToken> tokens = [];
 
         foreach (var cookie in context.Request.Cookies)
         {

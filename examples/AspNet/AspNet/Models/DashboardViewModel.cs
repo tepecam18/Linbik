@@ -1,11 +1,11 @@
-using Linbik.Core.Interfaces;
 using Linbik.Core.Models;
+using Linbik.Core.Services.Interfaces;
 
 namespace AspNet.Models;
 
-public class DashboardViewModel
+public sealed class DashboardViewModel
 {
     public bool IsLoggedIn { get; set; }
     public UserProfile? Profile { get; set; }
-    public List<LinbikIntegrationToken> Tokens { get; set; } = new();
+    public List<LinbikIntegrationToken> Tokens { get; set; } = [];
 }

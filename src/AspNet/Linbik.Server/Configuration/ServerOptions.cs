@@ -1,6 +1,6 @@
 ﻿namespace Linbik.Server.Configuration;
 
-public class ServerOptions
+public sealed class ServerOptions
 {
     /// <summary>
     /// RSA public key for JWT validation (PEM format or Base64 DER)
@@ -21,7 +21,7 @@ public class ServerOptions
     /// <summary>
     /// JWT issuer name (default: "Linbik")
     /// </summary>
-    public string JwtIssuer { get; set; } = "Linbik";
+    public string JwtIssuer { get; set; } = Core.LinbikDefaults.Issuer;
 
     /// <summary>
     /// Require issuer validation
@@ -59,4 +59,11 @@ public class ServerOptions
     /// Clock skew tolerance for token validation (default: 5 minutes)
     /// </summary>
     public int ClockSkewMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Base path for integration webhook endpoints (default: /api/external)
+    /// This is where Linbik platform sends integration lifecycle events.
+    /// This value is used as the default basePath when calling MapLinbikIntegrationEndpoints().
+    /// </summary>
+    public string IntegrationEndpointPath { get; set; } = "/api/external";
 }
