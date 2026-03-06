@@ -164,9 +164,9 @@ public class DashboardViewModel
 
 Linbik kütüphaneleri bu endpoint'leri otomatik oluşturur:
 
-- `GET /linbik/login` - Linbik'e redirect
-- `GET /linbik/callback` - Token exchange
-- `GET /linbik/logout` - Session temizle
+- `GET /api/linbik/login` - Linbik'e redirect
+- `GET /api/linbik/callback` - Token exchange
+- `GET /api/linbik/logout` - Session temizle
 - `GET /test` - Dashboard (manuel MVC controller)
 
 ---

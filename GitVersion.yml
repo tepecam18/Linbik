@@ -1,22 +1,27 @@
 mode: Mainline
-tag-prefix: ''
+tag-prefix: 'v'
 
 assembly-versioning-scheme: MajorMinorPatch
 
 branches:
   main:
     regex: ^main$
-    increment: Minor       # main merge → minor artsın
+    increment: Patch
     tag: ''
+    prevent-increment-of-merged-branch-version: false
+    
   develop:
-    regex: ^dev$
-    increment: Inherit       # develop merge → patch artsın
-    tag: ''
+    regex: ^dev(elop)?$
+    increment: Minor
+    tag: 'beta'
+    prevent-increment-of-merged-branch-version: false
+    
   feature:
-    regex: ^feature\/.*$
-    increment: Inherit     # default davranış (istersen Patch de diyebilirsin)
-    tag: ''
+    regex: ^feature[/-]
+    increment: Patch
+    tag: 'build'
+    
   release:
-    regex: ^release$
-    increment: Major
-    tag: ''
+    regex: ^release[/-]
+    increment: Inherit
+    tag: 'rc'
