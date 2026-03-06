@@ -6,7 +6,7 @@ assembly-versioning-scheme: MajorMinorPatch
 branches:
   main:
     regex: ^main$
-    increment: Patch
+    increment: None
     tag: ''
     prevent-increment-of-merged-branch-version: false
     
