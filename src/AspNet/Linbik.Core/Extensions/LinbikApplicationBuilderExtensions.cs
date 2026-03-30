@@ -1,6 +1,9 @@
 using Linbik.Core.Builders.Interfaces;
+using Linbik.Core.Configuration;
+using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Linbik.Core.Extensions;
@@ -56,6 +59,10 @@ public static class LinbikApplicationBuilderExtensions
                 string.Join("\n  • ", errors));
         }
 
+        // Auto-update RedirectUri is now handled by JwtAuthManager's startup validator
+        // since AutoUpdateRedirectUri moved to JwtAuthOptions
+
         return app;
     }
+
 }

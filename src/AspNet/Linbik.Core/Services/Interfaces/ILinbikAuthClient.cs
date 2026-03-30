@@ -11,6 +11,17 @@ public interface ILinbikAuthClient
     #region User-Context Token Operations
 
     /// <summary>
+    /// Initiate authorization flow — saves auth data server-side and returns redirect URL.
+    /// POST /api/oauth/initiate
+    /// Headers: ApiKey
+    /// Body: { clientId, codeChallenge?, returnPath? }
+    /// </summary>
+    /// <param name="request">Initiate request with clientId and optional PKCE/returnPath</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Response with temporary token and redirect URL for browser</returns>
+    Task<LinbikInitiateResponse?> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Exchange authorization code for tokens
     /// POST /auth/token
     /// Headers: ApiKey, Code
@@ -53,6 +64,22 @@ public interface ILinbikAuthClient
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>S2S token response with integration tokens for target services</returns>
     Task<LinbikS2STokenResponse?> GetS2STokensAsync(IEnumerable<string> targetPackageNames, CancellationToken cancellationToken = default);
+
+    #endregion
+
+    #region Client Management
+
+    /// <summary>
+    /// Update a client's RedirectUri by its Name (case-insensitive).
+    /// PUT /api/services/{serviceId}/clients/by-name
+    /// Headers: ApiKey
+    /// Body: { name, redirectUri }
+    /// </summary>
+    /// <param name="clientName">Client name to match (case-insensitive)</param>
+    /// <param name="redirectUri">New redirect URI to set</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if update succeeded, false otherwise</returns>
+    Task<bool> UpdateClientRedirectUriByNameAsync(string clientName, string redirectUri, CancellationToken cancellationToken = default);
 
     #endregion
 }

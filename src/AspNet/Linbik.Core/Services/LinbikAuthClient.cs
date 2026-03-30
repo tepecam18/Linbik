@@ -36,6 +36,54 @@ public sealed class LinbikAuthClient(
     }
 
     /// <inheritdoc />
+    public async Task<LinbikInitiateResponse?> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.ClientId == Guid.Empty)
+        {
+            _logger.LogWarning("InitiateAuthAsync called with empty client ID");
+            return null;
+        }
+
+        try
+        {
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _options.AuthorizationEndpoint.TrimStart('/'))
+            {
+                Content = JsonContent.Create(request, options: JsonOptions)
+            };
+
+            httpRequest.Headers.Add("ApiKey", _options.ApiKey);
+            AddDiagnosticHeaders(httpRequest);
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Auth initiate failed with status {StatusCode}: {Error}",
+                    response.StatusCode, errorContent);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<LinbikInitiateResponse>(JsonOptions, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed during auth initiate");
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON deserialization failed during auth initiate");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during auth initiate");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<LinbikTokenResponse?> ExchangeCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(code))
@@ -57,6 +105,7 @@ public sealed class LinbikAuthClient(
             // Add required headers
             request.Headers.Add("Code", code);
             request.Headers.Add("ApiKey", _options.ApiKey);
+            AddDiagnosticHeaders(request);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
 
@@ -123,6 +172,7 @@ public sealed class LinbikAuthClient(
             // Add required headers
             request.Headers.Add("RefreshToken", refreshToken);
             request.Headers.Add("ApiKey", _options.ApiKey);
+            AddDiagnosticHeaders(request);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
 
@@ -195,6 +245,7 @@ public sealed class LinbikAuthClient(
 
             // Add API key header
             httpRequest.Headers.Add("ApiKey", _options.ApiKey);
+            AddDiagnosticHeaders(httpRequest);
 
             _logger.LogDebug("Requesting S2S tokens for {TargetCount} services from {SourceServiceId}",
                 request.TargetServiceIds.Count, request.SourceServiceId);
@@ -284,6 +335,71 @@ public sealed class LinbikAuthClient(
         };
 
         return await GetS2STokensAsync(request, cancellationToken);
+    }
+
+    #endregion
+
+    #region Client Management
+
+    /// <inheritdoc />
+    public async Task<bool> UpdateClientRedirectUriByNameAsync(string clientName, string redirectUri, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientName) || string.IsNullOrWhiteSpace(redirectUri))
+        {
+            _logger.LogWarning("UpdateClientRedirectUriByNameAsync called with empty clientName or redirectUri");
+            return false;
+        }
+
+        try
+        {
+            var endpoint = $"api/services/{_options.ServiceId}/clients/by-name";
+
+            var request = new HttpRequestMessage(HttpMethod.Put, endpoint)
+            {
+                Content = JsonContent.Create(new { name = clientName, redirectUri }, options: JsonOptions)
+            };
+
+            request.Headers.Add("ApiKey", _options.ApiKey);
+            AddDiagnosticHeaders(request);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Client RedirectUri update failed for '{ClientName}' with status {StatusCode}: {Error}",
+                    clientName, response.StatusCode, errorContent);
+                return false;
+            }
+
+            _logger.LogInformation("Successfully updated RedirectUri for client '{ClientName}' to '{RedirectUri}'",
+                clientName, redirectUri);
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed during client RedirectUri update for '{ClientName}'", clientName);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during client RedirectUri update for '{ClientName}'", clientName);
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Private Helpers
+
+    private static void AddDiagnosticHeaders(HttpRequestMessage request)
+    {
+        request.Headers.TryAddWithoutValidation(LinbikDefaults.HeaderMode, "sdk");
+        request.Headers.TryAddWithoutValidation(LinbikDefaults.HeaderPlatform, "aspnet");
+
+        var version = typeof(LinbikAuthClient).Assembly.GetName().Version;
+        if (version is not null)
+            request.Headers.TryAddWithoutValidation(LinbikDefaults.HeaderVersion, version.ToString(3));
     }
 
     #endregion

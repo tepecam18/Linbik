@@ -1,12 +1,15 @@
 using Linbik.Core.Builders.Interfaces;
+using Linbik.Core.Configuration;
 using Linbik.Core.Services.Interfaces;
 using Linbik.JwtAuthManager.Configuration;
 using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Linbik.JwtAuthManager.Extensions;
@@ -57,7 +60,10 @@ public static class LinbikJwtAuthExtensions
         services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
         services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
-        AddLinbikAuthentication(services, options);
+        // Auto-generate SecretKey in KeylessMode
+        AddKeylessModePostConfigure(services);
+
+        AddLinbikAuthenticationDeferred(services);
 
         return services;
     }
@@ -72,54 +78,78 @@ public static class LinbikJwtAuthExtensions
         IConfigurationSection configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        var options = configuration.Get<JwtAuthOptions>() ?? new JwtAuthOptions();
         services.Configure<JwtAuthOptions>(configuration);
         services.AddSingleton<IJwtHelper, JwtHelperService>();
         services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
         services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
-        AddLinbikAuthentication(services, options);
+        // Auto-generate SecretKey in KeylessMode
+        AddKeylessModePostConfigure(services);
+
+        AddLinbikAuthenticationDeferred(services);
 
         return services;
     }
 
     /// <summary>
-    /// Add Linbik authentication scheme that validates JWT from cookies
+    /// Registers a PostConfigure that auto-generates a SecretKey when KeylessMode is active
+    /// and no SecretKey is provided. This runs before validation.
     /// </summary>
-    private static void AddLinbikAuthentication(IServiceCollection services, JwtAuthOptions options)
+    private static void AddKeylessModePostConfigure(IServiceCollection services)
     {
-        if (string.IsNullOrEmpty(options.SecretKey))
-            return;
-
-        services.AddAuthentication(authOptions =>
-        {
-            // Don't set default scheme - let controllers choose with [LinbikAuthorize]
-            // This allows multiple auth schemes to coexist
-        })
-        .AddJwtBearer(LinbikScheme, jwtOptions =>
-        {
-            // Read JWT from cookie instead of Authorization header
-            jwtOptions.Events = new JwtBearerEvents
+        services.AddOptions<JwtAuthOptions>()
+            .PostConfigure<IOptions<LinbikOptions>>((jwtOpts, linbikOpts) =>
             {
-                OnMessageReceived = context =>
+                if (linbikOpts.Value.KeylessMode && string.IsNullOrEmpty(jwtOpts.SecretKey))
                 {
-                    context.Token = context.Request.Cookies[AuthTokenCookie];
-                    return Task.CompletedTask;
+                    var keyBytes = new byte[64]; // 512 bits
+                    RandomNumberGenerator.Fill(keyBytes);
+                    jwtOpts.SecretKey = Convert.ToBase64String(keyBytes);
                 }
-            };
+            });
+    }
 
-            jwtOptions.TokenValidationParameters = new TokenValidationParameters
+    /// <summary>
+    /// Add Linbik authentication scheme with deferred option resolution.
+    /// This allows PostConfigure-generated keys (e.g., KeylessMode) to be used.
+    /// </summary>
+    private static void AddLinbikAuthenticationDeferred(IServiceCollection services)
+    {
+        services.AddAuthentication();
+
+        services.AddOptions<JwtBearerOptions>(LinbikScheme)
+            .Configure<IOptions<JwtAuthOptions>>((jwtBearerOptions, jwtAuthOptionsAccessor) =>
             {
-                ValidateIssuerSigningKey = true,
-                ValidateLifetime = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey)),
-                ValidateIssuer = !string.IsNullOrEmpty(options.JwtIssuer),
-                ValidIssuer = options.JwtIssuer,
-                ValidateAudience = !string.IsNullOrEmpty(options.JwtAudience),
-                ValidAudience = options.JwtAudience,
-                ClockSkew = TimeSpan.FromMinutes(1)
-            };
-        });
+                var opts = jwtAuthOptionsAccessor.Value;
+                if (string.IsNullOrEmpty(opts.SecretKey))
+                    return;
+
+                // Read JWT from cookie instead of Authorization header
+                jwtBearerOptions.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        context.Token = context.Request.Cookies[AuthTokenCookie];
+                        return Task.CompletedTask;
+                    }
+                };
+
+                jwtBearerOptions.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    ValidateLifetime = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(opts.SecretKey)),
+                    ValidateIssuer = !string.IsNullOrEmpty(opts.JwtIssuer),
+                    ValidIssuer = opts.JwtIssuer,
+                    ValidateAudience = !string.IsNullOrEmpty(opts.JwtAudience),
+                    ValidAudience = opts.JwtAudience,
+                    ClockSkew = TimeSpan.FromMinutes(1)
+                };
+            });
+
+        // Register the JwtBearer scheme
+        services.AddAuthentication()
+            .AddJwtBearer(LinbikScheme, _ => { });
 
         services.AddAuthorization();
     }
@@ -127,6 +157,7 @@ public static class LinbikJwtAuthExtensions
     /// <summary>
     /// Startup validator for Linbik.JwtAuthManager module.
     /// Forces eager validation of <see cref="JwtAuthOptions"/> and verifies critical service registrations.
+    /// Also handles AutoUpdateRedirectUri when enabled.
     /// </summary>
     private sealed class JwtAuthStartupValidator : ILinbikStartupValidator
     {
@@ -136,13 +167,67 @@ public static class LinbikJwtAuthExtensions
         public void Validate(IServiceProvider services)
         {
             // Force eager validation of JwtAuthOptions (triggers JwtAuthOptionsValidator)
-            var options = services.GetRequiredService<IOptions<JwtAuthOptions>>();
-            _ = options.Value;
+            var jwtOptions = services.GetRequiredService<IOptions<JwtAuthOptions>>();
+            _ = jwtOptions.Value;
 
             // Verify IJwtHelper is registered
             _ = services.GetService<IJwtHelper>()
                 ?? throw new InvalidOperationException(
                     "IJwtHelper is not registered. Call services.AddLinbikJwtAuth() or builder.AddLinbikJwtAuth() in Program.cs.");
+
+            // Auto-update RedirectUri if enabled
+            if (jwtOptions.Value.AutoUpdateRedirectUri)
+            {
+                ScheduleRedirectUriAutoUpdate(services, jwtOptions.Value);
+            }
+        }
+
+        private static void ScheduleRedirectUriAutoUpdate(IServiceProvider services, JwtAuthOptions jwtOptions)
+        {
+            var linbikOptions = services.GetService<IOptions<Core.Configuration.LinbikOptions>>()?.Value;
+            if (linbikOptions is null || string.IsNullOrWhiteSpace(linbikOptions.Name))
+                return;
+
+            // Build redirect URI from first client's BaseUrl + LoginCallbackPath
+            var client = linbikOptions.Clients?.FirstOrDefault();
+            if (client is null || string.IsNullOrWhiteSpace(client.BaseUrl))
+                return;
+
+            var baseUrl = client.BaseUrl.TrimEnd('/');
+            var callbackPath = jwtOptions.LoginCallbackPath?.TrimStart('/') ?? "api/linbik/callback";
+            var redirectUri = $"{baseUrl}/{callbackPath}";
+            var name = linbikOptions.Name;
+
+            // Fire-and-forget — non-blocking, errors logged
+            _ = Task.Run(async () =>
+            {
+                var loggerFactory = services.GetService<ILoggerFactory>();
+                var logger = loggerFactory?.CreateLogger("Linbik.AutoUpdate");
+
+                try
+                {
+                    using var scope = services.CreateScope();
+                    var authClient = scope.ServiceProvider
+                        .GetService<Core.Services.Interfaces.ILinbikAuthClient>();
+                    if (authClient is null)
+                    {
+                        logger?.LogWarning("ILinbikAuthClient not available, skipping RedirectUri auto-update.");
+                        return;
+                    }
+
+                    var success = await authClient.UpdateClientRedirectUriByNameAsync(
+                        name, redirectUri, CancellationToken.None);
+
+                    if (success)
+                        logger?.LogInformation("Auto-updated RedirectUri for '{Name}' → {RedirectUri}", name, redirectUri);
+                    else
+                        logger?.LogWarning("Failed to auto-update RedirectUri for '{Name}'.", name);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Unexpected error during RedirectUri auto-update.");
+                }
+            });
         }
     }
 }

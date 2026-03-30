@@ -62,4 +62,25 @@ public static class LinbikDefaults
     /// Cookie name for storing the user's display name
     /// </summary>
     public const string UserNameCookie = "userName";
+
+    // ─── Diagnostic Headers ───────────────────────────────────────
+    /// <summary>
+    /// SDK operation mode (Keyless, Standard, CLI)
+    /// </summary>
+    public const string HeaderMode = "X-Linbik-Mode";
+
+    /// <summary>
+    /// SDK version (e.g., "1.2.0")
+    /// </summary>
+    public const string HeaderVersion = "X-Linbik-Version";
+
+    /// <summary>
+    /// SDK platform (e.g., "aspnet", "nuxt")
+    /// </summary>
+    public const string HeaderPlatform = "X-Linbik-Platform";
+
+    /// <summary>
+    /// Client type (e.g., "Web", "Mobile")
+    /// </summary>
+    public const string HeaderClientType = "X-Linbik-Client";
 }

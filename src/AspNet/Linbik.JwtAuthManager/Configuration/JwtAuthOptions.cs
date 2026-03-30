@@ -49,6 +49,14 @@ public sealed class JwtAuthOptions
     public string LoginCallbackPath { get; set; } = "/api/linbik/callback";
 
     /// <summary>
+    /// When true, EnsureLinbik() will automatically update the RedirectUri
+    /// on Linbik server using LinbikOptions.Name to find the matching client.
+    /// The redirect URI is built from the app's base URL + LoginCallbackPath.
+    /// Default: false (opt-in)
+    /// </summary>
+    public bool AutoUpdateRedirectUri { get; set; } = false;
+
+    /// <summary>
     /// Logout path
     /// </summary>
     public string LogoutPath { get; set; } = "/api/linbik/logout";

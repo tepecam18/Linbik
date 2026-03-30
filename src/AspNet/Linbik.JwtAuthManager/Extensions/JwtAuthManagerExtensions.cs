@@ -153,13 +153,13 @@ public static class JwtAuthManagerExtensions
     /// <summary>
     /// Get client configuration by clientId
     /// </summary>
-    private static Core.Configuration.LinbikClientConfig? GetClientConfig(Core.Configuration.LinbikOptions linbikOptions, string? clientId)
+    private static Core.Configuration.LinbikClientConfig? GetClientConfig(Core.Configuration.LinbikOptions linbikOptions, string? name)
     {
-        if (string.IsNullOrEmpty(clientId))
+        if (string.IsNullOrEmpty(name))
             return null;
 
-        // Find by ClientId in Clients dictionary
-        return linbikOptions.Clients.FirstOrDefault(c => c.ClientId == clientId);
+        // Find by Name in Clients dictionary
+        return linbikOptions.Clients.FirstOrDefault(c => c.Name == name);
     }
 
     /// <summary>
@@ -249,60 +249,76 @@ public static class JwtAuthManagerExtensions
     public static IEndpointRouteBuilder UseLinbikJwtAuth(this IEndpointRouteBuilder endpoints)
     {
         var options = endpoints.ServiceProvider.GetRequiredService<IOptions<JwtAuthOptions>>().Value;
-        var linbikOptions = endpoints.ServiceProvider.GetRequiredService<IOptions<Linbik.Core.Configuration.LinbikOptions>>().Value;
+        var linbikOptionsAccessor = endpoints.ServiceProvider.GetRequiredService<IOptions<Linbik.Core.Configuration.LinbikOptions>>();
+        var linbikOptions = linbikOptionsAccessor.Value;
 
         // Login - redirect to Linbik authorization
-        endpoints.MapGet(options.LoginPath, (HttpContext context,
-            [FromQuery] string? clientId,
+        endpoints.MapGet(options.LoginPath, async (HttpContext context,
+            [FromServices] ILinbikAuthClient linbikClient,
+            [FromQuery] string? name,
             [FromQuery] string? returnPath) =>
         {
-            // clientId is required - no default fallback
-            if (string.IsNullOrEmpty(clientId))
+            // Keyless Mode: ensure provisioned before building auth URL
+            if (linbikOptions.KeylessMode)
             {
-                return Results.BadRequest(new LBaseResponse<object>("ClientId is required"));
+                var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
+                if (provisionClient != null)
+                {
+                    await provisionClient.EnsureProvisionedAsync(context.RequestAborted);
+                }
+            }
+            // clientId is required - in KeylessMode, auto-use first client
+            if (string.IsNullOrEmpty(name))
+            {
+                if (linbikOptions.KeylessMode && linbikOptions.Clients.Count > 0)
+                {
+                    name = linbikOptions.Clients[0].Name;
+                }
+                else
+                {
+                    return Results.BadRequest(new LBaseResponse<object>("Keyless Mode is disabled or failed to provision. name is required."));
+                }
             }
 
             // Resolve client configuration
-            var clientConfig = GetClientConfig(linbikOptions, clientId);
+            var clientConfig = GetClientConfig(linbikOptions, name);
             if (clientConfig == null)
             {
-                return Results.BadRequest(new LBaseResponse<object>($"Client configuration not found for clientId: {clientId}"));
+                return Results.BadRequest(new LBaseResponse<object>($"Client configuration not found for name: {name}"));
             }
 
-            // Build authorization URL: LinbikUrl + /auth + ClientId + CodeChallenge
-            var baseUrl = linbikOptions.LinbikUrl;
-            var authEndpoint = linbikOptions.AuthorizationEndpoint;
-
-            string authorizationUrl;
+            // Build initiate request
+            var initiateRequest = new Core.Models.LinbikInitiateRequest
+            {
+                ClientId = Guid.Parse(clientConfig.ClientId),
+                ReturnPath = returnPath
+            };
 
             // Generate PKCE code challenge if enabled
             if (options.PkceEnabled)
             {
                 var (verifier, challenge) = PkceService.Generate();
                 PkceService.SaveVerifier(context.Response, verifier);
-                authorizationUrl = $"{baseUrl}{authEndpoint}/{clientId}/{challenge}";
-            }
-            else
-            {
-                authorizationUrl = $"{baseUrl}{authEndpoint}/{clientId}";
+                initiateRequest.CodeChallenge = challenge;
             }
 
-            // Append returnPath as query parameter if provided
-            if (!string.IsNullOrEmpty(returnPath))
+            // Call API to initiate auth — saves data server-side, returns redirect URL
+            var initiateResponse = await linbikClient.InitiateAuthAsync(initiateRequest, context.RequestAborted);
+            if (initiateResponse is null)
             {
-                authorizationUrl = $"{authorizationUrl}?returnPath={Uri.EscapeDataString(returnPath)}";
+                return Results.BadRequest(new LBaseResponse<object>("Failed to initiate authorization flow."));
             }
 
-            if(IsMobileClient(clientConfig))
+            if (IsMobileClient(clientConfig))
             {
                 // For mobile clients, return the URL in JSON
                 return Results.Ok(new LBaseResponse<LoginResponse>(new LoginResponse
                 {
-                    RedirectPath = authorizationUrl
+                    RedirectPath = initiateResponse.RedirectUrl
                 }));
             }
 
-            return Results.Redirect(authorizationUrl);
+            return Results.Redirect(initiateResponse.RedirectUrl);
         }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
         // Login callback - exchange authorization code for tokens
@@ -410,6 +426,17 @@ public static class JwtAuthManagerExtensions
 
                 // Set all auth cookies
                 SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry);
+
+                // Keyless Mode: handle claim if service was claimed during this token exchange
+                if (tokenResponse.Claimed == true && !string.IsNullOrEmpty(tokenResponse.NewApiKey))
+                {
+                    var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
+                    if (provisionClient != null)
+                    {
+                        await provisionClient.HandleClaimAsync(tokenResponse.NewApiKey, context.RequestAborted);
+                        logger.LogInformation("Keyless Mode: Service claimed successfully for user {UserId}", tokenResponse.UserId);
+                    }
+                }
 
                 // Log successful login
                 timer.Stop();

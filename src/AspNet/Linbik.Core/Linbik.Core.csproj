@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 
@@ -34,25 +34,25 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.8" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.5" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
 		
 		<!-- HttpClient support -->
-		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.8" />
-		<PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.2.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.3.9" />
+		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.9" />
 		
 		<!-- Resilience (Polly) for HttpClient -->
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.1.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
 		
 		<!-- Diagnostics for Performance Monitoring -->
-		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.0" />
+		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.5" />
 		
 		<!-- Health Checks -->
-		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.5" />
 	</ItemGroup>
 
 	<ItemGroup>

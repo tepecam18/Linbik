@@ -142,6 +142,13 @@ public static class LinbikServiceCollectionExtensions
         // Register main auth service
         services.AddScoped<IAuthService, LinbikAuthService>();
 
+        // Register Keyless Mode services (credential store + provision client)
+        services.AddSingleton<ILinbikCredentialStore, FileLinbikCredentialStore>();
+        services.AddSingleton<LinbikProvisionClient>();
+
+        // Register heartbeat background service
+        services.AddHostedService<LinbikHeartbeatService>();
+
         return services;
     }
 

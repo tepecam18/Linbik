@@ -20,7 +20,7 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
 
         List<string> errors = [];
 
-        // Validate LinbikUrl
+        // Validate LinbikUrl (always required, even in KeylessMode)
         if (string.IsNullOrWhiteSpace(options.LinbikUrl))
         {
             errors.Add("Linbik:LinbikUrl is required. Set the Linbik server base URL (e.g., 'https://linbik.com').");
@@ -31,6 +31,55 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
             errors.Add($"Linbik:LinbikUrl must be a valid HTTP/HTTPS URL. Current value: '{options.LinbikUrl}'.");
         }
 
+        // In KeylessMode, skip ServiceId/ApiKey/ClientId validation
+        // These will be provisioned automatically at runtime
+        if (!options.KeylessMode)
+        {
+            ValidateStandardMode(options, errors);
+        }
+
+        // Validate token lifetimes (always validated)
+        if (options.AuthorizationCodeLifetimeMinutes < 1 || options.AuthorizationCodeLifetimeMinutes > 60)
+        {
+            errors.Add($"Linbik:AuthorizationCodeLifetimeMinutes must be between 1 and 60. Current value: {options.AuthorizationCodeLifetimeMinutes}.");
+        }
+
+        if (options.AccessTokenLifetimeMinutes < 1 || options.AccessTokenLifetimeMinutes > 1440)
+        {
+            errors.Add($"Linbik:AccessTokenLifetimeMinutes must be between 1 and 1440 (24 hours). Current value: {options.AccessTokenLifetimeMinutes}.");
+        }
+
+        if (options.RefreshTokenLifetimeDays < 1 || options.RefreshTokenLifetimeDays > 365)
+        {
+            errors.Add($"Linbik:RefreshTokenLifetimeDays must be between 1 and 365. Current value: {options.RefreshTokenLifetimeDays}.");
+        }
+
+        // Validate endpoints (always validated)
+        if (!options.AuthorizationEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:AuthorizationEndpoint must start with '/'. Current value: '{options.AuthorizationEndpoint}'.");
+        }
+
+        if (!options.TokenEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:TokenEndpoint must start with '/'. Current value: '{options.TokenEndpoint}'.");
+        }
+
+        if (!options.RefreshEndpoint.StartsWith("/"))
+        {
+            errors.Add($"Linbik:RefreshEndpoint must start with '/'. Current value: '{options.RefreshEndpoint}'.");
+        }
+
+        return errors.Count > 0
+            ? ValidateOptionsResult.Fail(errors)
+            : ValidateOptionsResult.Success;
+    }
+
+    /// <summary>
+    /// Validates fields required in standard (non-keyless) mode.
+    /// </summary>
+    private static void ValidateStandardMode(LinbikOptions options, List<string> errors)
+    {
         // Validate ServiceId
         if (string.IsNullOrWhiteSpace(options.ServiceId))
         {
@@ -74,41 +123,5 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
         {
             errors.Add("Linbik:ApiKey appears to be too short. Verify the API key from Linbik service registration.");
         }
-
-        // Validate token lifetimes
-        if (options.AuthorizationCodeLifetimeMinutes < 1 || options.AuthorizationCodeLifetimeMinutes > 60)
-        {
-            errors.Add($"Linbik:AuthorizationCodeLifetimeMinutes must be between 1 and 60. Current value: {options.AuthorizationCodeLifetimeMinutes}.");
-        }
-
-        if (options.AccessTokenLifetimeMinutes < 1 || options.AccessTokenLifetimeMinutes > 1440)
-        {
-            errors.Add($"Linbik:AccessTokenLifetimeMinutes must be between 1 and 1440 (24 hours). Current value: {options.AccessTokenLifetimeMinutes}.");
-        }
-
-        if (options.RefreshTokenLifetimeDays < 1 || options.RefreshTokenLifetimeDays > 365)
-        {
-            errors.Add($"Linbik:RefreshTokenLifetimeDays must be between 1 and 365. Current value: {options.RefreshTokenLifetimeDays}.");
-        }
-
-        // Validate endpoints
-        if (!options.AuthorizationEndpoint.StartsWith("/"))
-        {
-            errors.Add($"Linbik:AuthorizationEndpoint must start with '/'. Current value: '{options.AuthorizationEndpoint}'.");
-        }
-
-        if (!options.TokenEndpoint.StartsWith("/"))
-        {
-            errors.Add($"Linbik:TokenEndpoint must start with '/'. Current value: '{options.TokenEndpoint}'.");
-        }
-
-        if (!options.RefreshEndpoint.StartsWith("/"))
-        {
-            errors.Add($"Linbik:RefreshEndpoint must start with '/'. Current value: '{options.RefreshEndpoint}'.");
-        }
-
-        return errors.Count > 0
-            ? ValidateOptionsResult.Fail(errors)
-            : ValidateOptionsResult.Success;
     }
 }

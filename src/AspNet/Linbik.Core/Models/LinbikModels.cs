@@ -71,6 +71,18 @@ public sealed class LinbikTokenResponse
     /// OAuth client ID (if applicable)
     /// </summary>
     public Guid? ClientId { get; set; }
+
+    /// <summary>
+    /// Whether the provisioned service was successfully claimed by this user.
+    /// Only present when a Keyless Mode service is being claimed.
+    /// </summary>
+    public bool? Claimed { get; set; }
+
+    /// <summary>
+    /// New permanent API key issued after claiming a provisioned service.
+    /// Only present when Claimed = true. SDK should update local credentials.
+    /// </summary>
+    public string? NewApiKey { get; set; }
 }
 
 /// <summary>
@@ -121,6 +133,29 @@ public sealed class LinbikErrorResponse
     /// Human-readable error description
     /// </summary>
     public string ErrorDescription { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Request body for the authorization initiate endpoint.
+/// POST /api/oauth/initiate
+/// Headers: { ApiKey }
+/// SDK calls this to start the OAuth flow — saves auth data server-side.
+/// </summary>
+public sealed class LinbikInitiateRequest
+{
+    public Guid ClientId { get; set; }
+    public string? CodeChallenge { get; set; }
+    public string? ReturnPath { get; set; }
+}
+
+/// <summary>
+/// Response from the authorization initiate endpoint.
+/// Contains a temporary token and the redirect URL for the browser.
+/// </summary>
+public sealed class LinbikInitiateResponse
+{
+    public string Token { get; set; } = string.Empty;
+    public string RedirectUrl { get; set; } = string.Empty;
 }
 
 #region S2S (Service-to-Service) Models
