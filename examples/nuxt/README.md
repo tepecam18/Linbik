@@ -57,11 +57,11 @@ bun install
 
 ```bash
 # Linbik Server URL
-NUXT_PUBLIC_LINBIK_URL=http://localhost:5481
-# veya production için
-# NUXT_PUBLIC_LINBIK_URL=https://dev.linbik.com
+NUXT_PUBLIC_LINBIK_URL=https://api.linbik.com
+# veya lokal geliştirme için
+# NUXT_PUBLIC_LINBIK_URL=http://localhost:5481
 
-# Service bilgileri (Linbik.App'ten alınır)
+# Service bilgileri (linbik.com'dan alınır)
 NUXT_LINBIK_SERVICE_ID=your-service-guid
 NUXT_LINBIK_CLIENT_ID=your-client-guid
 NUXT_LINBIK_API_KEY=lnbk_your_api_key
@@ -399,7 +399,7 @@ export default defineNuxtConfig({
     
     public: {
       // Client-side accessible
-      linbikUrl: process.env.NUXT_PUBLIC_LINBIK_URL || 'http://localhost:5481',
+      linbikUrl: process.env.NUXT_PUBLIC_LINBIK_URL || 'https://api.linbik.com',
       linbikClientId: process.env.NUXT_LINBIK_CLIENT_ID,
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000'
     }
@@ -526,7 +526,7 @@ CMD ["bun", "run", ".output/server/index.mjs"]
 
 ## 📖 İlgili Dokümantasyon
 
-- [Linbik.App README](../../src/Clients/Linbik.App/README.md) - OAuth 2.1 API referansı
+- [Linbik Platform](https://linbik.com) — OAuth 2.1 API referansı
 - [AspNet.Examples](../AspNet/AspNet/README.md) - .NET ile karşılaştırma
 - [Nuxt Documentation](https://nuxt.com/docs)
 
@@ -536,5 +536,5 @@ Bu proje özel bir lisans altında yayınlanmaktadır.
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 31 Ocak 2026
+**Version**: 1.2.0  
+**Last Updated**: 2 Nisan 2026

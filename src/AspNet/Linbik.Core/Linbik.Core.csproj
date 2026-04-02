@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -8,7 +8,11 @@
 		<PackageVersion>0.0.2</PackageVersion>
 		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
-		<Description>This package is for testing purposes only. Not available for public use.</Description>
+		<Description>Core library providing shared dependencies and models for Linbik. Recommended for advanced manual integration; otherwise included by default in other Linbik packages.</Description>
+		<Authors>tepecam18</Authors>
+		<Company>Linbik</Company>
+		<PackageTags>authentication;jwt;yarp;tepecam18;linbik;core</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 
@@ -47,9 +51,6 @@
 		
 		<!-- Resilience (Polly) for HttpClient -->
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
-		
-		<!-- Diagnostics for Performance Monitoring -->
-		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.5" />
 		
 		<!-- Health Checks -->
 		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.5" />

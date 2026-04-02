@@ -1,4 +1,5 @@
 using Linbik.Core.Configuration;
+using Linbik.Core.Responses;
 using Linbik.Core.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -34,7 +35,7 @@ public sealed class LinbikProvisionClient(
     /// Otherwise, call the provision API and cache the result.
     /// Updates LinbikOptions in-place so downstream services use the provisioned values.
     /// </summary>
-    public async Task EnsureProvisionedAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureProvisionedAsync(string appUrl, string callbackPath, CancellationToken cancellationToken = default)
     {
         if (_isProvisioned)
             return;
@@ -67,19 +68,24 @@ public sealed class LinbikProvisionClient(
             }
 
             // Provision new service
-            var credentials = await ProvisionAsync(opts, cancellationToken);
-            if (credentials != null)
+            var provisionResult = await ProvisionAsync(appUrl, callbackPath, opts, cancellationToken);
+            if (!provisionResult.IsSuccess || provisionResult.Data == null)
             {
-                await credentialStore.SaveAsync(credentials, cancellationToken);
-                ApplyCredentials(opts, credentials);
-                _isProvisioned = true;
-
-                logger.LogInformation(
-                    "Linbik Keyless Mode: Service provisioned (ServiceId: {ServiceId}, ClientId: {ClientId}). " +
-                    "Claim URL: {ClaimUrl}",
-                    credentials.ServiceId, credentials.ClientId,
-                    $"{opts.LinbikUrl}/claim/{credentials.ClaimToken}");
+                var errorMsg = provisionResult.FriendlyMessage?.Message ?? "Unknown provisioning error.";
+                logger.LogWarning("Linbik Keyless Mode: Provisioning failed — {Error}", errorMsg);
+                return;
             }
+
+            var credentials = provisionResult.Data;
+            await credentialStore.SaveAsync(credentials, cancellationToken);
+            ApplyCredentials(opts, credentials);
+            _isProvisioned = true;
+
+            logger.LogInformation(
+                "Linbik Keyless Mode: Service provisioned (ServiceId: {ServiceId}, ClientId: {ClientId}). " +
+                "Claim URL: {ClaimUrl}",
+                credentials.ServiceId, credentials.ClientId,
+                $"{credentials.ClaimUrl}");
         }
         catch (Exception ex)
         {
@@ -112,21 +118,18 @@ public sealed class LinbikProvisionClient(
         logger.LogInformation("Linbik Keyless Mode: Service successfully claimed! New permanent API key applied.");
     }
 
-    private async Task<LinbikCredentials?> ProvisionAsync(LinbikOptions opts, CancellationToken cancellationToken)
+    private async Task<LBaseResponse<LinbikCredentials>> ProvisionAsync(string appUrl, string callbackPath, LinbikOptions opts, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("LinbikAuthClient");
 
         var appName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Unknown";
         var sdkVersion = typeof(LinbikProvisionClient).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
-        // Detect app URL from Kestrel configuration
-        var appUrl = opts.Clients.FirstOrDefault()?.BaseUrl ?? "https://localhost:5001";
-
         var request = new ProvisionRequestDto
         {
             AppName = appName,
-            AppUrl = appUrl,
-            CallbackPath = opts.Clients.FirstOrDefault()?.RedirectUrl ?? "/auth/callback",
+            AppUrl = appUrl ?? "http://localhost",
+            CallbackPath = callbackPath ?? "/api/linbik/login",
             Platform = "aspnet"
         };
 
@@ -142,26 +145,27 @@ public sealed class LinbikProvisionClient(
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
             logger.LogWarning("Provision failed with status {Status}: {Body}", response.StatusCode, errorBody);
-            return null;
+            return new LBaseResponse<LinbikCredentials>("provision_failed", $"HTTP {(int)response.StatusCode}: {errorBody}");
         }
 
         var result = await response.Content.ReadFromJsonAsync<ProvisionApiResponse>(_jsonOptions, cancellationToken);
         if (result?.Data == null)
         {
             logger.LogWarning("Provision response had no data.");
-            return null;
+            return new LBaseResponse<LinbikCredentials>("provision_empty_response", "Server returned empty provisioning data.");
         }
 
-        return new LinbikCredentials
+        return new LBaseResponse<LinbikCredentials>(new LinbikCredentials
         {
             ServiceId = result.Data.ServiceId.ToString(),
             ClientId = result.Data.ClientId.ToString(),
             ApiKey = result.Data.ApiKey,
             ClaimToken = result.Data.ClaimToken,
+            ClaimUrl = result.Data.ClaimUrl,
             IsClaimed = false,
             ProvisionedAt = DateTime.UtcNow,
             ExpiresAt = result.Data.ExpiresAt
-        };
+        });
     }
 
     private static void ApplyCredentials(LinbikOptions opts, LinbikCredentials credentials)
@@ -174,7 +178,8 @@ public sealed class LinbikProvisionClient(
             opts.Clients.Add(new LinbikClientConfig
             {
                 ClientId = credentials.ClientId,
-                ClientType = LinbikClientType.Web
+                Name = "Default",
+                RedirectUrl = "/"
             });
         }
         else
@@ -204,6 +209,7 @@ public sealed class LinbikProvisionClient(
         public Guid ClientId { get; set; }
         public string ApiKey { get; set; } = string.Empty;
         public string ClaimToken { get; set; } = string.Empty;
+        public string ClaimUrl { get; set; } = string.Empty;
         public DateTime ExpiresAt { get; set; }
     }
 

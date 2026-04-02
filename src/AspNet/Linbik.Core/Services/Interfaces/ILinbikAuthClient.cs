@@ -1,4 +1,5 @@
 using Linbik.Core.Models;
+using Linbik.Core.Responses;
 
 namespace Linbik.Core.Services.Interfaces;
 
@@ -18,8 +19,8 @@ public interface ILinbikAuthClient
     /// </summary>
     /// <param name="request">Initiate request with clientId and optional PKCE/returnPath</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Response with temporary token and redirect URL for browser</returns>
-    Task<LinbikInitiateResponse?> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default);
+    /// <returns>LBaseResponse wrapping success data or error details</returns>
+    Task<LBaseResponse<LinbikInitiateResponse>> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Exchange authorization code for tokens

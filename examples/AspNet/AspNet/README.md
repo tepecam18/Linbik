@@ -32,8 +32,8 @@ AspNet.Examples/
 
 ### 1. Gereksinimleri Kontrol Et
 
-- .NET 9.0 SDK
-- Linbik.App çalışır durumda (http://localhost:5481 veya https://dev.linbik.com)
+- .NET 10.0 SDK
+- Linbik platformu çalışır durumda ([linbik.com](https://linbik.com) veya lokal geliştirme)
 
 ### 2. Yapılandırmayı Güncelle
 
@@ -42,7 +42,7 @@ AspNet.Examples/
 ```json
 {
   "Linbik": {
-    "LinbikUrl": "http://localhost:5481",
+    "LinbikUrl": "https://api.linbik.com",
     "ServiceId": "YOUR-SERVICE-GUID",
     "Clients": [
       {
@@ -231,16 +231,27 @@ public IActionResult RateLimitedAction()
 {
   "Linbik": {
     // Core ayarları
-    "LinbikUrl": "http://localhost:5481",
+    "LinbikUrl": "https://api.linbik.com",  // veya lokal: "http://localhost:5481"
+    "Name": "Web App",
     "ServiceId": "guid",
     "ApiKey": "lnbk_xxx",
+    
+    // Client yapılandırması
+    "Clients": [
+      {
+        "ClientId": "your-client-guid",
+        "RedirectUrl": "https://yourapp.com",
+        "ActionResultType": "Redirect"
+      }
+    ],
     
     // JwtAuth ayarları
     "JwtAuth": {
       "SecretKey": "min-32-chars-secret-key",
       "JwtIssuer": "linbik-example",
       "JwtAudience": "linbik-example-client",
-      "PkceEnabled": false
+      "PkceEnabled": false,
+      "AutoUpdateRedirectUri": true
     },
     
     // Server ayarları (Integration service)
@@ -249,7 +260,7 @@ public IActionResult RateLimitedAction()
       "PackageName": "service-test"
     },
     
-    // Resilience ayarları
+    // Resilience ayarları (Polly)
     "Resilience": {
       "Enabled": true,
       "MaxRetryAttempts": 3,
@@ -261,16 +272,23 @@ public IActionResult RateLimitedAction()
     // Rate Limit ayarları
     "RateLimit": {
       "Enabled": true,
+      "PolicyName": "LinbikAuth",
       "PermitLimit": 10,
-      "WindowSeconds": 60
+      "WindowSeconds": 60,
+      "QueueLimit": 0
     },
     
     // Audit ayarları
     "Audit": {
       "Enabled": true,
       "LogSuccessfulOperations": true,
-      "IncludeIpAddress": true
+      "IncludeIpAddress": true,
+      "MaskSensitiveData": true
     },
+
+    // Heartbeat (SDK-to-server sağlık sinyali)
+    "EnableHeartbeat": true,
+    "HeartbeatIntervalSeconds": 60,
     
     // YARP ayarları
     "YARP": {
@@ -292,7 +310,7 @@ public IActionResult RateLimitedAction()
 
 1. https://localhost:7020/Test adresini aç
 2. "Linbik ile Giriş Yap" butonuna tıkla
-3. Linbik.App'te giriş yap
+3. Linbik'te giriş yap
 4. Dashboard'a geri dön ve kullanıcı bilgilerini gör
 
 ### Senaryo 2: Protected Endpoint
@@ -337,13 +355,13 @@ curl https://localhost:7020/api/payment/charge \
 
 ### "Authorization code is missing"
 
-**Çözüm**: Linbik.App'e doğru redirect URL'yi kontrol et.
+**Çözüm**: linbik.com'da doğru redirect URL'yi kontrol et.
 
 ### "Token exchange failed"
 
 **Çözüm**: 
 1. `appsettings.json`'daki ApiKey doğru mu?
-2. Linbik.App çalışıyor mu?
+2. Linbik (api.linbik.com) çalışıyor mu?
 3. ServiceId ve ClientId doğru mu?
 
 ### "Invalid JWT signature"
@@ -360,7 +378,7 @@ curl https://localhost:7020/api/payment/charge \
 - [Linbik.JwtAuthManager README](../../../src/AspNet/Linbik.JwtAuthManager/README.md)
 - [Linbik.Server README](../../../src/AspNet/Linbik.Server/README.md)
 - [Linbik.YARP README](../../../src/AspNet/Linbik.YARP/README.md)
-- [Linbik.App README](../../../src/Clients/Linbik.App/README.md)
+- [Linbik Platform](https://linbik.com) — Servis kayıt ve yönetim
 
 ## 📄 Lisans
 
@@ -368,5 +386,5 @@ Bu proje özel bir lisans altında yayınlanmaktadır.
 
 ---
 
-**Version**: 2.4.0  
-**Last Updated**: 28 Şubat 2026
+**Version**: 1.2.0  
+**Last Updated**: 2 Nisan 2026

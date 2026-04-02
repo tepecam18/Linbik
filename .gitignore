@@ -389,3 +389,4 @@ logs
 .env.*
 !.env.example
 .sonarqube/
+publish-settings.txt

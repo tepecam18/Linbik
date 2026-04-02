@@ -25,7 +25,7 @@ http://localhost:7020/test
 ### Giriş Yapmadıysa
 - ❌ "Kullanıcı Giriş Yapmamış" durumu
 - 🔵 **"Linbik ile Giriş Yap"** butonu
-- Tıklayınca → `/linbik/login` → Linbik.App'e redirect
+- Tıklayınca → `/linbik/login` → linbik.com'a redirect
 
 ### Giriş Yaptıysa
 - ✅ "Kullanıcı Giriş Yapmış" durumu
@@ -50,7 +50,7 @@ Start http://localhost:7020/test
 
 # 3. "Linbik ile Giriş Yap" butonuna tıkla
 
-# 4. Linbik.App'te giriş yap
+# 4. Linbik'te giriş yap
 
 # 5. Dashboard'a geri dön ve bilgileri gör
 ```
@@ -175,4 +175,4 @@ Linbik kütüphaneleri bu endpoint'leri otomatik oluşturur:
 
 ---
 
-**Last Updated**: 31 Ocak 2026
+**Last Updated**: 2 Nisan 2026

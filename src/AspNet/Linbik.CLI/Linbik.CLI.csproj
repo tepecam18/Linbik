@@ -9,12 +9,16 @@
 		<!-- .NET Global Tool -->
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>linbik</ToolCommandName>
-		<PackageId>linbik-cli</PackageId>
+		<PackageId>Linbik.Cli</PackageId>
 
 		<PackageVersion>0.0.1</PackageVersion>
 		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
-		<Description>Linbik CLI — Setup and manage Linbik authentication services from the terminal.</Description>
+		<Description>Command-line tool to bootstrap Linbik projects and handle service registration bindings on Linbik.com.</Description>
+		<Authors>tepecam18</Authors>
+		<Company>Linbik</Company>
+		<PackageTags>authentication;jwt;yarp;tepecam18;linbik;cli;tool</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 
 		<Deterministic>true</Deterministic>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -8,7 +8,11 @@
 		<PackageVersion>0.0.2</PackageVersion>
 		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
-		<Description>This package is for testing purposes only. Not available for public use.</Description>
+		<Description>Provides seamless Linbik JWT Authorize and Login capabilities. Registration and login flows are executed on Linbik.com and handled securely by this package.</Description>
+		<Authors>tepecam18</Authors>
+		<Company>Linbik</Company>
+		<PackageTags>authentication;jwt;yarp;tepecam18;linbik;auth;login</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 

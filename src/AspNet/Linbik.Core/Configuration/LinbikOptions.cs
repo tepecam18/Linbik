@@ -9,7 +9,7 @@ public sealed class LinbikClientConfig
     /// Client name identifier (e.g., "web", "mobile", "admin")
     /// Used for selecting which client config to use in login flow
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = "Default";
 
     /// <summary>
     /// Client ID (from Linbik client registration)
@@ -17,41 +17,25 @@ public sealed class LinbikClientConfig
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Base URL for this client
-    /// For web clients: Application base URL (e.g., "https://myapp.com")
-    /// For mobile clients: Deep link scheme (e.g., "myapp://")
-    /// </summary>
-    public string BaseUrl { get; set; } = "/";
-
-    /// <summary>
-    /// Default redirect path for this client after successful authentication
-    /// Combined with BaseUrl to form complete redirect URL
-    /// For web clients: URL path (e.g., "/dashboard")
-    /// For mobile clients: Deep link path (e.g., "auth/callback")
+    /// Redirect URL for this client (e.g., "https://myapp.com")
     /// </summary>
     public string RedirectUrl { get; set; } = "/";
 
     /// <summary>
-    /// Client type (Web or Mobile)
-    /// Web clients receive redirect, Mobile clients receive JSON response
+    /// Response type for the authorization flow
+    /// Redirect: SDK will perform a redirect to the authorization URL (suitable for web apps)
+    /// Json: SDK will return the authorization URL and tokens (suitable for mobile apps)
     /// </summary>
-    public LinbikClientType ClientType { get; set; } = LinbikClientType.Web;
+    public ActionResultType ActionResultType { get; set; } = ActionResultType.Redirect;
 }
 
 /// <summary>
 /// Client type enumeration
 /// </summary>
-public enum LinbikClientType
+public enum ActionResultType
 {
-    /// <summary>
-    /// Web client - receives redirects for auth flow
-    /// </summary>
-    Web,
-
-    /// <summary>
-    /// Mobile client - receives JSON responses
-    /// </summary>
-    Mobile
+    Redirect, // For web apps - SDK will perform a redirect to the authorization URL
+    Json      // For mobile apps - SDK will return the authorization URL and tokens
 }
 
 public sealed class LinbikOptions

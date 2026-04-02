@@ -37,6 +37,7 @@ public sealed class LinbikCredentials
     public string ClientId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
     public string? ClaimToken { get; set; }
+    public string? ClaimUrl { get; set; }
     public bool IsClaimed { get; set; }
     public DateTime ProvisionedAt { get; set; }
     public DateTime ExpiresAt { get; set; }

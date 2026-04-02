@@ -147,7 +147,7 @@ public static class JwtAuthManagerExtensions
     /// </summary>
     private static bool IsMobileClient(Core.Configuration.LinbikClientConfig? clientConfig)
     {
-        return clientConfig?.ClientType == Core.Configuration.LinbikClientType.Mobile;
+        return clientConfig?.ActionResultType == Core.Configuration.ActionResultType.Json;
     }
 
     /// <summary>
@@ -184,6 +184,7 @@ public static class JwtAuthManagerExtensions
         string errorMessage,
         int statusCode = 400)
     {
+        throw new NotImplementedException("This method is not implemented yet. Please implement ReturnAuthError to return appropriate error responses based on client type (web vs mobile).");
         // Mobile clients always get JSON response
         if (IsMobileClient(clientConfig))
         {
@@ -264,7 +265,8 @@ public static class JwtAuthManagerExtensions
                 var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
                 if (provisionClient != null)
                 {
-                    await provisionClient.EnsureProvisionedAsync(context.RequestAborted);
+                    string appUrl = context.Request.Scheme + "://" + context.Request.Host.Value;
+                    await provisionClient.EnsureProvisionedAsync(appUrl, options.LoginCallbackPath, context.RequestAborted);
                 }
             }
             // clientId is required - in KeylessMode, auto-use first client
@@ -284,7 +286,7 @@ public static class JwtAuthManagerExtensions
             var clientConfig = GetClientConfig(linbikOptions, name);
             if (clientConfig == null)
             {
-                return Results.BadRequest(new LBaseResponse<object>($"Client configuration not found for name: {name}"));
+                return Results.BadRequest(new LBaseResponse<object>($"Client configuration not found for name: {name}."));
             }
 
             // Build initiate request
@@ -304,9 +306,11 @@ public static class JwtAuthManagerExtensions
 
             // Call API to initiate auth — saves data server-side, returns redirect URL
             var initiateResponse = await linbikClient.InitiateAuthAsync(initiateRequest, context.RequestAborted);
-            if (initiateResponse is null)
+            if (!initiateResponse.IsSuccess || initiateResponse.Data is null)
             {
-                return Results.BadRequest(new LBaseResponse<object>("Failed to initiate authorization flow."));
+                var errorMessage = initiateResponse.FriendlyMessage?.Message ?? "Failed to initiate authorization flow.";
+                return Results.BadRequest(new LBaseResponse<object>(
+                    initiateResponse.FriendlyMessage?.Title ?? "initiate_failed", errorMessage));
             }
 
             if (IsMobileClient(clientConfig))
@@ -314,11 +318,11 @@ public static class JwtAuthManagerExtensions
                 // For mobile clients, return the URL in JSON
                 return Results.Ok(new LBaseResponse<LoginResponse>(new LoginResponse
                 {
-                    RedirectPath = initiateResponse.RedirectUrl
+                    RedirectPath = initiateResponse.Data.RedirectUrl
                 }));
             }
 
-            return Results.Redirect(initiateResponse.RedirectUrl);
+            return Results.Redirect(initiateResponse.Data.RedirectUrl);
         }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
 
         // Login callback - exchange authorization code for tokens
@@ -341,6 +345,15 @@ public static class JwtAuthManagerExtensions
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Authorization code is required", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
                     return ReturnAuthError(context, clientConfig, redirectPath, "Authorization code is required");
+                }
+
+                // Keyless Mode guard: ensure provisioning is complete before exchanging code
+                if (linbikOptions.KeylessMode && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
+                {
+                    logger.LogWarning("Login callback received before Keyless Mode provisioning completed. ServiceId or ApiKey is empty.");
+                    await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Keyless Mode provisioning not complete", false);
+                    metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
+                    return ReturnAuthError(context, clientConfig, redirectPath, "Service is still initializing. Please try again in a moment.");
                 }
 
                 // Exchange code for tokens
@@ -369,18 +382,18 @@ public static class JwtAuthManagerExtensions
                     // If returnPath in query, combine with BaseUrl
                     if (!string.IsNullOrEmpty(pathFromQuery) && clientConfig != null)
                     {
-                        redirectPath = clientConfig.BaseUrl.TrimEnd('/') + "/" + pathFromQuery.TrimStart('/');
+                        redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + pathFromQuery.TrimStart('/');
                     }
                     // If no returnPath in query, use client's default (BaseUrl + RedirectUrl)
                     else if (clientConfig != null)
                     {
-                        redirectPath = clientConfig.BaseUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
+                        redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
                     }
                 }
                 else if (clientConfig != null)
                 {
                     // No query parameters, use client's default (BaseUrl + RedirectUrl)
-                    redirectPath = clientConfig.BaseUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
+                    redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
                 }
 
                 // PKCE verification (client-side)
@@ -452,7 +465,7 @@ public static class JwtAuthManagerExtensions
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
-
+                //TODO: clientConfig null geliyor
                 // Return success based on client type
                 return ReturnAuthSuccess(context, clientConfig, redirectPath, responseData);
             }

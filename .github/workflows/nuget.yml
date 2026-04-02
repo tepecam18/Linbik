@@ -53,6 +53,10 @@ jobs:
     - name: Pack Linbik.Server (with updated Linbik.Core version)
       run: dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} 
 
+    - name: Pack Linbik.Cli
+      run: dotnet pack ./src/AspNet/Linbik.Cli/Linbik.Cli.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
+
+
     - name: Publish all packages
       run: |
         dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -107,9 +107,9 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
                 {
                     errors.Add($"Linbik client '{client.ClientId}': ClientId must be a valid GUID. Current value: '{client.ClientId}'.");
                 }
-                if (client.ClientType != LinbikClientType.Web && client.ClientType != LinbikClientType.Mobile)
+                if (client.ActionResultType != ActionResultType.Redirect && client.ActionResultType != ActionResultType.Json)
                 {
-                    errors.Add($"Linbik client '{client.ClientId}': ClientType must be either 'Web' or 'Mobile'. Current value: '{client.ClientType}'.");
+                    errors.Add($"Linbik client '{client.ClientId}': ActionResultType must be either 'Redirect' or 'Json'. Current value: '{client.ActionResultType}'.");
                 }
             }
         }

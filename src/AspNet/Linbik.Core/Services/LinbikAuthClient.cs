@@ -1,5 +1,6 @@
 using Linbik.Core.Configuration;
 using Linbik.Core.Models;
+using Linbik.Core.Responses;
 using Linbik.Core.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -36,12 +37,12 @@ public sealed class LinbikAuthClient(
     }
 
     /// <inheritdoc />
-    public async Task<LinbikInitiateResponse?> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default)
+    public async Task<LBaseResponse<LinbikInitiateResponse>> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default)
     {
         if (request.ClientId == Guid.Empty)
         {
             _logger.LogWarning("InitiateAuthAsync called with empty client ID");
-            return null;
+            return new LBaseResponse<LinbikInitiateResponse>("invalid_request", "Client ID is required.");
         }
 
         try
@@ -55,26 +56,27 @@ public sealed class LinbikAuthClient(
             AddDiagnosticHeaders(httpRequest);
 
             var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogWarning("Auth initiate failed with status {StatusCode}: {Error}",
-                    response.StatusCode, errorContent);
-                return null;
+                    response.StatusCode, body);
             }
 
-            return await response.Content.ReadFromJsonAsync<LinbikInitiateResponse>(JsonOptions, cancellationToken);
+            // Deserialize as LBaseResponse wrapper (API always returns BaseResponse<T>)
+            var result = JsonSerializer.Deserialize<LBaseResponse<LinbikInitiateResponse>>(body, JsonOptions);
+            return result ?? new LBaseResponse<LinbikInitiateResponse>("deserialization_error", "Failed to parse server response.");
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "HTTP request failed during auth initiate");
-            return null;
+            return new LBaseResponse<LinbikInitiateResponse>("connection_error", $"Could not reach Linbik server: {ex.Message}");
         }
         catch (JsonException ex)
         {
             _logger.LogError(ex, "JSON deserialization failed during auth initiate");
-            return null;
+            return new LBaseResponse<LinbikInitiateResponse>("deserialization_error", $"Invalid response format: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -107,20 +109,20 @@ public sealed class LinbikAuthClient(
             request.Headers.Add("ApiKey", _options.ApiKey);
             AddDiagnosticHeaders(request);
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            var responseMessage = await _httpClient.SendAsync(request, cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
+            var responseBody = await responseMessage.Content.ReadAsStringAsync(cancellationToken);
+            var response = JsonSerializer.Deserialize<LBaseResponse<LinbikTokenResponse>>(responseBody, JsonOptions);
+            if (!responseMessage.IsSuccessStatusCode || !(response?.IsSuccess ?? false))
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogWarning("Token exchange failed with status {StatusCode}: {Error}",
-                    response.StatusCode, errorContent);
+                    responseMessage.StatusCode, responseBody);
 
                 // Try to deserialize error response
                 try
                 {
-                    var errorResponse = JsonSerializer.Deserialize<LinbikErrorResponse>(errorContent, JsonOptions);
                     _logger.LogWarning("Token exchange error: {Error} - {Description}",
-                        errorResponse?.Error, errorResponse?.ErrorDescription);
+                        response?.FriendlyMessage?.Title, response?.FriendlyMessage?.Message);
                 }
                 catch
                 {
@@ -130,8 +132,7 @@ public sealed class LinbikAuthClient(
                 return null;
             }
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<LinbikTokenResponse>(JsonOptions, cancellationToken);
-            return tokenResponse;
+            return response?.Data;
         }
         catch (HttpRequestException ex)
         {

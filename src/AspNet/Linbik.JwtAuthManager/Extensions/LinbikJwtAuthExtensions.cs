@@ -190,10 +190,10 @@ public static class LinbikJwtAuthExtensions
 
             // Build redirect URI from first client's BaseUrl + LoginCallbackPath
             var client = linbikOptions.Clients?.FirstOrDefault();
-            if (client is null || string.IsNullOrWhiteSpace(client.BaseUrl))
+            if (client is null || string.IsNullOrWhiteSpace(client.RedirectUrl))
                 return;
 
-            var baseUrl = client.BaseUrl.TrimEnd('/');
+            var baseUrl = client.RedirectUrl.TrimEnd('/');
             var callbackPath = jwtOptions.LoginCallbackPath?.TrimStart('/') ?? "api/linbik/callback";
             var redirectUri = $"{baseUrl}/{callbackPath}";
             var name = linbikOptions.Name;
