@@ -52,6 +52,9 @@ public static class LinbikServiceCollectionExtensions
         return new LinbikBuilder(services);
     }
 
+    public static LinbikBuilder AddLinbik(this IServiceCollection services)
+        => services.AddLinbik(_ => { });
+
     /// <summary>
     /// Adds common authentication services shared by all overloads.
     /// </summary>

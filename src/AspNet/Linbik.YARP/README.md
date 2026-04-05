@@ -27,7 +27,7 @@ dotnet add package Linbik.YARP
 
 ```csharp
 // In Program.cs
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+builder.Services.AddLinbik()
     .AddLinbikJwtAuth()
     .AddLinbikYarp();
 
@@ -201,7 +201,7 @@ For fine-grained control with YARP reverse proxy routes:
 ```csharp
 // Add Linbik token transform to YARP
 builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+    .LoadFromConfig()
     .AddLinbikTokenTransform();
 ```
 

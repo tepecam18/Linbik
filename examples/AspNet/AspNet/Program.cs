@@ -12,17 +12,17 @@ builder.Services.AddOpenApi();
 
 
 // ✅ Linbik - Fluent builder pattern for all Linbik services
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
-    .AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik:JwtAuth"))
-    .AddLinbikServer(builder.Configuration.GetSection("Linbik:Server"))
-    .AddLinbikYarp(builder.Configuration.GetSection("Linbik:YARP"));
+builder.Services.AddLinbik()
+    .AddLinbikJwtAuth()
+    .AddLinbikServer()
+    .AddLinbikYarp();
 
 // ✅ Linbik Integration Handler - Handles integration lifecycle events from Linbik platform
 // Override with custom handler: builder.Services.AddLinbikIntegrationHandler<MyCustomHandler>();
 builder.Services.AddLinbikIntegrationHandler();
 
 // ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
-builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik:RateLimiting"));
+builder.Services.AddLinbikRateLimiting();
 
 // Logging for development
 builder.Logging.ClearProviders();

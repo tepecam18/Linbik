@@ -100,7 +100,7 @@ JavaScript/TypeScript için kütüphane olmadan OAuth flow:
 3. Kullanıcı Linbik'te giriş yapar
    ↓
 4. Linbik → Client callback (authorization code ile)
-   GET {APP_URL}/auth/callback?code=xxx
+   GET {APP_URL}/api/linbik/callback?code=xxx
    ↓
 5. Client (server-side) → Linbik token exchange
    POST {LINBIK_URL}/oauth/token
@@ -160,7 +160,7 @@ export const useLinbik = () => {
 ### 2. OAuth Callback (Server-Side API Route)
 
 ```typescript
-// server/api/auth/callback.get.ts
+// server/api/linbik/callback.get.ts
 import { H3Event } from 'h3'
 
 export default defineEventHandler(async (event: H3Event) => {

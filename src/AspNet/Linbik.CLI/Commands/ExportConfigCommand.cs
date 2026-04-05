@@ -25,7 +25,7 @@ internal static class ExportConfigCommand
 
     private static async Task HandleAsync(string? targetPath)
     {
-        ConsoleUI.Header("Linbik Export Config");
+        ConsoleUI.Header(Messages.ExportConfigHeader);
         Console.WriteLine();
 
         var basePath = Directory.GetCurrentDirectory();
@@ -34,26 +34,26 @@ internal static class ExportConfigCommand
         var credentials = await CredentialsManager.LoadAsync(basePath);
         if (credentials == null)
         {
-            ConsoleUI.Error("Linbik kimlik bilgileri bulunamadı.");
-            ConsoleUI.Info("Önce 'linbik init' komutunu çalıştırın.");
+            ConsoleUI.Error(Messages.CredentialsNotFound);
+            ConsoleUI.Info(Messages.RunInitFirst);
             return;
         }
 
         ConsoleUI.Info($"ServiceId: {credentials.ServiceId}");
         ConsoleUI.Info($"ClientId:  {credentials.ClientId}");
-        ConsoleUI.Info($"Claimed:   {(credentials.IsClaimed ? "Evet" : "Hayır")}");
+        ConsoleUI.Info($"Claimed:   {(credentials.IsClaimed ? Messages.Yes : Messages.No)}");
         Console.WriteLine();
 
         // Determine target file
         var appSettingsPath = targetPath ?? AppSettingsManager.FindAppSettings(basePath);
         if (appSettingsPath == null)
         {
-            ConsoleUI.Error("appsettings.json bulunamadı.");
-            ConsoleUI.Info("--path parametresi ile dosya yolunu belirtin.");
+            ConsoleUI.Error(Messages.AppSettingsNotFoundShort);
+            ConsoleUI.Info(Messages.SpecifyPathOption);
             return;
         }
 
-        ConsoleUI.Step($"Yazılıyor: {appSettingsPath}");
+        ConsoleUI.Step(Messages.WritingTo(appSettingsPath));
 
         // Read existing config to preserve Linbik URL
         var existingConfig = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
@@ -66,7 +66,7 @@ internal static class ExportConfigCommand
             credentials.ClientId,
             credentials.ApiKey);
 
-        ConsoleUI.Success("Konfigürasyon başarıyla yazıldı.");
+        ConsoleUI.Success(Messages.ConfigWrittenSuccess);
         Console.WriteLine();
 
         ConsoleUI.Info("appsettings.json içeriği:");

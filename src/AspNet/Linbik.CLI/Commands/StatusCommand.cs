@@ -17,7 +17,7 @@ internal static class StatusCommand
 
     private static async Task HandleAsync()
     {
-        ConsoleUI.Header("Linbik Status");
+        ConsoleUI.Header(Messages.StatusHeader);
         Console.WriteLine();
 
         var basePath = Directory.GetCurrentDirectory();
@@ -26,25 +26,25 @@ internal static class StatusCommand
         var credentials = await CredentialsManager.LoadAsync(basePath);
         if (credentials == null)
         {
-            ConsoleUI.Error("Linbik konfigürasyonu bulunamadı.");
-            ConsoleUI.Info("Önce 'linbik init' komutunu çalıştırın.");
+            ConsoleUI.Error(Messages.ConfigNotFound);
+            ConsoleUI.Info(Messages.RunInitFirst);
             return;
         }
 
         // Local credentials info
-        ConsoleUI.Step("Yerel Konfigürasyon:");
+        ConsoleUI.Step(Messages.LocalConfig);
         ConsoleUI.Info($"  ServiceId:   {credentials.ServiceId}");
         ConsoleUI.Info($"  ClientId:    {credentials.ClientId}");
-        ConsoleUI.Info($"  Claimed:     {(credentials.IsClaimed ? "✓ Evet" : "✗ Hayır")}");
+        ConsoleUI.Info($"  Claimed:     {(credentials.IsClaimed ? Messages.Provisioned : Messages.NotProvisioned)}");
         ConsoleUI.Info($"  Provisioned: {credentials.ProvisionedAt:yyyy-MM-dd HH:mm:ss UTC}");
 
         if (credentials.ExpiresAt != default)
         {
             var remaining = credentials.ExpiresAt - DateTime.UtcNow;
             if (remaining.TotalSeconds > 0)
-                ConsoleUI.Info($"  Expires:     {credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC} ({remaining.TotalHours:F0}h kaldı)");
+                ConsoleUI.Info($"  Expires:     {credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC} ({Messages.Remaining(remaining.TotalHours)})");
             else
-                ConsoleUI.Warning($"  Expires:     SÜRESİ DOLMUŞ ({credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC})");
+                ConsoleUI.Warning($"  Expires:     {Messages.Expired} ({credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC})");
         }
 
         Console.WriteLine();
@@ -64,17 +64,17 @@ internal static class StatusCommand
                 // Check if credentials match appsettings
                 if (config.ServiceId != credentials.ServiceId)
                 {
-                    ConsoleUI.Warning("  ⚠ ServiceId eşleşmiyor! 'linbik export-config' çalıştırın.");
+                    ConsoleUI.Warning($"  {Messages.ServiceIdMismatch}");
                 }
             }
             else
             {
-                ConsoleUI.Warning($"appsettings.json'da Linbik konfigürasyonu yok: {appSettingsPath}");
+                ConsoleUI.Warning(Messages.NoLinbikConfigInAppSettings(appSettingsPath));
             }
         }
         else
         {
-            ConsoleUI.Warning("appsettings.json bulunamadı.");
+            ConsoleUI.Warning(Messages.AppSettingsNotFoundShort);
         }
 
         Console.WriteLine();
@@ -88,7 +88,7 @@ internal static class StatusCommand
                 linbikUrl = config.LinbikUrl;
         }
 
-        ConsoleUI.Step("Sunucu Durumu:");
+        ConsoleUI.Step(Messages.ServerStatus);
         try
         {
             using var apiClient = new LinbikApiClient(linbikUrl);
@@ -96,27 +96,27 @@ internal static class StatusCommand
 
             if (status != null)
             {
-                ConsoleUI.Success($"  Bağlantı:    ✓ OK ({linbikUrl})");
+                ConsoleUI.Success($"  {Messages.ConnectionOk(linbikUrl)}");
                 ConsoleUI.Info($"  Service:     {status.Name}");
-                ConsoleUI.Info($"  Provisioned: {(status.IsProvisioned ? "✓ Evet" : "✗ Hayır")}");
+                ConsoleUI.Info($"  Provisioned: {(status.IsProvisioned ? Messages.Provisioned : Messages.NotProvisioned)}");
 
                 if (status.Clients is { Count: > 0 })
                 {
-                    ConsoleUI.Info($"  Clients:     {status.Clients.Count} adet");
+                    ConsoleUI.Info($"  Clients:     {Messages.ClientCount(status.Clients.Count)}");
                     foreach (var client in status.Clients)
                     {
-                        ConsoleUI.Info($"    - {client.Name}: {client.RedirectUri} ({(client.IsActive ? "aktif" : "pasif")})");
+                        ConsoleUI.Info($"    - {client.Name}: {client.RedirectUri} ({(client.IsActive ? Messages.Active : Messages.Inactive)})");
                     }
                 }
             }
             else
             {
-                ConsoleUI.Warning($"  Bağlantı:    ✗ Yanıt alınamadı ({linbikUrl})");
+                ConsoleUI.Warning($"  {Messages.ConnectionNoResponse(linbikUrl)}");
             }
         }
         catch (Exception ex)
         {
-            ConsoleUI.Error($"  Bağlantı:    ✗ Hata — {ex.Message}");
+            ConsoleUI.Error($"  {Messages.ConnectionError(ex.Message)}");
         }
 
         Console.WriteLine();

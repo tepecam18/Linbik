@@ -31,7 +31,18 @@ public static class LinbikJwtAuthExtensions
         this ILinbikBuilder builder,
         Action<JwtAuthOptions> configureOptions)
     {
-        builder.Services.AddLinbikJwtAuth(configureOptions);
+        var options = new JwtAuthOptions();
+        configureOptions(options);
+        builder.Services.Configure(configureOptions);
+        builder.Services.AddSingleton<IJwtHelper, JwtHelperService>();
+        builder.Services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
+        builder.Services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
+
+        // Auto-generate SecretKey in KeylessMode
+        AddKeylessModePostConfigure(builder.Services);
+
+        AddLinbikAuthenticationDeferred(builder.Services);
+
         return builder;
     }
 
@@ -42,53 +53,24 @@ public static class LinbikJwtAuthExtensions
         this ILinbikBuilder builder,
         IConfigurationSection configuration)
     {
-        builder.Services.AddLinbikJwtAuth(configuration);
+        ArgumentNullException.ThrowIfNull(configuration);
+        builder.Services.Configure<JwtAuthOptions>(configuration);
+        builder.Services.AddSingleton<IJwtHelper, JwtHelperService>();
+        builder.Services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
+        builder.Services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
+
+        // Auto-generate SecretKey in KeylessMode
+        AddKeylessModePostConfigure(builder.Services);
+
+        AddLinbikAuthenticationDeferred(builder.Services);
+
         return builder;
     }
 
-    /// <summary>
-    /// Add Linbik JWT authentication services with custom options
-    /// </summary>
-    public static IServiceCollection AddLinbikJwtAuth(
-        this IServiceCollection services,
-        Action<JwtAuthOptions> configureOptions)
+    public static ILinbikBuilder AddLinbikJwtAuth(this ILinbikBuilder builder)
     {
-        var options = new JwtAuthOptions();
-        configureOptions(options);
-        services.Configure(configureOptions);
-        services.AddSingleton<IJwtHelper, JwtHelperService>();
-        services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
-        services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
-
-        // Auto-generate SecretKey in KeylessMode
-        AddKeylessModePostConfigure(services);
-
-        AddLinbikAuthenticationDeferred(services);
-
-        return services;
-    }
-
-    /// <summary>
-    /// Add Linbik JWT authentication services from configuration
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The application configuration.</param>
-    public static IServiceCollection AddLinbikJwtAuth(
-        this IServiceCollection services,
-        IConfigurationSection configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
-        services.Configure<JwtAuthOptions>(configuration);
-        services.AddSingleton<IJwtHelper, JwtHelperService>();
-        services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
-        services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
-
-        // Auto-generate SecretKey in KeylessMode
-        AddKeylessModePostConfigure(services);
-
-        AddLinbikAuthenticationDeferred(services);
-
-        return services;
+        builder.AddLinbikJwtAuth(_ => { });
+        return builder;
     }
 
     /// <summary>
@@ -151,7 +133,14 @@ public static class LinbikJwtAuthExtensions
         services.AddAuthentication()
             .AddJwtBearer(LinbikScheme, _ => { });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("LinbikAuthorize", policy =>
+            {
+                policy.AddAuthenticationSchemes(LinbikScheme);
+                policy.RequireAuthenticatedUser();
+            });
+        });
     }
 
     /// <summary>

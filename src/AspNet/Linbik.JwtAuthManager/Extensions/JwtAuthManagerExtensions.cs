@@ -266,7 +266,7 @@ public static class JwtAuthManagerExtensions
                 if (provisionClient != null)
                 {
                     string appUrl = context.Request.Scheme + "://" + context.Request.Host.Value;
-                    await provisionClient.EnsureProvisionedAsync(appUrl, options.LoginCallbackPath, context.RequestAborted);
+                    await provisionClient.EnsureProvisionedAsync(appUrl, options.LoginCallbackPath, name, context.RequestAborted);
                 }
             }
             // clientId is required - in KeylessMode, auto-use first client
@@ -439,17 +439,6 @@ public static class JwtAuthManagerExtensions
 
                 // Set all auth cookies
                 SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry);
-
-                // Keyless Mode: handle claim if service was claimed during this token exchange
-                if (tokenResponse.Claimed == true && !string.IsNullOrEmpty(tokenResponse.NewApiKey))
-                {
-                    var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
-                    if (provisionClient != null)
-                    {
-                        await provisionClient.HandleClaimAsync(tokenResponse.NewApiKey, context.RequestAborted);
-                        logger.LogInformation("Keyless Mode: Service claimed successfully for user {UserId}", tokenResponse.UserId);
-                    }
-                }
 
                 // Log successful login
                 timer.Stop();

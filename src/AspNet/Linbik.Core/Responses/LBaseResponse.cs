@@ -44,7 +44,7 @@ public sealed class LBaseResponse<T> where T : class
         IsSuccess = isSuccess;
     }
 
-    public LBaseResponse(bool isSuccess = true)
+    public LBaseResponse(bool isSuccess)
     {
         IsSuccess = isSuccess;
     }

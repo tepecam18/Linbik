@@ -29,7 +29,22 @@ internal static class CredentialsManager
             return null;
 
         var json = await File.ReadAllTextAsync(filePath);
-        var creds = JsonSerializer.Deserialize<CliCredentials>(json, JsonOptions);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            File.Delete(filePath);
+            return null;
+        }
+
+        CliCredentials? creds;
+        try
+        {
+            creds = JsonSerializer.Deserialize<CliCredentials>(json, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            File.Delete(filePath);
+            return null;
+        }
 
         // Check if expired and unclaimed
         if (creds != null && creds.ExpiresAt < DateTime.UtcNow && !creds.IsClaimed)
@@ -108,6 +123,7 @@ internal sealed class CliCredentials
     public string ClientId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
     public string? ClaimToken { get; set; }
+    public string ClaimUrl { get; set; } = string.Empty;
     public bool IsClaimed { get; set; }
     public DateTime ProvisionedAt { get; set; }
     public DateTime ExpiresAt { get; set; }

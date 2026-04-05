@@ -24,7 +24,7 @@ dotnet add package Linbik.Server
 
 ```csharp
 // In Program.cs
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+builder.Services.AddLinbik()
     .AddLinbikServer();
 
 var app = builder.Build();
@@ -142,7 +142,7 @@ builder.Services.AddLinbikTelemetry(options =>
 ## 🏥 Health Checks
 
 ```csharp
-builder.Services.AddLinbikHealthChecks(builder.Configuration.GetSection("Linbik"));
+builder.Services.AddLinbikHealthChecks();
 
 app.UseLinbikHealthChecks();
 ```

@@ -69,7 +69,7 @@ internal static class AppSettingsManager
         {
             ["ClientId"] = clientId,
             ["BaseUrl"] = baseUrl ?? "https://localhost:5001",
-            ["RedirectUrl"] = redirectUrl ?? "/auth/callback",
+            ["RedirectUrl"] = redirectUrl ?? "/api/linbik/callback",
             ["ClientType"] = "Web"
         };
 

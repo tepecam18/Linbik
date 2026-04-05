@@ -41,10 +41,10 @@ public enum ActionResultType
 public sealed class LinbikOptions
 {
     /// <summary>
-    /// Linbik server base URL (e.g., "https://linbik.com")
+    /// Linbik server base URL (e.g., "https://api.linbik.com")
     /// Used for authorization redirects and token exchange
     /// </summary>
-    public string LinbikUrl { get; set; } = "https://linbik.com";
+    public string LinbikUrl { get; set; } = "https://api.linbik.com";
 
     /// <summary>
     /// Service name for identification on Linbik dashboard.

@@ -22,31 +22,59 @@ dotnet add package Linbik.JwtAuthManager
 
 ### Fluent Builder (Recommended)
 
+
 ```csharp
 // In Program.cs
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+using Linbik.Core.Extensions;
+using Linbik.JwtAuthManager.Extensions;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 1. Add Linbik services
+builder.Services.AddLinbik()
     .AddLinbikJwtAuth();
 
 var app = builder.Build();
+
+// 2. Validate configuration at startup
 app.EnsureLinbik();
 
-// Map endpoints: /linbik/login, /linbik/logout, /linbik/refresh
+// 3. if using controllers, add this.
+app.UseRouting();  
+
+// 4. Add authentication and authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
+
+// 5. Map endpoints: /api/linbik/login, /api/linbik/logout, /api/linbik/refresh
 app.UseLinbikJwtAuth();
+
+app.Run();
 ```
 
-### Standalone Setup
+## 🔐 Configure JWT Authentication
+
+Choose **one** of the following approaches:
 
 ```csharp
-builder.Services.AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik"));
-```
+// Default
+AddLinbikJwtAuth();
 
+// From configuration
+AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik:JwtAuth"));
+
+// Manual
+AddLinbikJwtAuth(opt => { });
+```
+  
 ### Endpoints
 
 | Path | Method | Description |
 |------|--------|-------------|
-| `/linbik/login` | GET | Initiate OAuth flow → exchange code → set cookies |
-| `/linbik/logout` | POST | Clear all auth cookies |
-| `/linbik/refresh` | POST | Refresh tokens using refresh cookie |
+| `/api/linbik/login` | GET | Initiate OAuth flow → exchange code → set cookies |
+| `/api/linbik/logout` | POST | Clear all auth cookies |
+| `/api/linbik/refresh` | POST | Refresh tokens using refresh cookie |
+| `/api/linbik/callback` | GET | OAuth callback for code exchange |
 
 ## 💻 Usage
 
@@ -60,6 +88,21 @@ public IActionResult Protected()
     var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     return Ok(new { userId });
 }
+```
+or with minimal APIs:
+```csharp
+app.MapGet("/protected", [LinbikAuthorize] (ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    return Results.Ok(new { userId });
+});
+
+app.MapGet("/protected", (HttpContext context) =>
+{
+    var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    return Results.Ok(new { userId });
+})
+.RequireAuthorization("LinbikAuthorize");
 ```
 
 ### Access Integration Tokens
@@ -76,7 +119,7 @@ var hasIntegrations = HttpContext.HasIntegrations();
 
 ```csharp
 // In Program.cs
-builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik"));
+builder.Services.AddLinbikRateLimiting();
 
 // In middleware pipeline
 app.UseLinbikRateLimiting();
@@ -130,4 +173,4 @@ MIT License
 
 **Version**: 1.2.0  
 **Platform**: ASP.NET Core 10.0 (net10.0)  
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 2 April 2026

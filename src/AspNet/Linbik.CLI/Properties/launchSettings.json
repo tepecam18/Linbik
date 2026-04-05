@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "Linbik.CLI (Init)": {
+      "commandName": "Project",
+      //"commandLineArgs": "init"
+      "commandLineArgs": "init --url http://localhost:5461"
+    },
+    "Linbik.CLI (Status)": {
+      "commandName": "Project",
+      "commandLineArgs": "status"
+    }
+  }
+}

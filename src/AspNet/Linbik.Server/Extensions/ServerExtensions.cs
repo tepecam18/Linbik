@@ -45,34 +45,10 @@ public static class ServerExtensions
         return builder;
     }
 
-    /// <summary>
-    /// Add Linbik Server services with custom options (standalone, without builder).
-    /// Registers JWT authentication schemes and token validator.
-    /// </summary>
-    public static IServiceCollection AddLinbikServer(
-        this IServiceCollection services,
-        Action<ServerOptions> configureOptions)
+    public static ILinbikBuilder AddLinbikServer(this ILinbikBuilder builder)
     {
-        var options = new ServerOptions();
-        configureOptions(options);
-        services.Configure(configureOptions);
-        AddCommonServerServices(services, options);
-        return services;
-    }
-
-    /// <summary>
-    /// Add Linbik Server services from configuration (standalone, without builder).
-    /// Registers JWT authentication schemes and token validator.
-    /// </summary>
-    public static IServiceCollection AddLinbikServer(
-        this IServiceCollection services,
-        IConfigurationSection configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
-        var options = configuration.Get<ServerOptions>() ?? new ServerOptions();
-        services.Configure<ServerOptions>(configuration);
-        AddCommonServerServices(services, options);
-        return services;
+        builder.AddLinbikServer(_ => { });
+        return builder;
     }
 
     private static void AddCommonServerServices(IServiceCollection services, ServerOptions options)

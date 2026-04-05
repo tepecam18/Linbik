@@ -36,7 +36,8 @@ public static class RateLimitExtensions
         var options = new RateLimitOptions();
         configureOptions(options);
         services.Configure(configureOptions);
-        return services.AddCommonLinbikRateLimiting(options);
+        services.AddCommonLinbikRateLimiting(options);
+        return services;
     }
 
 
@@ -53,9 +54,16 @@ public static class RateLimitExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         var options = configuration.Get<RateLimitOptions>() ?? new RateLimitOptions();
         services.Configure<RateLimitOptions>(configuration);
-        return services.AddCommonLinbikRateLimiting(options);
+        services.AddCommonLinbikRateLimiting(options);
+        return services;
     }
 
+
+    public static IServiceCollection AddLinbikRateLimiting(this IServiceCollection services)
+    {
+        services.Configure<RateLimitOptions>(_ => { });
+        return services;
+    }
 
     /// <summary>
     /// Add rate limiting services configured for Linbik authentication

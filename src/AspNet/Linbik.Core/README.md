@@ -27,7 +27,7 @@ dotnet add package Linbik.Core
 
 ```csharp
 // In Program.cs
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+builder.Services.AddLinbik()
     .AddLinbikJwtAuth()      // optional: Linbik.JwtAuthManager
     .AddLinbikServer()       // optional: Linbik.Server
     .AddLinbikYarp();        // optional: Linbik.YARP

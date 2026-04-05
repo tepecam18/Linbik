@@ -36,6 +36,8 @@ internal sealed class LinbikApiClient : IDisposable
     /// </summary>
     public async Task<ProvisionResponse?> ProvisionAsync(string appName, string appUrl, string callbackPath, CancellationToken ct = default)
     {
+        try
+        {
         var request = new
         {
             appName,
@@ -49,12 +51,40 @@ internal sealed class LinbikApiClient : IDisposable
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(ct);
-            ConsoleUI.Error($"Provision failed ({response.StatusCode}): {error}");
+            ConsoleUI.Error(Messages.ProvisionFailed(response.StatusCode.ToString(), error));
             return null;
         }
 
-        var result = await response.Content.ReadFromJsonAsync<ApiResponse<ProvisionResponse>>(JsonOptions, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
+        {
+            ConsoleUI.Error(Messages.ServerInvalidResponse);
+            return null;
+        }
+
+        var result = JsonSerializer.Deserialize<ApiResponse<ProvisionResponse>>(body, JsonOptions);
         return result?.Data;
+        }
+        catch (HttpRequestException ex)
+        {
+            ConsoleUI.Error(Messages.HttpRequestError(ex.Message));
+            return null;
+        }
+         catch (JsonException ex)
+        {
+            ConsoleUI.Error(Messages.JsonProcessingError(ex.Message));
+            return null;
+        }
+         catch (OperationCanceledException)
+        {
+            ConsoleUI.Error(Messages.RequestTimeout);
+            return null;
+        }
+         catch (Exception ex)
+        {
+            ConsoleUI.Error(Messages.UnexpectedError(ex.Message));
+            return null;
+        }
     }
 
     /// <summary>
@@ -72,7 +102,7 @@ internal sealed class LinbikApiClient : IDisposable
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(ct);
-            ConsoleUI.Error($"Token exchange failed ({response.StatusCode}): {error}");
+            ConsoleUI.Error(Messages.TokenExchangeFailed(response.StatusCode.ToString(), error));
             return null;
         }
 
@@ -93,7 +123,7 @@ internal sealed class LinbikApiClient : IDisposable
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(ct);
-            ConsoleUI.Error($"Status check failed ({response.StatusCode}): {error}");
+            ConsoleUI.Error(Messages.StatusCheckFailed(response.StatusCode.ToString(), error));
             return null;
         }
 
@@ -119,42 +149,6 @@ internal sealed class LinbikApiClient : IDisposable
 
         return (listener, port);
     }
-
-    /// <summary>
-    /// Wait for the OAuth callback with authorization code.
-    /// Returns the code from query string.
-    /// </summary>
-    public static async Task<string?> WaitForCallbackAsync(HttpListener listener, CancellationToken ct = default)
-    {
-        try
-        {
-            var context = await listener.GetContextAsync().WaitAsync(ct);
-            var code = context.Request.QueryString["code"];
-
-            // Send response to the browser
-            var responseHtml = """
-                <html><body style="font-family:system-ui;text-align:center;padding:60px;">
-                <h2 style="color:#7c3aed;">✅ Linbik CLI</h2>
-                <p>Giriş başarılı! Bu pencereyi kapatabilirsiniz.</p>
-                <script>setTimeout(()=>window.close(),2000)</script>
-                </body></html>
-                """;
-
-            var buffer = System.Text.Encoding.UTF8.GetBytes(responseHtml);
-            context.Response.ContentType = "text/html; charset=utf-8";
-            context.Response.ContentLength64 = buffer.Length;
-            await context.Response.OutputStream.WriteAsync(buffer, ct);
-            context.Response.Close();
-
-            return code;
-        }
-        finally
-        {
-            listener.Stop();
-            listener.Close();
-        }
-    }
-
     public void Dispose() => _client.Dispose();
 }
 

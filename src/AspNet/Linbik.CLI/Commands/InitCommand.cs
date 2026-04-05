@@ -10,7 +10,7 @@ namespace Linbik.CLI.Commands;
 /// </summary>
 internal static class InitCommand
 {
-    private const string DefaultLinbikUrl = "https://linbik.com";
+    private const string DefaultLinbikUrl = "https://api.linbik.com";
 
     public static Command Create()
     {
@@ -35,7 +35,7 @@ internal static class InitCommand
 
     private static async Task HandleAsync(string linbikUrl, string? appName)
     {
-        ConsoleUI.Header("Linbik Init — Servis Kurulumu");
+        ConsoleUI.Header(Messages.InitHeader);
         Console.WriteLine();
 
         var basePath = Directory.GetCurrentDirectory();
@@ -44,30 +44,59 @@ internal static class InitCommand
         var existing = await CredentialsManager.LoadAsync(basePath);
         if (existing is { IsClaimed: true })
         {
-            ConsoleUI.Warning("Bu dizinde zaten claimed bir Linbik servisi mevcut.");
+            ConsoleUI.Warning(Messages.ExistingClaimedService);
             ConsoleUI.Info($"ServiceId: {existing.ServiceId}");
             ConsoleUI.Info($"ClientId:  {existing.ClientId}");
 
-            if (!ConsoleUI.Confirm("Mevcut konfigürasyonu sıfırlayıp yeniden başlamak istiyor musunuz?", defaultYes: false))
+            if (!ConsoleUI.Confirm(Messages.ResetConfirm, defaultYes: false))
             {
-                ConsoleUI.Info("İptal edildi.");
+                ConsoleUI.Info(Messages.Cancelled);
                 return;
             }
 
             CredentialsManager.Delete(basePath);
         }
 
+        // Check for existing appsettings.json Linbik configuration
+        var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
+        LinbikConfig? existingConfig = null;
+        if (appSettingsPath != null)
+        {
+            existingConfig = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
+            if (existingConfig != null && !string.IsNullOrEmpty(existingConfig.ServiceId))
+            {
+                ConsoleUI.Warning(Messages.ExistingAppSettingsConfig);
+                ConsoleUI.Info($"  LinbikUrl:  {existingConfig.LinbikUrl}");
+                ConsoleUI.Info($"  ServiceId:  {existingConfig.ServiceId}");
+
+                if (ConsoleUI.Confirm(Messages.UseExistingConfigConfirm))
+                {
+                    // Use existing config values — skip provisioning
+                    linbikUrl = existingConfig.LinbikUrl;
+
+                    // Still ensure Program.cs is configured
+                    InjectProgramCs(basePath);
+
+                    Console.WriteLine();
+                    ConsoleUI.Header(Messages.SetupComplete);
+                    ConsoleUI.Success(Messages.RunApp);
+                    Console.WriteLine();
+                    return;
+                }
+            }
+        }
+
         // Auto-detect app name
         appName ??= DetectAppName(basePath);
-        appName = ConsoleUI.Prompt("Servis adı", appName) ?? "MyApp";
+        appName = ConsoleUI.Prompt(Messages.PromptServiceName, appName) ?? "MyApp";
 
         // Detect app URL
         var detectedUrl = DetectAppUrl(basePath);
-        var appUrl = ConsoleUI.Prompt("Uygulama URL'i", detectedUrl) ?? "https://localhost:5001";
-        var callbackPath = ConsoleUI.Prompt("Callback path", "/auth/callback") ?? "/auth/callback";
+        var appUrl = ConsoleUI.Prompt(Messages.PromptAppUrl, detectedUrl) ?? "https://localhost:5001";
+        var callbackPath = ConsoleUI.Prompt(Messages.PromptCallbackPath, "/api/linbik/callback") ?? "/api/linbik/callback";
 
         Console.WriteLine();
-        ConsoleUI.Step("Servis oluşturuluyor...");
+        ConsoleUI.Step(Messages.StepCreatingService);
 
         // 1. Provision service
         using var apiClient = new LinbikApiClient(linbikUrl);
@@ -75,11 +104,11 @@ internal static class InitCommand
 
         if (provision == null)
         {
-            ConsoleUI.Error("Servis oluşturulamadı. Lütfen tekrar deneyin.");
+            ConsoleUI.Error(Messages.ServiceCreateFailed);
             return;
         }
 
-        ConsoleUI.Success($"Servis oluşturuldu: {appName}");
+        ConsoleUI.Success(Messages.ServiceCreated(appName));
         ConsoleUI.Info($"ServiceId: {provision.ServiceId}");
         ConsoleUI.Info($"ClientId:  {provision.ClientId}");
 
@@ -98,7 +127,7 @@ internal static class InitCommand
 
         // 2. OAuth login to claim the service
         Console.WriteLine();
-        ConsoleUI.Step("Linbik hesabınızla giriş yapın...");
+        ConsoleUI.Step(Messages.StepLoginPrompt);
 
         var claimedApiKey = await PerformOAuthLogin(apiClient, linbikUrl, provision, appUrl, callbackPath);
 
@@ -109,20 +138,15 @@ internal static class InitCommand
             credentials.ClaimToken = null;
             await CredentialsManager.SaveAsync(basePath, credentials);
 
-            ConsoleUI.Success("Servis başarıyla hesabınıza bağlandı!");
-        }
-        else
-        {
-            ConsoleUI.Warning("Servis henüz hesapla ilişkilendirilmedi. Daha sonra claim edebilirsiniz:");
-            ConsoleUI.Info($"Claim URL: {provision.ClaimUrl}");
+            ConsoleUI.Success(Messages.ServiceClaimedSuccess);
         }
 
         // 3. Write appsettings.json
         Console.WriteLine();
-        var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
+        appSettingsPath ??= AppSettingsManager.FindAppSettings(basePath);
         if (appSettingsPath != null)
         {
-            if (ConsoleUI.Confirm($"appsettings.json güncellenmeli mi? ({Path.GetFileName(appSettingsPath)})"))
+            if (ConsoleUI.Confirm(Messages.UpdateAppSettingsConfirm(Path.GetFileName(appSettingsPath))))
             {
                 await AppSettingsManager.WriteConfigAsync(
                     appSettingsPath,
@@ -133,19 +157,68 @@ internal static class InitCommand
                     appUrl,
                     callbackPath);
 
-                ConsoleUI.Success($"Konfigürasyon yazıldı: {appSettingsPath}");
+                ConsoleUI.Success(Messages.ConfigWritten(appSettingsPath));
             }
         }
         else
         {
-            ConsoleUI.Warning("appsettings.json bulunamadı. Konfigürasyonu manuel ekleyin veya 'linbik export-config' kullanın.");
+            ConsoleUI.Warning(Messages.AppSettingsNotFound);
         }
+
+        // 4. Update Program.cs
+        Console.WriteLine();
+        InjectProgramCs(basePath);
 
         // Summary
         Console.WriteLine();
-        ConsoleUI.Header("Kurulum Tamamlandı");
-        ConsoleUI.Success("Uygulamanızı başlatabilirsiniz: dotnet run");
+        ConsoleUI.Header(Messages.SetupComplete);
+        ConsoleUI.Success(Messages.RunApp);
         Console.WriteLine();
+    }
+
+    private static void InjectProgramCs(string basePath)
+    {
+        var programCsPath = ProgramCsManager.FindProgramCs(basePath);
+        if (programCsPath == null)
+        {
+            ConsoleUI.Warning(Messages.ProgramCsNotFound);
+            return;
+        }
+
+        var content = File.ReadAllText(programCsPath);
+        var diagnosis = ProgramCsManager.Diagnose(content);
+
+        if (diagnosis.IsFullyConfigured)
+        {
+            ConsoleUI.Info(Messages.ProgramCsAlreadyConfigured);
+            return;
+        }
+
+        if (!diagnosis.HasNoLinbikIntegration)
+            ConsoleUI.Warning("Program.cs kısmen yapılandırılmış, eksikler tespit edildi.");
+
+        if (!ConsoleUI.Confirm(Messages.UpdateProgramCsConfirm))
+            return;
+
+        try
+        {
+            var result = ProgramCsManager.InjectLinbikAsync(programCsPath).GetAwaiter().GetResult();
+
+            foreach (var fix in result.Fixes)
+                ConsoleUI.Success(fix);
+
+            foreach (var warning in result.Warnings)
+                ConsoleUI.Warning(warning);
+
+            if (result.Modified)
+                ConsoleUI.Success(Messages.ProgramCsUpdated);
+            else if (result.Warnings.Count > 0)
+                ConsoleUI.Info("Dosya değiştirilmedi. Yukarıdaki uyarıları kontrol edin.");
+        }
+        catch (Exception ex)
+        {
+            ConsoleUI.Error(Messages.ProgramCsUpdateFailed(ex.Message));
+        }
     }
 
     private static async Task<string?> PerformOAuthLogin(
@@ -161,66 +234,41 @@ internal static class InitCommand
             var (listener, port) = LinbikApiClient.StartCallbackListener();
             var callbackUrl = $"http://localhost:{port}/";
 
-            // Build authorization URL — redirect to Linbik auth page
-            var authUrl = $"{linbikUrl.TrimEnd('/')}/auth/{provision.ClientId}";
-
-            ConsoleUI.Info($"Tarayıcı açılıyor: {authUrl}");
+            ConsoleUI.Info(Messages.BrowserOpening(provision.ClaimUrl));
 
             // Open browser
             try
             {
-                Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(provision.ClaimUrl) { UseShellExecute = true });
             }
             catch
             {
-                ConsoleUI.Warning("Tarayıcı otomatik açılamadı. Lütfen aşağıdaki URL'i tarayıcıda açın:");
-                Console.WriteLine($"  {authUrl}");
+                ConsoleUI.Warning(Messages.BrowserOpenFailed);
+                Console.WriteLine($"  {provision.ClaimUrl}");
             }
 
-            ConsoleUI.Info("Giriş bekleniyor... (60 saniye timeout)");
+            ConsoleUI.Info(Messages.ClaimInstructions);
+            ConsoleUI.Info(Messages.ClaimServiceBind);
+            ConsoleUI.Info(Messages.ApiKeyPromptInstruction);
+            Console.Write("Api key: ");
+            var NewApiKey = Console.ReadLine();
 
-            // Wait for callback with authorization code
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var code = await LinbikApiClient.WaitForCallbackAsync(listener, cts.Token);
-
-            if (string.IsNullOrEmpty(code))
+            if (string.IsNullOrEmpty(NewApiKey))
             {
-                ConsoleUI.Error("Authorization code alınamadı.");
+                ConsoleUI.Error(Messages.ApiKeyEmpty);
                 return null;
             }
 
-            ConsoleUI.Success("Giriş başarılı! Token exchange yapılıyor...");
-
-            // Exchange code for tokens
-            var tokenResponse = await apiClient.ExchangeCodeAsync(
-                code,
-                provision.ServiceId.ToString(),
-                provision.ApiKey);
-
-            if (tokenResponse == null)
-            {
-                ConsoleUI.Warning("Token exchange başarısız. Servis provisioned olarak kaldı.");
-                return null;
-            }
-
-            ConsoleUI.Success($"Hoş geldiniz, {tokenResponse.DisplayName ?? tokenResponse.Username}!");
-
-            // Check if claimed
-            if (tokenResponse.Claimed == true && !string.IsNullOrEmpty(tokenResponse.NewApiKey))
-            {
-                return tokenResponse.NewApiKey;
-            }
-
-            return null;
+            return NewApiKey;
         }
         catch (OperationCanceledException)
         {
-            ConsoleUI.Warning("Giriş zaman aşımına uğradı. Servis provisioned olarak oluşturuldu.");
+            ConsoleUI.Warning(Messages.LoginTimeout);
             return null;
         }
         catch (Exception ex)
         {
-            ConsoleUI.Error($"OAuth login sırasında hata: {ex.Message}");
+            ConsoleUI.Error(Messages.OAuthLoginError(ex.Message));
             return null;
         }
     }

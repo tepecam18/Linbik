@@ -35,7 +35,7 @@ public sealed class LinbikProvisionClient(
     /// Otherwise, call the provision API and cache the result.
     /// Updates LinbikOptions in-place so downstream services use the provisioned values.
     /// </summary>
-    public async Task EnsureProvisionedAsync(string appUrl, string callbackPath, CancellationToken cancellationToken = default)
+    public async Task EnsureProvisionedAsync(string appUrl, string callbackPath, string? clientName, CancellationToken cancellationToken = default)
     {
         if (_isProvisioned)
             return;
@@ -77,6 +77,7 @@ public sealed class LinbikProvisionClient(
             }
 
             var credentials = provisionResult.Data;
+            credentials.ClientName = clientName ?? "Default";
             await credentialStore.SaveAsync(credentials, cancellationToken);
             ApplyCredentials(opts, credentials);
             _isProvisioned = true;
@@ -173,19 +174,12 @@ public sealed class LinbikProvisionClient(
         opts.ServiceId = credentials.ServiceId;
         opts.ApiKey = credentials.ApiKey;
 
-        if (opts.Clients.Count == 0)
+        opts.Clients.Add(new LinbikClientConfig
         {
-            opts.Clients.Add(new LinbikClientConfig
-            {
-                ClientId = credentials.ClientId,
-                Name = "Default",
-                RedirectUrl = "/"
-            });
-        }
-        else
-        {
-            opts.Clients[0].ClientId = credentials.ClientId;
-        }
+            ClientId = credentials.ClientId,
+            Name = credentials.ClientName,
+            RedirectUrl = "/"
+        });
     }
 
     #region Internal DTOs
@@ -194,7 +188,7 @@ public sealed class LinbikProvisionClient(
     {
         public string AppName { get; set; } = string.Empty;
         public string AppUrl { get; set; } = string.Empty;
-        public string CallbackPath { get; set; } = "/auth/callback";
+        public string CallbackPath { get; set; } = "/api/linbik/callback";
         public string Platform { get; set; } = "aspnet";
     }
 

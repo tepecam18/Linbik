@@ -7,4 +7,11 @@ rootCommand.AddCommand(InitCommand.Create());
 rootCommand.AddCommand(ExportConfigCommand.Create());
 rootCommand.AddCommand(StatusCommand.Create());
 
-return await rootCommand.InvokeAsync(args);
+
+var result = await rootCommand.InvokeAsync(args);
+
+
+Console.WriteLine("Press any key to exit...");
+Console.ReadKey();
+
+return result;

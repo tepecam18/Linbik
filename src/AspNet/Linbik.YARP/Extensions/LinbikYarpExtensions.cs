@@ -31,7 +31,21 @@ public static class LinbikYarpExtensions
         this ILinbikBuilder builder,
         Action<YARPOptions> configureOptions)
     {
-        builder.Services.AddLinbikYarp(configureOptions);
+        builder.Services.Configure(configureOptions);
+
+        // Add token provider for user-context tokens
+        builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
+
+        // Add S2S token provider for service-to-service tokens
+        builder.Services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
+
+        // Add validators
+        builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
+        builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
+
+        // Add S2S service client with HttpClientFactory
+        builder.Services.AddS2SHttpClient();
+
         return builder;
     }
 
@@ -42,62 +56,32 @@ public static class LinbikYarpExtensions
         this ILinbikBuilder builder,
         IConfigurationSection configuration)
     {
-        builder.Services.AddLinbikYarp(configuration);
+        ArgumentNullException.ThrowIfNull(configuration);
+        builder.Services.Configure<YARPOptions>(configuration);
+
+        // Add token provider for user-context tokens
+        builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
+
+        // Add S2S token provider for service-to-service tokens
+        builder.Services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
+
+        // Add validators
+        builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
+        builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
+
+        // Add S2S service client with HttpClientFactory
+        builder.Services.AddS2SHttpClient();
+        
         return builder;
     }
 
-    /// <summary>
-    /// Add Linbik YARP services for API gateway with token management
-    /// </summary>
-    public static IServiceCollection AddLinbikYarp(
-        this IServiceCollection services,
-        Action<YARPOptions> configureOptions)
+    public static ILinbikBuilder AddLinbikYarp(this ILinbikBuilder builder)
     {
-        services.Configure(configureOptions);
-
-        // Add token provider for user-context tokens
-        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
-
-        // Add S2S token provider for service-to-service tokens
-        services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
-
-        // Add validators
-        services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
-        services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-
-        // Add S2S service client with HttpClientFactory
-        services.AddS2SHttpClient();
-
-        return services;
+        builder.AddLinbikYarp(_ => { });
+        return builder;
     }
 
-    /// <summary>
-    /// Add Linbik YARP services from configuration
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The application configuration.</param>
-    public static IServiceCollection AddLinbikYarp(
-        this IServiceCollection services,
-        IConfigurationSection configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
-        services.Configure<YARPOptions>(configuration);
 
-        // Add token provider for user-context tokens
-        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
-
-        // Add S2S token provider for service-to-service tokens
-        services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
-
-        // Add validators
-        services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
-        services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-
-        // Add S2S service client with HttpClientFactory
-        services.AddS2SHttpClient();
-
-        return services;
-    }
 
     /// <summary>
     /// Add S2S HttpClient with resilience configuration

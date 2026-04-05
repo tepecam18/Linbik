@@ -76,16 +76,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 // ✅ Linbik - Fluent builder pattern for all services
-builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
-    .AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik:JwtAuth"))
-    .AddLinbikServer(builder.Configuration.GetSection("Linbik:Server"))
-    .AddLinbikYarp(builder.Configuration.GetSection("Linbik:YARP"));
+builder.Services.AddLinbik()
+    .AddLinbikJwtAuth()
+    .AddLinbikServer()
+    .AddLinbikYarp();
 
 // ✅ Linbik Integration Handler
 builder.Services.AddLinbikIntegrationHandler();
 
 // ✅ Linbik Rate Limiting
-builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik:RateLimiting"));
+builder.Services.AddLinbikRateLimiting();
 
 var app = builder.Build();
 
