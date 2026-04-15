@@ -44,7 +44,7 @@ public sealed class LinbikTokenResponse
     /// <summary>
     /// Original query parameters preserved from authorization request
     /// </summary>
-    public string? QueryParameters { get; set; }
+    public LinbikTokenExtraData? ExtraData { get; set; }
 
     /// <summary>
     /// List of integration service tokens
@@ -83,6 +83,14 @@ public sealed class LinbikTokenResponse
     /// Only present when Claimed = true. SDK should update local credentials.
     /// </summary>
     public string? NewApiKey { get; set; }
+}
+
+public sealed class LinbikTokenExtraData
+{
+    /// <summary>
+    /// Original redirect URL from the authorization request
+    /// </summary>
+    public string? returnPath { get; set; }
 }
 
 /// <summary>
@@ -145,7 +153,7 @@ public sealed class LinbikInitiateRequest
 {
     public Guid ClientId { get; set; }
     public string? CodeChallenge { get; set; }
-    public string? ReturnPath { get; set; }
+    public Dictionary<string, string>? ExtraData { get; set; }
 }
 
 /// <summary>

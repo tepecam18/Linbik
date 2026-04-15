@@ -174,6 +174,14 @@ public sealed class LinbikProvisionClient(
         opts.ServiceId = credentials.ServiceId;
         opts.ApiKey = credentials.ApiKey;
 
+        var existingClient = opts.Clients.FirstOrDefault(c => c.Name == credentials.ClientName);
+
+        if (existingClient != null)
+        {
+            existingClient.ClientId = credentials.ClientId;
+            return;
+        }
+
         opts.Clients.Add(new LinbikClientConfig
         {
             ClientId = credentials.ClientId,

@@ -284,16 +284,19 @@ public static class JwtAuthManagerExtensions
 
             // Resolve client configuration
             var clientConfig = GetClientConfig(linbikOptions, name);
-            if (clientConfig == null)
+            if (clientConfig == null || string.IsNullOrEmpty(clientConfig.ClientId))
             {
-                return Results.BadRequest(new LBaseResponse<object>($"Client configuration not found for name: {name}."));
+                return Results.BadRequest(new LBaseResponse<object>($"Client ID not found for name: {name}."));
             }
 
             // Build initiate request
             var initiateRequest = new Core.Models.LinbikInitiateRequest
             {
                 ClientId = Guid.Parse(clientConfig.ClientId),
-                ReturnPath = returnPath
+                ExtraData = new Dictionary<string, string>
+                {
+                    { "returnPath", returnPath ?? string.Empty }
+                 }
             };
 
             // Generate PKCE code challenge if enabled
@@ -370,30 +373,31 @@ public static class JwtAuthManagerExtensions
                 // Get client configuration from ClientId in token response
                 if (tokenResponse.ClientId.HasValue)
                 {
-                    clientConfig = GetClientConfig(linbikOptions, tokenResponse.ClientId.Value.ToString());
+                    var clientIdStr = tokenResponse.ClientId.Value.ToString();
+                    clientConfig = linbikOptions.Clients.FirstOrDefault(c =>
+                        string.Equals(c.ClientId, clientIdStr, StringComparison.OrdinalIgnoreCase));
                 }
 
                 // Extract returnPath from QueryParameters and combine with BaseUrl
-                if (!string.IsNullOrEmpty(tokenResponse.QueryParameters))
+                if (tokenResponse.ExtraData != null && tokenResponse.ExtraData.returnPath != null)
                 {
-                    var queryParams = System.Web.HttpUtility.ParseQueryString(tokenResponse.QueryParameters);
-                    var pathFromQuery = queryParams["returnPath"];
+                    var pathFromQuery = tokenResponse.ExtraData.returnPath;
 
                     // If returnPath in query, combine with BaseUrl
                     if (!string.IsNullOrEmpty(pathFromQuery) && clientConfig != null)
                     {
                         redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + pathFromQuery.TrimStart('/');
                     }
-                    // If no returnPath in query, use client's default (BaseUrl + RedirectUrl)
+                    // If no returnPath in query, use client's default RedirectUrl
                     else if (clientConfig != null)
                     {
-                        redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
+                        redirectPath = clientConfig.RedirectUrl.TrimEnd('/');
                     }
                 }
                 else if (clientConfig != null)
                 {
                     // No query parameters, use client's default (BaseUrl + RedirectUrl)
-                    redirectPath = clientConfig.RedirectUrl.TrimEnd('/') + "/" + clientConfig.RedirectUrl.TrimStart('/');
+                    redirectPath = clientConfig.RedirectUrl;
                 }
 
                 // PKCE verification (client-side)
@@ -454,8 +458,7 @@ public static class JwtAuthManagerExtensions
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
-                //TODO: clientConfig null geliyor
-                // Return success based on client type
+                //  Return success based on client type
                 return ReturnAuthSuccess(context, clientConfig, redirectPath, responseData);
             }
             catch (Exception ex)
