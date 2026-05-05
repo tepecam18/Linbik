@@ -11,8 +11,8 @@ dotnet add package Linbik.Server
 ## 🚀 Features
 
 - **Dual JWT Authentication Schemes** — `LinbikUserService` (user context) + `LinbikS2S` (machine context)
-- **[LinbikUserServiceAuthorize]** — RS256 JWT attribute for user-context endpoints
-- **[LinbikS2SAuthorize]** — RS256 JWT attribute for S2S endpoints with role-based access
+- **[LinbikDelegatedAuthorize]** — RS256 JWT attribute for user-context endpoints
+- **[LinbikApplicationAuthorize]** — RS256 JWT attribute for S2S endpoints with role-based access
 - **Cross-Scheme Injection Protection** — Prevents token misuse between schemes
 - **ILinbikIntegrationHandler** — Integration lifecycle events (created, removed, toggled, admin changed)
 - **OpenTelemetry** — Built-in telemetry with `AddLinbikTelemetry()`
@@ -55,7 +55,7 @@ builder.Services.AddLinbikServer(options =>
 public class IntegrationController : ControllerBase
 {
     // User-context endpoint (requires user JWT)
-    [LinbikUserServiceAuthorize]
+    [LinbikDelegatedAuthorize]
     [HttpPost("charge")]
     public IActionResult Charge([FromBody] ChargeRequest request)
     {
@@ -65,17 +65,17 @@ public class IntegrationController : ControllerBase
     }
 
     // S2S endpoint — any S2S token accepted
-    [LinbikS2SAuthorize]
+    [LinbikApplicationAuthorize]
     [HttpPost("s2s/sync")]
     public IActionResult SyncData() => Ok();
 
     // S2S endpoint — only service-to-service tokens (role=Service)
-    [LinbikS2SAuthorize("Service")]
+    [LinbikApplicationAuthorize("Service")]
     [HttpPost("s2s/webhook/{eventType}")]
     public IActionResult S2SWebhook(string eventType) => Ok();
 
     // S2S endpoint — only platform tokens (role=Linbik)
-    [LinbikS2SAuthorize("Linbik")]
+    [LinbikApplicationAuthorize("Linbik")]
     [HttpPost("s2s/platform-event")]
     public IActionResult OnPlatformEvent() => Ok();
 }

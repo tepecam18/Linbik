@@ -1,4 +1,4 @@
-using Linbik.Core;
+﻿using Linbik.Core;
 using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Configuration;
@@ -36,15 +36,15 @@ public static class LinbikYarpExtensions
         // Add token provider for user-context tokens
         builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
-        // Add S2S token provider for service-to-service tokens
-        builder.Services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
+        // Add application token provider for application-to-application tokens
+        builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
 
         // Add validators
         builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
 
-        // Add S2S service client with HttpClientFactory
-        builder.Services.AddS2SHttpClient();
+        // Add application service client with HttpClientFactory
+        builder.Services.AddApplicationHttpClient();
 
         return builder;
     }
@@ -62,15 +62,15 @@ public static class LinbikYarpExtensions
         // Add token provider for user-context tokens
         builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
-        // Add S2S token provider for service-to-service tokens
-        builder.Services.AddSingleton<IS2STokenProvider, S2STokenProvider>();
+        // Add application token provider for application-to-application tokens
+        builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
 
         // Add validators
         builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
 
-        // Add S2S service client with HttpClientFactory
-        builder.Services.AddS2SHttpClient();
+        // Add application service client with HttpClientFactory
+        builder.Services.AddApplicationHttpClient();
         
         return builder;
     }
@@ -84,11 +84,11 @@ public static class LinbikYarpExtensions
 
 
     /// <summary>
-    /// Add S2S HttpClient with resilience configuration
+    /// Add Application HttpClient with resilience configuration
     /// </summary>
-    private static IServiceCollection AddS2SHttpClient(this IServiceCollection services)
+    private static IServiceCollection AddApplicationHttpClient(this IServiceCollection services)
     {
-        services.AddHttpClient<IS2SServiceClient, S2SServiceClient>("LinbikS2SServiceClient")
+        services.AddHttpClient<IApplicationServiceClient, ApplicationServiceClient>("LinbikApplicationServiceClient")
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetService<IOptions<YARPOptions>>()?.Value;
@@ -332,21 +332,21 @@ public static class LinbikYarpExtensions
     }
 
     /// <summary>
-    /// Map S2S (Service-to-Service) proxy routes
-    /// Pattern: /s2s/{packageName}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
-    /// Automatically injects S2S JWT token from cache (no user context required)
+    /// Map Application proxy routes
+    /// Pattern: /app/{packageName}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
+    /// Automatically injects application JWT token from cache (no user context required)
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
     /// <param name="routePrefix">Route prefix for S2S endpoints (default: "s2s")</param>
     /// <returns>The endpoint route builder for chaining</returns>
-    public static IEndpointRouteBuilder UseLinbikS2S(
+    public static IEndpointRouteBuilder UseLinbikApplication(
         this IEndpointRouteBuilder endpoints,
-        string routePrefix = "s2s")
+        string routePrefix = "app")
     {
         var options = endpoints.ServiceProvider.GetRequiredService<IOptions<YARPOptions>>().Value;
         var httpClientFactory = endpoints.ServiceProvider.GetRequiredService<IHttpClientFactory>();
-        var s2sTokenProvider = endpoints.ServiceProvider.GetRequiredService<IS2STokenProvider>();
-        var logger = endpoints.ServiceProvider.GetService<ILogger<S2SProxyService>>();
+        var applicationTokenProvider = endpoints.ServiceProvider.GetRequiredService<IApplicationTokenProvider>();
+        var logger = endpoints.ServiceProvider.GetService<ILogger<ApplicationProxyService>>();
 
         foreach (var integration in options.IntegrationServices)
         {
@@ -358,8 +358,8 @@ public static class LinbikYarpExtensions
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
 
-                // Get S2S JWT token from provider (auto-cached, auto-refreshed)
-                var integrationDetails = await s2sTokenProvider.GetS2SIntegrationAsync(packageName);
+                // Get application JWT token from provider (auto-cached, auto-refreshed)
+                var integrationDetails = await applicationTokenProvider.GetApplicationIntegrationAsync(packageName);
 
                 if (integrationDetails == null)
                 {
@@ -368,7 +368,7 @@ public static class LinbikYarpExtensions
                     await context.Response.WriteAsJsonAsync(new
                     {
                         error = "service_unavailable",
-                        error_description = $"S2S authentication not available for {packageName}. Check service configuration."
+                        error_description = $"Application authentication not available for {packageName}. Check service configuration."
                     });
                     return;
                 }
@@ -406,8 +406,8 @@ public static class LinbikYarpExtensions
                     requestMessage.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integrationDetails.Token);
 
-                    // Add S2S indicator header
-                    requestMessage.Headers.TryAddWithoutValidation("X-Linbik-S2S", "true");
+                    // Add application indicator header
+                    requestMessage.Headers.TryAddWithoutValidation("X-Linbik-Application", "true");
 
                     // Copy headers (except Host and Authorization)
                     foreach (var header in context.Request.Headers)
@@ -432,7 +432,7 @@ public static class LinbikYarpExtensions
                         }
                     }
 
-                    logger?.LogDebug("S2S request to {PackageName}: {Method} {TargetUrl}",
+                    logger?.LogDebug("Application request to {PackageName}: {Method} {TargetUrl}",
                         packageName, context.Request.Method, targetUrl);
 
                     // Send request
@@ -460,25 +460,25 @@ public static class LinbikYarpExtensions
                 }
                 catch (HttpRequestException ex)
                 {
-                    logger?.LogError(ex, "S2S proxy failed to {PackageName}: {TargetUrl}", packageName, targetUrl);
+                    logger?.LogError(ex, "Application proxy failed to {PackageName}: {TargetUrl}", packageName, targetUrl);
                     context.Response.StatusCode = 502;
                     await context.Response.WriteAsJsonAsync(new
                     {
                         error = "bad_gateway",
-                        error_description = $"S2S connection failed to {packageName} service"
+                        error_description = $"Application connection failed to {packageName} service"
                     });
                 }
                 catch (TaskCanceledException)
                 {
-                    logger?.LogWarning("S2S request to {PackageName} timed out: {TargetUrl}", packageName, targetUrl);
+                    logger?.LogWarning("Application request to {PackageName} timed out: {TargetUrl}", packageName, targetUrl);
                     context.Response.StatusCode = 504;
                     await context.Response.WriteAsJsonAsync(new
                     {
                         error = "gateway_timeout",
-                        error_description = $"S2S request to {packageName} service timed out"
+                        error_description = $"Application request to {packageName} service timed out"
                     });
                 }
-            }).WithTags($"S2S.{packageName}");
+            }).WithTags($"App.{packageName}");
         }
 
         return endpoints;
@@ -513,6 +513,6 @@ public static class LinbikYarpExtensions
 internal sealed class IntegrationProxyService;
 
 /// <summary>
-/// Marker class for S2S logging
+/// Marker class for application proxy logging
 /// </summary>
-internal sealed class S2SProxyService;
+internal sealed class ApplicationProxyService;

@@ -55,7 +55,7 @@ public interface ILinbikAuthClient
     /// <param name="request">S2S token request with source and target service IDs</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>S2S token response with integration tokens for target services</returns>
-    Task<LinbikS2STokenResponse?> GetS2STokensAsync(LinbikS2STokenRequest request, CancellationToken cancellationToken = default);
+    Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(LinbikApplicationTokenRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get S2S tokens by target package names (uses configured service ID mapping)
@@ -64,7 +64,7 @@ public interface ILinbikAuthClient
     /// <param name="targetPackageNames">Target service package names</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>S2S token response with integration tokens for target services</returns>
-    Task<LinbikS2STokenResponse?> GetS2STokensAsync(IEnumerable<string> targetPackageNames, CancellationToken cancellationToken = default);
+    Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(IEnumerable<string> targetPackageNames, CancellationToken cancellationToken = default);
 
     #endregion
 

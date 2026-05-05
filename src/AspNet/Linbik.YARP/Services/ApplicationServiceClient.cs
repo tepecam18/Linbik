@@ -1,4 +1,4 @@
-using Linbik.Core.Models;
+﻿using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
@@ -10,15 +10,15 @@ using System.Text.Json;
 namespace Linbik.YARP.Services;
 
 /// <summary>
-/// HTTP client for S2S (Service-to-Service) communication
-/// Automatically injects S2S tokens and enforces LBaseResponse format
+/// HTTP client for application-to-application service communication
+/// Automatically injects application tokens and enforces LBaseResponse format
 /// Supports both config-based (package name) and dynamic (service ID) targets
 /// </summary>
-public sealed class S2SServiceClient(
+public sealed class ApplicationServiceClient(
     HttpClient httpClient,
-    IS2STokenProvider tokenProvider,
+    IApplicationTokenProvider tokenProvider,
     IOptions<YARPOptions> options,
-    ILogger<S2SServiceClient> logger) : IS2SServiceClient
+    ILogger<ApplicationServiceClient> logger) : IApplicationServiceClient
 {
     private readonly YARPOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
@@ -195,12 +195,12 @@ public sealed class S2SServiceClient(
     {
         try
         {
-            // Get S2S token and integration details
-            var integration = await tokenProvider.GetS2SIntegrationAsync(packageName, cancellationToken);
+            // Get application token and integration details
+            var integration = await tokenProvider.GetApplicationIntegrationAsync(packageName, cancellationToken);
             if (integration == null)
             {
-                logger.LogWarning("S2S token not available for {PackageName}", packageName);
-                return new LBaseResponse<TResponse>("S2S Error", $"Token not available for {packageName}");
+                logger.LogWarning("Application token not available for {PackageName}", packageName);
+                return new LBaseResponse<TResponse>("Application Error", $"Token not available for {packageName}");
             }
 
             // Build target URL
@@ -228,19 +228,19 @@ public sealed class S2SServiceClient(
     {
         try
         {
-            // Get S2S token and integration details by service ID (dynamic)
-            var integration = await tokenProvider.GetS2SIntegrationByIdAsync(targetServiceId, cancellationToken);
+            // Get application token and integration details by service ID (dynamic)
+            var integration = await tokenProvider.GetApplicationIntegrationByIdAsync(targetServiceId, cancellationToken);
             if (integration == null)
             {
-                logger.LogWarning("S2S token not available for service ID {ServiceId}", targetServiceId);
-                return new LBaseResponse<TResponse>("S2S Error", $"Token not available for service ID {targetServiceId}");
+                logger.LogWarning("Application token not available for service ID {ServiceId}", targetServiceId);
+                return new LBaseResponse<TResponse>("Application Error", $"Token not available for service ID {targetServiceId}");
             }
 
             // ServiceUrl MUST be present for dynamic targets (fetched from Linbik)
             if (string.IsNullOrEmpty(integration.ServiceUrl))
             {
                 logger.LogError("ServiceUrl not available for service ID {ServiceId}", targetServiceId);
-                return new LBaseResponse<TResponse>("S2S Error", $"ServiceUrl not returned by Linbik for service ID {targetServiceId}");
+                return new LBaseResponse<TResponse>("Application Error", $"ServiceUrl not returned by Linbik for service ID {targetServiceId}");
             }
 
             var baseUrl = integration.ServiceUrl.TrimEnd('/');
@@ -260,7 +260,7 @@ public sealed class S2SServiceClient(
         HttpMethod method,
         string baseUrl,
         string endpoint,
-        LinbikS2SIntegration integration,
+        LinbikApplicationIntegration integration,
         TRequest? request,
         CancellationToken cancellationToken)
         where TRequest : class
@@ -269,17 +269,17 @@ public sealed class S2SServiceClient(
         var targetUrl = BuildTargetUrl(baseUrl, endpoint);
         var targetDescription = $"{integration.PackageName ?? integration.ServiceId.ToString()}";
 
-        logger.LogDebug("S2S {Method} request to {Target}: {Url}", method, targetDescription, targetUrl);
+        logger.LogDebug("Application {Method} request to {Target}: {Url}", method, targetDescription, targetUrl);
 
         // Create request
         var httpRequest = new HttpRequestMessage(method, targetUrl);
 
-        // Add S2S token
+        // Add application token
         httpRequest.Headers.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integration.Token);
 
-        // Add S2S indicator headers
-        httpRequest.Headers.TryAddWithoutValidation("X-Linbik-S2S", "true");
+        // Add application indicator headers
+        httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Application", "true");
         httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Source-Package", _options.SourcePackageName ?? "unknown");
         httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Target-Service-Id", integration.ServiceId.ToString());
 
@@ -314,7 +314,7 @@ public sealed class S2SServiceClient(
             }
 
             return new LBaseResponse<TResponse>(
-                "S2S Error",
+                "Application Error",
                 $"Request failed with status {(int)response.StatusCode}: {response.ReasonPhrase}");
         }
 
@@ -329,14 +329,14 @@ public sealed class S2SServiceClient(
             }
 
             logger.LogWarning("S2S response from {Target} was null after deserialization", targetDescription);
-            return new LBaseResponse<TResponse>("S2S Error", "Response deserialization returned null");
+            return new LBaseResponse<TResponse>("Application Error", "Response deserialization returned null");
         }
         catch (JsonException ex)
         {
             logger.LogError(ex, "Failed to deserialize S2S response from {Target}. Content: {Content}",
                 targetDescription, responseContent);
             return new LBaseResponse<TResponse>(
-                "S2S Error",
+                "Application Error",
                 $"Invalid response format from {targetDescription}. Expected LBaseResponse<T>.");
         }
     }
@@ -369,7 +369,7 @@ public sealed class S2SServiceClient(
         else
             logger.LogWarning(logMessage, target);
 
-        return new LBaseResponse<TResponse>("S2S Error", friendlyMessage);
+        return new LBaseResponse<TResponse>("Application Error", friendlyMessage);
     }
 
     private string GetBaseUrlByPackage(string packageName, string? integrationServiceUrl)

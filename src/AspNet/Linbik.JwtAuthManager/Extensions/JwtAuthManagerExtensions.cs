@@ -131,6 +131,8 @@ public static class JwtAuthManagerExtensions
             Path = "/"
         });
 
+        var domain = tokenResponse.ExtraData?.returnPath != null ? new Uri(tokenResponse.ExtraData.returnPath).Host : context.Request.Host.Host;
+
         // Username cookie (accessible by JS for display)
         context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, new CookieOptions
         {
@@ -138,7 +140,8 @@ public static class JwtAuthManagerExtensions
             Secure = true,
             SameSite = SameSiteMode.None,
             Expires = refreshTokenExpiry,
-            Path = "/"
+            Path = "/",
+            Domain = domain
         });
     }
 
@@ -474,7 +477,7 @@ public static class JwtAuthManagerExtensions
         endpoints.MapGet(options.LogoutPath, async (HttpContext context,
             [FromServices] IAuditLogger auditLogger) =>
         {
-            var deleteCookieOptions = new CookieOptions { Path = "/" };
+            var deleteCookieOptions = new CookieOptions { Path = "/", Domain = linbikOptions.CookieDomain };
 
             // Get user ID before deleting cookies
             var authToken = context.Request.Cookies[AuthTokenCookie];

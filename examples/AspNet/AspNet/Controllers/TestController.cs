@@ -2,7 +2,7 @@ using AspNet.Models;
 using Linbik.Core.Models;
 using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
-using Linbik.JwtAuthManager.Attributes;
+using Linbik.Core.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
@@ -238,7 +238,7 @@ public sealed class TestController(
     #region Integration Service Mock Test
 
     /// <summary>
-    /// Mock Integration Service endpoint - Tests [LinbikUserServiceAuthorize]
+    /// Mock Integration Service endpoint - Tests [LinbikDelegatedAuthorize]
     /// Bu endpoint, gerçek bir integration service'in nasıl JWT doğrulaması yapacağını simüle eder.
     /// Authorization header'dan Bearer token bekler (RSA-256 ile imzalanmış)
     /// </summary>

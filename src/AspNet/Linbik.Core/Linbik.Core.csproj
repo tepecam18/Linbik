@@ -38,6 +38,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!--
+			Linbik.Core, Authorize attribute'ları (LinbikAuthorize / LinbikApplicationAuthorize /
+			LinbikDelegatedAuthorize) host eder. Bu attribute'lar Microsoft.AspNetCore.Authorization
+			tipine bağımlı olduğundan ASP.NET Core shared framework referansı gereklidir.
+		-->
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />

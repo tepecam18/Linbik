@@ -1,4 +1,4 @@
-namespace Linbik.Core;
+﻿namespace Linbik.Core;
 
 /// <summary>
 /// Central constants shared across all Linbik packages.
@@ -21,15 +21,15 @@ public static class LinbikDefaults
 
     /// <summary>
     /// Server-side RS256 JWT scheme for user-initiated requests
-    /// Use with [LinbikUserServiceAuthorize] attribute
+    /// Use with [LinbikDelegatedAuthorize] attribute
     /// </summary>
-    public const string UserServiceScheme = "LinbikUserService";
+    public const string DelegatedScheme = "LinbikDelegated";
 
     /// <summary>
     /// Server-side RS256 JWT scheme for service-to-service requests
-    /// Use with [LinbikS2SAuthorize] attribute
+    /// Use with [LinbikApplicationAuthorize] attribute
     /// </summary>
-    public const string S2SScheme = "LinbikS2S";
+    public const string ApplicationScheme = "LinbikApplication";
 
     // ─── Authorization Policies ───────────────────────────────────
     /// <summary>

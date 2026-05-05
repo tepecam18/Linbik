@@ -144,15 +144,15 @@ app.Run();
 | `/api/integration/info` | GET | ❌ | — | Servis bilgisi |
 | `/api/integration/public-data` | GET | ❌ | — | Public veri |
 | `/api/integration/echo` | POST | ❌ | — | Echo endpoint |
-| `/api/integration/protected` | GET | ✅ User JWT | `[LinbikUserServiceAuthorize]` | Protected endpoint |
-| `/api/integration/user-profile` | GET | ✅ User JWT | `[LinbikUserServiceAuthorize]` | Kullanıcı profili |
-| `/api/integration/process` | POST | ✅ User JWT | `[LinbikUserServiceAuthorize]` | İşlem yap |
-| `/api/integration/user-data` | GET | ✅ User JWT | `[LinbikUserServiceAuthorize]` | Kullanıcı verileri |
-| `/api/integration/s2s/sync` | POST | ✅ S2S JWT | `[LinbikS2SAuthorize]` | S2S senkronizasyon |
-| `/api/integration/s2s/health` | GET | ✅ S2S JWT | `[LinbikS2SAuthorize]` | S2S sağlık |
-| `/api/integration/s2s/webhook/{eventType}` | POST | ✅ S2S JWT | `[LinbikS2SAuthorize("Service")]` | S2S webhook (servis) |
-| `/api/integration/s2s/batch` | POST | ✅ S2S JWT | `[LinbikS2SAuthorize]` | S2S toplu işlem |
-| `/api/integration/s2s/platform-event` | POST | ✅ S2S JWT | `[LinbikS2SAuthorize("Linbik")]` | Platform olayı |
+| `/api/integration/protected` | GET | ✅ User JWT | `[LinbikDelegatedAuthorize]` | Protected endpoint |
+| `/api/integration/user-profile` | GET | ✅ User JWT | `[LinbikDelegatedAuthorize]` | Kullanıcı profili |
+| `/api/integration/process` | POST | ✅ User JWT | `[LinbikDelegatedAuthorize]` | İşlem yap |
+| `/api/integration/user-data` | GET | ✅ User JWT | `[LinbikDelegatedAuthorize]` | Kullanıcı verileri |
+| `/api/integration/s2s/sync` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S senkronizasyon |
+| `/api/integration/s2s/health` | GET | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S sağlık |
+| `/api/integration/s2s/webhook/{eventType}` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize("Service")]` | S2S webhook (servis) |
+| `/api/integration/s2s/batch` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S toplu işlem |
+| `/api/integration/s2s/platform-event` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize("Linbik")]` | Platform olayı |
 
 ### YARP Proxy Endpoints
 
@@ -178,12 +178,12 @@ public IActionResult Protected()
 }
 ```
 
-### 2. [LinbikUserServiceAuthorize] Attribute
+### 2. [LinbikDelegatedAuthorize] Attribute
 
 Integration service endpoint'lerini (user context ile) korumak için:
 
 ```csharp
-[LinbikUserServiceAuthorize]
+[LinbikDelegatedAuthorize]
 [HttpGet("protected")]
 public IActionResult Protected()
 {
@@ -192,23 +192,23 @@ public IActionResult Protected()
 }
 ```
 
-### 3. [LinbikS2SAuthorize] Attribute
+### 3. [LinbikApplicationAuthorize] Attribute
 
 Service-to-service endpoint'lerini (kullanıcı bağlamı olmadan) korumak için:
 
 ```csharp
 // Herhangi bir S2S token kabul eder
-[LinbikS2SAuthorize]
+[LinbikApplicationAuthorize]
 [HttpPost("s2s/sync")]
 public IActionResult S2SSync() { ... }
 
 // Sadece servis S2S token'ları (role=Service)
-[LinbikS2SAuthorize("Service")]
+[LinbikApplicationAuthorize("Service")]
 [HttpPost("s2s/webhook/{eventType}")]
 public IActionResult S2SWebhook(string eventType) { ... }
 
 // Sadece platform token'ları (role=Linbik)
-[LinbikS2SAuthorize("Linbik")]
+[LinbikApplicationAuthorize("Linbik")]
 [HttpPost("s2s/platform-event")]
 public IActionResult OnPlatformEvent() { ... }
 ```

@@ -17,7 +17,8 @@ public sealed class LinbikClientConfig
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Redirect URL for this client (e.g., "https://myapp.com")
+    /// Redirect URL for this client (e.g., "https://myapp.com").
+    /// Used as the root for redirect paths after login.
     /// </summary>
     public string RedirectUrl { get; set; } = "/";
 
@@ -123,6 +124,14 @@ public sealed class LinbikOptions
     /// </summary>
     public string JwtIssuer { get; set; } = LinbikDefaults.Issuer;
 
+    /// <summary>
+    /// Auth cookie'lerin (linbik_auth, linbik_refresh) <c>Domain</c> attribute'ı.
+    /// Boş bırakılırsa cookie sadece üretildiği host'a iletilir (en güvenli, default).
+    /// Cross-subdomain SSO senaryolarında ".example.com" gibi bir leading-dot domain verin.
+    /// Logout endpoint'i bu değeri kullanarak cookie'leri doğru domain üzerinden temizler.
+    /// </summary>
+    public string? CookieDomain { get; set; }
+
     #region S2S (Service-to-Service) Configuration
 
     /// <summary>
@@ -141,7 +150,7 @@ public sealed class LinbikOptions
     /// Target services for S2S authentication
     /// Key: Package name (e.g., "payment-gateway")
     /// Value: Service ID (GUID from Linbik registration)
-    /// Used by GetS2STokensAsync(packageNames) method
+    /// Used by GetApplicationTokensAsync(packageNames) method
     /// </summary>
     public Dictionary<string, Guid> S2STargetServices { get; set; } = [];
 

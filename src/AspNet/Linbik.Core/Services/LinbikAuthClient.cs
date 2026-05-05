@@ -1,4 +1,4 @@
-using Linbik.Core.Configuration;
+﻿using Linbik.Core.Configuration;
 using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Linbik.Core.Services.Interfaces;
@@ -221,19 +221,19 @@ public sealed class LinbikAuthClient(
     #region S2S (Service-to-Service) Operations
 
     /// <inheritdoc />
-    public async Task<LinbikS2STokenResponse?> GetS2STokensAsync(
-        LinbikS2STokenRequest request,
+    public async Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(
+        LinbikApplicationTokenRequest request,
         CancellationToken cancellationToken = default)
     {
         if (request.SourceServiceId == Guid.Empty)
         {
-            _logger.LogWarning("GetS2STokensAsync called with empty source service ID");
+            _logger.LogWarning("GetApplicationTokensAsync called with empty source service ID");
             return null;
         }
 
         if (request.TargetServiceIds == null || request.TargetServiceIds.Count == 0)
         {
-            _logger.LogWarning("GetS2STokensAsync called with empty target service IDs");
+            _logger.LogWarning("GetApplicationTokensAsync called with empty target service IDs");
             return null;
         }
 
@@ -274,7 +274,7 @@ public sealed class LinbikAuthClient(
                 return null;
             }
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<LinbikS2STokenResponse>(JsonOptions, cancellationToken);
+            var tokenResponse = await response.Content.ReadFromJsonAsync<LinbikApplicationTokenResponse>(JsonOptions, cancellationToken);
 
             _logger.LogInformation("Successfully obtained S2S tokens for {IntegrationCount} services",
                 tokenResponse?.Integrations?.Count ?? 0);
@@ -299,7 +299,7 @@ public sealed class LinbikAuthClient(
     }
 
     /// <inheritdoc />
-    public async Task<LinbikS2STokenResponse?> GetS2STokensAsync(
+    public async Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(
         IEnumerable<string> targetPackageNames,
         CancellationToken cancellationToken = default)
     {
@@ -329,13 +329,13 @@ public sealed class LinbikAuthClient(
             return null;
         }
 
-        var request = new LinbikS2STokenRequest
+        var request = new LinbikApplicationTokenRequest
         {
             SourceServiceId = Guid.Parse(_options.ServiceId),
             TargetServiceIds = targetIds
         };
 
-        return await GetS2STokensAsync(request, cancellationToken);
+        return await GetApplicationTokensAsync(request, cancellationToken);
     }
 
     #endregion

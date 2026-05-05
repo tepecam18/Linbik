@@ -1,13 +1,13 @@
-using Linbik.Core.Responses;
+﻿using Linbik.Core.Responses;
 
 namespace Linbik.YARP.Interfaces;
 
 /// <summary>
-/// HTTP client interface for S2S (Service-to-Service) communication
-/// Automatically injects S2S tokens and enforces LBaseResponse format
+/// HTTP client interface for application-to-application service communication
+/// Automatically injects application tokens and enforces LBaseResponse format
 /// Supports both config-based (package name) and dynamic (service ID) targets
 /// </summary>
-public interface IS2SServiceClient
+public interface IApplicationServiceClient
 {
     #region Package Name Based (Config-based targets)
 

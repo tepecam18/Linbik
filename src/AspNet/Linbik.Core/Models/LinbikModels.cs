@@ -173,7 +173,7 @@ public sealed class LinbikInitiateResponse
 /// POST /auth/s2s-token
 /// Headers: { ApiKey }
 /// </summary>
-public sealed class LinbikS2STokenRequest
+public sealed class LinbikApplicationTokenRequest
 {
     /// <summary>
     /// Source service ID (the service requesting tokens)
@@ -190,7 +190,7 @@ public sealed class LinbikS2STokenRequest
 /// Response from S2S token endpoint
 /// Contains JWT tokens for each requested integration service
 /// </summary>
-public sealed class LinbikS2STokenResponse
+public sealed class LinbikApplicationTokenResponse
 {
     /// <summary>
     /// Source service ID that requested the tokens
@@ -205,7 +205,7 @@ public sealed class LinbikS2STokenResponse
     /// <summary>
     /// List of integration tokens for target services
     /// </summary>
-    public List<LinbikS2SIntegration> Integrations { get; set; } = [];
+    public List<LinbikApplicationIntegration> Integrations { get; set; } = [];
 
     /// <summary>
     /// Access token expiration timestamp (Unix epoch seconds)
@@ -218,7 +218,7 @@ public sealed class LinbikS2STokenResponse
 /// Contains JWT token signed with target service's private key
 /// Token contains only service claims (no user information)
 /// </summary>
-public sealed class LinbikS2SIntegration
+public sealed class LinbikApplicationIntegration
 {
     /// <summary>
     /// Target integration service ID

@@ -1,12 +1,11 @@
-using Linbik.Core;
 using Microsoft.AspNetCore.Authorization;
 
-namespace Linbik.JwtAuthManager.Attributes;
+namespace Linbik.Core.Attributes;
 
 /// <summary>
 /// Authorize attribute that uses the Linbik authentication scheme.
 /// Validates JWT tokens from the 'authToken' cookie using symmetric key (HS256).
-/// 
+///
 /// Usage:
 /// [LinbikAuthorize]
 /// public IActionResult ProtectedEndpoint() { ... }

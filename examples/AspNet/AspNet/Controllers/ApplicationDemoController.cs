@@ -1,24 +1,24 @@
-using Linbik.Core.Responses;
+﻿using Linbik.Core.Responses;
 using Linbik.YARP.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AspNet.Controllers;
 
 /// <summary>
-/// Demo controller for S2S (Service-to-Service) communication using IS2SServiceClient.
+/// Demo controller for Application-to-Application communication using IApplicationServiceClient.
 /// This controller demonstrates how to call other Linbik integration services
 /// using the S2S client with automatic token injection and LBaseResponse enforcement.
 /// 
 /// Usage in real services:
-/// - Inject IS2SServiceClient in your controllers/services
+/// - Inject IApplicationServiceClient in your controllers/services
 /// - Use PostAsync/GetAsync with package name for config-based targets
 /// - Use PostByIdAsync/GetByIdAsync with service ID for dynamic targets (callbacks/webhooks)
 /// </summary>
 [ApiController]
-[Route("api/s2s-demo")]
-public sealed class S2SDemoController(
-    IS2SServiceClient s2sClient,
-    ILogger<S2SDemoController> logger) : ControllerBase
+[Route("api/application-demo")]
+public sealed class ApplicationDemoController(
+    IApplicationServiceClient applicationClient,
+    ILogger<ApplicationDemoController> logger) : ControllerBase
 {
     #region Config-Based S2S Calls (Package Name)
 
@@ -36,17 +36,17 @@ public sealed class S2SDemoController(
     [HttpGet("call-by-package/{packageName}")]
     public async Task<IActionResult> CallByPackageName(string packageName)
     {
-        logger.LogInformation("S2S demo: Calling service {PackageName}", packageName);
+        logger.LogInformation("Application demo: Calling service {PackageName}", packageName);
 
         // Call the target service's S2S health endpoint
-        var result = await s2sClient.GetAsync<S2SHealthResponse>(
+        var result = await applicationClient.GetAsync<ApplicationHealthResponse>(
             packageName,
             "/api/integration/s2s/health"
         );
 
         return Ok(new
         {
-            demo = "Config-based S2S call by package name",
+            demo = "Config-based application call by package name",
             targetPackageName = packageName,
             result = new
             {
@@ -65,10 +65,10 @@ public sealed class S2SDemoController(
     [HttpPost("sync-to/{packageName}")]
     public async Task<IActionResult> SyncToService(string packageName, [FromBody] SyncDataRequest request)
     {
-        logger.LogInformation("S2S demo: Syncing data to {PackageName}", packageName);
+        logger.LogInformation("Application demo: Syncing data to {PackageName}", packageName);
 
         // Call the target service's S2S sync endpoint
-        var result = await s2sClient.PostAsync<S2SSyncPayload, S2SSyncResponse>(
+        var result = await applicationClient.PostAsync<S2SSyncPayload, S2SSyncResponse>(
             packageName,
             "/api/integration/s2s/sync",
             new S2SSyncPayload
@@ -101,9 +101,9 @@ public sealed class S2SDemoController(
     [HttpPost("webhook-to/{packageName}/{eventType}")]
     public async Task<IActionResult> SendWebhook(string packageName, string eventType, [FromBody] WebhookRequest? request)
     {
-        logger.LogInformation("S2S demo: Sending webhook {EventType} to {PackageName}", eventType, packageName);
+        logger.LogInformation("Application demo: Sending webhook {EventType} to {PackageName}", eventType, packageName);
 
-        var result = await s2sClient.PostAsync<WebhookPayload, WebhookResponse>(
+        var result = await applicationClient.PostAsync<WebhookPayload, WebhookResponse>(
             packageName,
             $"/api/integration/s2s/webhook/{eventType}",
             new WebhookPayload
@@ -145,18 +145,18 @@ public sealed class S2SDemoController(
     [HttpGet("call-by-id/{serviceId:guid}")]
     public async Task<IActionResult> CallByServiceId(Guid serviceId)
     {
-        logger.LogInformation("S2S demo: Calling service by ID {ServiceId}", serviceId);
+        logger.LogInformation("Application demo: Calling service by ID {ServiceId}", serviceId);
 
         // Call the target service dynamically by ID
         // Linbik will provide the ServiceUrl in the token response
-        var result = await s2sClient.GetByIdAsync<S2SHealthResponse>(
+        var result = await applicationClient.GetByIdAsync<ApplicationHealthResponse>(
             serviceId,
             "/api/integration/s2s/health"
         );
 
         return Ok(new
         {
-            demo = "Dynamic S2S call by service ID",
+            demo = "Dynamic application call by service ID",
             targetServiceId = serviceId,
             result = new
             {
@@ -176,10 +176,10 @@ public sealed class S2SDemoController(
     [HttpPost("callback-to/{serviceId:guid}")]
     public async Task<IActionResult> SendCallback(Guid serviceId, [FromBody] CallbackRequest request)
     {
-        logger.LogInformation("S2S demo: Sending callback to service {ServiceId}", serviceId);
+        logger.LogInformation("Application demo: Sending callback to service {ServiceId}", serviceId);
 
         // This is how Payment Gateway would notify the merchant
-        var result = await s2sClient.PostByIdAsync<PaymentCallbackPayload, PaymentCallbackResponse>(
+        var result = await applicationClient.PostByIdAsync<PaymentCallbackPayload, PaymentCallbackResponse>(
             serviceId,
             "/api/integration/s2s/webhook/payment-completed",
             new PaymentCallbackPayload
@@ -223,10 +223,10 @@ public sealed class S2SDemoController(
     [HttpGet("error-demo/{packageName}")]
     public async Task<IActionResult> ErrorDemo(string packageName)
     {
-        logger.LogInformation("S2S demo: Error handling demo for {PackageName}", packageName);
+        logger.LogInformation("Application demo: Error handling demo for {PackageName}", packageName);
 
         // Call a non-existent endpoint to trigger error
-        var result = await s2sClient.GetAsync<object>(
+        var result = await applicationClient.GetAsync<object>(
             packageName,
             "/api/non-existent-endpoint"
         );
@@ -253,7 +253,7 @@ public sealed class S2SDemoController(
 #region DTO Models
 
 // Response Models
-public sealed class S2SHealthResponse
+public sealed class ApplicationHealthResponse
 {
     public bool Success { get; set; }
     public string? Message { get; set; }

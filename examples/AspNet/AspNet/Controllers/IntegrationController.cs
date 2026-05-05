@@ -1,4 +1,4 @@
-using Linbik.Server.Attributes;
+﻿using Linbik.Core.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -11,8 +11,8 @@ namespace AspNet.Controllers;
 /// 
 /// Usage in real integration services:
 /// - Copy this pattern to your own integration service
-/// - Use [LinbikUserServiceAuthorize] for endpoints that require user context (user-initiated requests)
-/// - Use [LinbikS2SAuthorize] for service-to-service endpoints (no user context)
+/// - Use [LinbikDelegatedAuthorize] for endpoints that require user context (user-initiated requests)
+/// - Use [LinbikApplicationAuthorize] for service-to-service endpoints (no user context)
 /// - Public endpoints can be accessed without authentication
 /// </summary>
 [ApiController]
@@ -52,7 +52,7 @@ public sealed class IntegrationController : ControllerBase
             service = new
             {
                 name = "Linbik Integration Service Demo",
-                description = "Demonstrates LinbikUserServiceAuthorize and LinbikS2SAuthorize attributes for protected endpoints",
+                description = "Demonstrates LinbikDelegatedAuthorize and LinbikApplicationAuthorize attributes for protected endpoints",
                 version = "1.0.0",
                 endpoints = new
                 {
@@ -132,13 +132,13 @@ public sealed class IntegrationController : ControllerBase
 
     #endregion
 
-    #region Protected Endpoints (Requires LinbikUserServiceAuthorize)
+    #region Protected Endpoints (Requires LinbikDelegatedAuthorize)
 
     /// <summary>
     /// Protected endpoint - requires valid Linbik JWT token with user context
-    /// Uses [LinbikUserServiceAuthorize] attribute which validates RS256 signed JWT
+    /// Uses [LinbikDelegatedAuthorize] attribute which validates RS256 signed JWT
     /// </summary>
-    [LinbikUserServiceAuthorize]
+    [LinbikDelegatedAuthorize]
     [HttpGet("protected")]
     public IActionResult Protected()
     {
@@ -166,7 +166,7 @@ public sealed class IntegrationController : ControllerBase
     /// User profile endpoint - requires authentication
     /// Returns full user profile from JWT claims
     /// </summary>
-    [LinbikUserServiceAuthorize]
+    [LinbikDelegatedAuthorize]
     [HttpGet("user-profile")]
     public IActionResult UserProfile()
     {
@@ -198,7 +198,7 @@ public sealed class IntegrationController : ControllerBase
     /// Process data endpoint - requires authentication
     /// Demonstrates a POST endpoint that processes user data
     /// </summary>
-    [LinbikUserServiceAuthorize]
+    [LinbikDelegatedAuthorize]
     [HttpPost("process")]
     public IActionResult Process([FromBody] ProcessRequest? request)
     {
@@ -229,7 +229,7 @@ public sealed class IntegrationController : ControllerBase
     /// User data endpoint - requires authentication
     /// Returns personalized data for the authenticated user
     /// </summary>
-    [LinbikUserServiceAuthorize]
+    [LinbikDelegatedAuthorize]
     [HttpGet("user-data")]
     public IActionResult UserData()
     {
@@ -270,16 +270,16 @@ public sealed class IntegrationController : ControllerBase
 
     #endregion
 
-    #region S2S Protected Endpoints (Requires LinbikS2SAuthorize)
+    #region S2S Protected Endpoints (Requires LinbikApplicationAuthorize)
 
     /// <summary>
     /// S2S sync endpoint - requires valid S2S JWT token (no user context)
-    /// Uses [LinbikS2SAuthorize] attribute which validates RS256 signed JWT
+    /// Uses [LinbikApplicationAuthorize] attribute which validates RS256 signed JWT
     /// 
     /// Scenario: Another service calls this endpoint to sync data
     /// Example: Payment Gateway syncing transaction status with this service
     /// </summary>
-    [LinbikS2SAuthorize]
+    [LinbikApplicationAuthorize]
     [HttpPost("s2s/sync")]
     public IActionResult S2SSync([FromBody] S2SSyncRequest? request)
     {
@@ -292,7 +292,7 @@ public sealed class IntegrationController : ControllerBase
         {
             success = true,
             message = "✅ S2S sync endpoint accessed with valid S2S JWT!",
-            authScheme = "LinbikS2S (RS256)",
+            authScheme = "LinbikApplication (RS256)",
             sourceService = new
             {
                 serviceId = sourceServiceId,
@@ -318,7 +318,7 @@ public sealed class IntegrationController : ControllerBase
     /// 
     /// Scenario: Service discovery or health monitoring between services
     /// </summary>
-    [LinbikS2SAuthorize]
+    [LinbikApplicationAuthorize]
     [HttpGet("s2s/health")]
     public IActionResult S2SHealth()
     {
@@ -329,7 +329,7 @@ public sealed class IntegrationController : ControllerBase
         {
             success = true,
             message = "✅ S2S health check - service is accessible",
-            authScheme = "LinbikS2S (RS256)",
+            authScheme = "LinbikApplication (RS256)",
             sourceService = new
             {
                 serviceId = sourceServiceId,
@@ -347,12 +347,12 @@ public sealed class IntegrationController : ControllerBase
 
     /// <summary>
     /// S2S webhook endpoint - receives callbacks from other services
-    /// Uses [LinbikS2SAuthorize] to ensure only authenticated services can call
+    /// Uses [LinbikApplicationAuthorize] to ensure only authenticated services can call
     /// 
     /// Scenario: Payment Gateway notifying about payment completion
     /// Example: POST /api/integration/s2s/webhook/payment-completed
     /// </summary>
-    [LinbikS2SAuthorize("Service")]
+    [LinbikApplicationAuthorize("Service")]
     [HttpPost("s2s/webhook/{eventType}")]
     public IActionResult S2SWebhook(string eventType, [FromBody] S2SWebhookPayload? payload)
     {
@@ -396,7 +396,7 @@ public sealed class IntegrationController : ControllerBase
     /// Scenario: Bulk data synchronization between services
     /// Example: Inventory service sending batch stock updates
     /// </summary>
-    [LinbikS2SAuthorize]
+    [LinbikApplicationAuthorize]
     [HttpPost("s2s/batch")]
     public IActionResult S2SBatch([FromBody] S2SBatchRequest? request)
     {
@@ -431,13 +431,13 @@ public sealed class IntegrationController : ControllerBase
 
     /// <summary>
     /// Platform-only endpoint - receives Linbik platform lifecycle events
-    /// Uses [LinbikS2SAuthorize("Linbik")] to ONLY accept tokens from the Linbik platform
+    /// Uses [LinbikApplicationAuthorize("Linbik")] to ONLY accept tokens from the Linbik platform
     /// Regular service-to-service tokens will be rejected (403 Forbidden)
     /// 
     /// Scenario: Linbik platform notifying about key rotation, integration toggle, etc.
     /// Example: POST /api/integration/s2s/platform-event
     /// </summary>
-    [LinbikS2SAuthorize("Linbik")]
+    [LinbikApplicationAuthorize("Linbik")]
     [HttpPost("s2s/platform-event")]
     public IActionResult S2SPlatformEvent([FromBody] S2SWebhookPayload? payload)
     {

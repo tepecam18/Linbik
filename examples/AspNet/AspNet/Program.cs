@@ -1,4 +1,4 @@
-using Linbik.Core.Extensions;
+﻿using Linbik.Core.Extensions;
 using Linbik.JwtAuthManager.Extensions;
 using Linbik.Server.Extensions;
 using Linbik.YARP.Extensions;
@@ -66,7 +66,7 @@ app.UseLinbikJwtAuth();
 
 // ✅ Map Linbik Integration webhook endpoints
 // Receives notifications when services create/remove/toggle integrations
-// Protected by LinbikS2S authentication
+// Protected by LinbikApplication authentication
 app.MapLinbikIntegrationEndpoints();
 
 // ✅ Map integration service proxy endpoints

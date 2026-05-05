@@ -1,3 +1,4 @@
+﻿using Linbik.Core;
 using Linbik.Server.Interfaces;
 using Linbik.Server.Models;
 using Linbik.Server.Services;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Linbik.Server.Extensions;
@@ -18,8 +20,8 @@ namespace Linbik.Server.Extensions;
 /// </summary>
 public static class LinbikIntegrationEndpoints
 {
-    /// <summary>POST — Create integration (no sub-path, just the base prefix)</summary>
-    public const string Create = "/";
+    /// <summary>POST — Create integration (no sub-path; matches sender's empty Create path).</summary>
+    public const string Create = "";
 
     /// <summary>DELETE — Remove integration: /{integrationId}</summary>
     public const string Remove = "/{integrationId:guid}";
@@ -57,6 +59,9 @@ public static class IntegrationEndpointExtensions
     public static IServiceCollection AddLinbikIntegrationHandler<THandler>(this IServiceCollection services)
         where THandler : class, ILinbikIntegrationHandler
     {
+        // AddLinbikServer() default handler'ı TryAddScoped ile kaydetmiş olabilir.
+        // Önce mevcut kaydı kaldırıp, kullanıcının istediği THandler'ı tekil kayıt olarak ekliyoruz.
+        services.RemoveAll<ILinbikIntegrationHandler>();
         services.AddScoped<ILinbikIntegrationHandler, THandler>();
         return services;
     }
@@ -64,10 +69,12 @@ public static class IntegrationEndpointExtensions
     /// <summary>
     /// Register the default integration handler (logs events only).
     /// Override by calling <see cref="AddLinbikIntegrationHandler{THandler}"/> instead.
+    /// Not: <c>AddLinbikServer()</c> zaten default handler'ı Optional DI ile (TryAdd) kaydeder;
+    /// bu metoda yalnızca explicit kayıt gerektiğinde ihtiyaç vardır.
     /// </summary>
     public static IServiceCollection AddLinbikIntegrationHandler(this IServiceCollection services)
     {
-        services.AddScoped<ILinbikIntegrationHandler, LinbikIntegrationHandler>();
+        services.TryAddScoped<ILinbikIntegrationHandler, LinbikIntegrationHandler>();
         return services;
     }
 
@@ -81,7 +88,7 @@ public static class IntegrationEndpointExtensions
     /// - PUT    {basePath}/{id}/status   → Integration toggled (enabled/disabled)
     /// - PUT    {basePath}/{id}/admin    → Admin profile changed
     /// 
-    /// All endpoints require LinbikS2S authentication by default.
+    /// All endpoints require LinbikApplication authentication by default.
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
     /// <param name="basePath">Base path for integration endpoints (default: /api/external)</param>
@@ -94,7 +101,7 @@ public static class IntegrationEndpointExtensions
             .WithTags("Linbik Integrations")
             .RequireAuthorization(policy =>
             {
-                policy.AuthenticationSchemes = ["LinbikS2S"];
+                policy.AuthenticationSchemes = [LinbikDefaults.ApplicationScheme];
                 policy.RequireAuthenticatedUser();
             });
 

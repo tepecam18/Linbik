@@ -1,4 +1,4 @@
-namespace Linbik.Server.Models;
+﻿namespace Linbik.Server.Models;
 
 /// <summary>
 /// Token type enumeration for different authentication scenarios
@@ -6,16 +6,16 @@ namespace Linbik.Server.Models;
 public enum LinbikTokenType
 {
     /// <summary>
-    /// Token issued for user-initiated service requests
+    /// Delegated token issued for user-initiated service requests
     /// Contains: UserId, Username, DisplayName, AuthorizedParty
     /// </summary>
-    UserService,
+    Delegated,
 
     /// <summary>
-    /// Token issued for Service-to-Service requests (no user context)
+    /// Application token issued for service-to-service requests (no user context)
     /// Contains: SourceServiceId, SourcePackageName
     /// </summary>
-    S2S
+    Application
 }
 
 /// <summary>
@@ -24,22 +24,22 @@ public enum LinbikTokenType
 public sealed class LinbikTokenClaims
 {
     /// <summary>
-    /// Token type: UserService or S2S
+    /// Token type: Delegated or Application
     /// </summary>
-    public LinbikTokenType TokenType { get; set; } = LinbikTokenType.UserService;
+    public LinbikTokenType TokenType { get; set; } = LinbikTokenType.Delegated;
 
     /// <summary>
-    /// User ID (sub claim) - Only present in UserService tokens
+    /// User ID (sub claim) - Only present in delegated tokens
     /// </summary>
     public Guid? UserId { get; set; }
 
     /// <summary>
-    /// Username - Only present in UserService tokens
+    /// Username - Only present in delegated tokens
     /// </summary>
     public string? UserName { get; set; }
 
     /// <summary>
-    /// Display name / Nickname - Only present in UserService tokens
+    /// Display name / Nickname - Only present in delegated tokens
     /// </summary>
     public string? DisplayName { get; set; }
 
@@ -50,17 +50,17 @@ public sealed class LinbikTokenClaims
 
     /// <summary>
     /// Authorized party (azp claim) - the main service that requested this token
-    /// Present in both UserService and S2S tokens
+    /// Present in both Delegated and Application tokens
     /// </summary>
     public Guid AuthorizedParty { get; set; }
 
     /// <summary>
-    /// Source Service ID (sub claim for S2S tokens) - Only present in S2S tokens
+    /// Source Service ID (sub claim for application tokens) - Only present in application tokens
     /// </summary>
     public Guid? SourceServiceId { get; set; }
 
     /// <summary>
-    /// Source Package Name - Only present in S2S tokens
+    /// Source Package Name - Only present in application tokens
     /// </summary>
     public string? SourcePackageName { get; set; }
 
@@ -85,12 +85,12 @@ public sealed class LinbikTokenClaims
     public Dictionary<string, string> RawClaims { get; set; } = [];
 
     /// <summary>
-    /// Check if this is a user-service token
+    /// Check if this is a delegated token
     /// </summary>
-    public bool IsUserServiceToken => TokenType == LinbikTokenType.UserService;
+    public bool IsDelegatedToken => TokenType == LinbikTokenType.Delegated;
 
     /// <summary>
-    /// Check if this is an S2S token
+    /// Check if this is an application token
     /// </summary>
-    public bool IsS2SToken => TokenType == LinbikTokenType.S2S;
+    public bool IsApplicationToken => TokenType == LinbikTokenType.Application;
 }

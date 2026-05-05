@@ -1,4 +1,4 @@
-using Linbik.Core.Configuration;
+﻿using Linbik.Core.Configuration;
 using Linbik.Core.Models;
 using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Interfaces;
@@ -9,27 +9,27 @@ using System.Collections.Concurrent;
 namespace Linbik.YARP.Services;
 
 /// <summary>
-/// S2S (Service-to-Service) token provider with automatic caching and refresh
+/// Application token provider with automatic caching and refresh
 /// Uses Linbik.Core's ILinbikAuthClient for HTTP operations
 /// Supports both config-based (package name) and dynamic (service ID) targets
 /// </summary>
-public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
+public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDisposable
 {
     private readonly ILinbikAuthClient _authClient;
     private readonly LinbikOptions _options;
-    private readonly ILogger<S2STokenProvider> _logger;
+    private readonly ILogger<ApplicationTokenProvider> _logger;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly Timer? _autoRefreshTimer;
 
-    // Cache for S2S tokens - by package name (config-based)
-    private readonly ConcurrentDictionary<string, S2STokenCacheItem> _tokenCache = new();
-    // Cache for S2S tokens - by service ID (dynamic)
-    private readonly ConcurrentDictionary<Guid, S2STokenCacheItem> _dynamicTokenCache = new();
+    // Cache for application tokens - by package name (config-based)
+    private readonly ConcurrentDictionary<string, ApplicationTokenCacheItem> _tokenCache = new();
+    // Cache for application tokens - by service ID (dynamic)
+    private readonly ConcurrentDictionary<Guid, ApplicationTokenCacheItem> _dynamicTokenCache = new();
     private DateTime _cacheExpiry = DateTime.MinValue;
 
-    private sealed class S2STokenCacheItem
+    private sealed class ApplicationTokenCacheItem
     {
-        public required LinbikS2SIntegration Integration { get; init; }
+        public required LinbikApplicationIntegration Integration { get; init; }
         public DateTime ExpiresAt { get; init; }
         public DateTime FetchedAt { get; init; }
 
@@ -38,10 +38,10 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
             DateTime.UtcNow >= FetchedAt.Add(TimeSpan.FromTicks((long)((ExpiresAt - FetchedAt).Ticks * threshold)));
     }
 
-    public S2STokenProvider(
+    public ApplicationTokenProvider(
         ILinbikAuthClient authClient,
         IOptions<LinbikOptions> options,
-        ILogger<S2STokenProvider> logger)
+        ILogger<ApplicationTokenProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(authClient);
         ArgumentNullException.ThrowIfNull(options);
@@ -61,21 +61,21 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
                 refreshInterval,
                 refreshInterval);
 
-            _logger.LogInformation("S2S auto-refresh enabled with interval: {Interval}", refreshInterval);
+            _logger.LogInformation("Application token auto-refresh enabled with interval: {Interval}", refreshInterval);
         }
     }
 
     #region Package Name Based (Config-based targets)
 
     /// <inheritdoc />
-    public async Task<string?> GetS2STokenAsync(string integrationPackageName, CancellationToken cancellationToken = default)
+    public async Task<string?> GetApplicationTokenAsync(string integrationPackageName, CancellationToken cancellationToken = default)
     {
-        var integration = await GetS2SIntegrationAsync(integrationPackageName, cancellationToken);
+        var integration = await GetApplicationIntegrationAsync(integrationPackageName, cancellationToken);
         return integration?.Token;
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, string>> GetS2STokensAsync(
+    public async Task<IReadOnlyDictionary<string, string>> GetApplicationTokensAsync(
         IEnumerable<string> integrationPackageNames,
         CancellationToken cancellationToken = default)
     {
@@ -115,7 +115,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<LinbikS2SIntegration?> GetS2SIntegrationAsync(
+    public async Task<LinbikApplicationIntegration?> GetApplicationIntegrationAsync(
         string integrationPackageName,
         CancellationToken cancellationToken = default)
     {
@@ -127,18 +127,18 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
                 // Check if needs proactive refresh
                 if (cached.NeedsRefresh(_options.S2SRefreshThreshold))
                 {
-                    _logger.LogDebug("S2S token for {Package} needs refresh (threshold: {Threshold}%)",
+                    _logger.LogDebug("Application token for {Package} needs refresh (threshold: {Threshold}%)",
                         integrationPackageName, _options.S2SRefreshThreshold * 100);
 
                     // Trigger background refresh but return current token
-                    _ = Task.Run(async () => await RefreshS2STokensAsync(cancellationToken), cancellationToken);
+                    _ = Task.Run(async () => await RefreshApplicationTokensAsync(cancellationToken), cancellationToken);
                 }
 
                 return cached.Integration;
             }
             else
             {
-                _logger.LogDebug("S2S token for {Package} expired", integrationPackageName);
+                _logger.LogDebug("Application token for {Package} expired", integrationPackageName);
             }
         }
 
@@ -150,7 +150,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
             return cached.Integration;
         }
 
-        _logger.LogWarning("Failed to obtain S2S token for {Package}", integrationPackageName);
+        _logger.LogWarning("Failed to obtain application token for {Package}", integrationPackageName);
         return null;
     }
 
@@ -159,7 +159,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
     #region Service ID Based (Dynamic targets)
 
     /// <inheritdoc />
-    public async Task<LinbikS2SIntegration?> GetS2SIntegrationByIdAsync(
+    public async Task<LinbikApplicationIntegration?> GetApplicationIntegrationByIdAsync(
         Guid targetServiceId,
         CancellationToken cancellationToken = default)
     {
@@ -171,7 +171,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
                 // Check if needs proactive refresh
                 if (cached.NeedsRefresh(_options.S2SRefreshThreshold))
                 {
-                    _logger.LogDebug("Dynamic S2S token for {ServiceId} needs refresh", targetServiceId);
+                    _logger.LogDebug("Dynamic application token for {ServiceId} needs refresh", targetServiceId);
 
                     // Trigger background refresh but return current token
                     _ = Task.Run(async () => await FetchAndCacheDynamicTokensAsync([targetServiceId], default), cancellationToken);
@@ -181,7 +181,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
             }
             else
             {
-                _logger.LogDebug("Dynamic S2S token for {ServiceId} expired", targetServiceId);
+                _logger.LogDebug("Dynamic application token for {ServiceId} expired", targetServiceId);
             }
         }
 
@@ -193,16 +193,16 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
             return cached.Integration;
         }
 
-        _logger.LogWarning("Failed to obtain dynamic S2S token for service {ServiceId}", targetServiceId);
+        _logger.LogWarning("Failed to obtain dynamic application token for service {ServiceId}", targetServiceId);
         return null;
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<Guid, LinbikS2SIntegration>> GetS2SIntegrationsByIdAsync(
+    public async Task<IReadOnlyDictionary<Guid, LinbikApplicationIntegration>> GetApplicationIntegrationsByIdAsync(
         IEnumerable<Guid> targetServiceIds,
         CancellationToken cancellationToken = default)
     {
-        var result = new Dictionary<Guid, LinbikS2SIntegration>();
+        var result = new Dictionary<Guid, LinbikApplicationIntegration>();
         var serviceIds = targetServiceIds.ToList();
 
         // Check which tokens we need to fetch
@@ -242,12 +242,12 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
     #region Cache Management
 
     /// <inheritdoc />
-    public async Task RefreshS2STokensAsync(CancellationToken cancellationToken = default)
+    public async Task RefreshApplicationTokensAsync(CancellationToken cancellationToken = default)
     {
         var packageNames = _options.S2STargetServices.Keys.ToList();
         if (packageNames.Count == 0)
         {
-            _logger.LogWarning("No S2S target services configured");
+            _logger.LogWarning("No application target services configured");
             return;
         }
 
@@ -260,7 +260,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
         _tokenCache.Clear();
         _dynamicTokenCache.Clear();
         _cacheExpiry = DateTime.MinValue;
-        _logger.LogInformation("S2S token cache cleared (both config-based and dynamic)");
+        _logger.LogInformation("Application token cache cleared (both config-based and dynamic)");
     }
 
     /// <inheritdoc />
@@ -309,13 +309,13 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
             }
             else
             {
-                _logger.LogWarning("S2S target service {Package} not found in configuration", packageName);
+                _logger.LogWarning("Application target service {Package} not found in configuration", packageName);
             }
         }
 
         if (targetIds.Count == 0)
         {
-            _logger.LogError("No valid S2S target service IDs found");
+            _logger.LogError("No valid application target service IDs found");
             return;
         }
 
@@ -341,7 +341,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
         // Acquire lock to prevent concurrent fetches
         if (!await _refreshLock.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken))
         {
-            _logger.LogWarning("S2S token fetch timed out waiting for lock");
+            _logger.LogWarning("Application token fetch timed out waiting for lock");
             return;
         }
 
@@ -372,24 +372,24 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
 
             if (stillNeedFetch.Count == 0)
             {
-                _logger.LogDebug("S2S tokens already refreshed by another thread");
+                _logger.LogDebug("Application tokens already refreshed by another thread");
                 return;
             }
 
-            var request = new LinbikS2STokenRequest
+            var request = new LinbikApplicationTokenRequest
             {
                 SourceServiceId = Guid.Parse(_options.ServiceId),
                 TargetServiceIds = stillNeedFetch
             };
 
             var cacheType = isConfigBased ? "config-based" : "dynamic";
-            _logger.LogDebug("Fetching {CacheType} S2S tokens for {Count} services", cacheType, stillNeedFetch.Count);
+            _logger.LogDebug("Fetching {CacheType} application tokens for {Count} services", cacheType, stillNeedFetch.Count);
 
-            var response = await _authClient.GetS2STokensAsync(request, cancellationToken);
+            var response = await _authClient.GetApplicationTokensAsync(request, cancellationToken);
 
             if (response?.Integrations == null)
             {
-                _logger.LogWarning("S2S token response was null or empty");
+                _logger.LogWarning("Application token response was null or empty");
                 return;
             }
 
@@ -401,7 +401,7 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
 
             foreach (var integration in response.Integrations)
             {
-                var cacheItem = new S2STokenCacheItem
+                var cacheItem = new ApplicationTokenCacheItem
                 {
                     Integration = integration,
                     ExpiresAt = expiry,
@@ -425,12 +425,12 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
                 _cacheExpiry = expiry;
             }
 
-            _logger.LogInformation("Cached {CacheType} S2S tokens for {Count} services, expires at {Expiry}",
+            _logger.LogInformation("Cached {CacheType} application tokens for {Count} services, expires at {Expiry}",
                 cacheType, response.Integrations.Count, expiry);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch S2S tokens");
+            _logger.LogError(ex, "Failed to fetch application tokens");
         }
         finally
         {
@@ -450,13 +450,13 @@ public sealed class S2STokenProvider : IS2STokenProvider, IDisposable
 
             if (needsRefresh)
             {
-                _logger.LogDebug("Auto-refreshing config-based S2S tokens");
-                await RefreshS2STokensAsync();
+                _logger.LogDebug("Auto-refreshing config-based application tokens");
+                await RefreshApplicationTokensAsync();
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "S2S auto-refresh failed");
+            _logger.LogError(ex, "Application token auto-refresh failed");
         }
     }
 

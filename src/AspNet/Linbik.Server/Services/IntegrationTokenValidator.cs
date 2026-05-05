@@ -1,4 +1,4 @@
-using Linbik.Server.Configuration;
+﻿using Linbik.Server.Configuration;
 using Linbik.Server.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -155,8 +155,8 @@ public sealed class IntegrationTokenValidator
 
             if (tokenTypeClaim == "s2s" || !hasUserClaims)
             {
-                // S2S Token
-                claims.TokenType = LinbikTokenType.S2S;
+                // Application Token
+                claims.TokenType = LinbikTokenType.Application;
 
                 var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
                 if (Guid.TryParse(subClaim, out var sourceServiceId))
@@ -166,12 +166,12 @@ public sealed class IntegrationTokenValidator
 
                 claims.SourcePackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == "source_package_name")?.Value;
 
-                _logger?.LogDebug("S2S Token validated successfully for service {SourceServiceId}", claims.SourceServiceId);
+                _logger?.LogDebug("Application token validated successfully for service {SourceServiceId}", claims.SourceServiceId);
             }
             else
             {
                 // User-Service Token
-                claims.TokenType = LinbikTokenType.UserService;
+                claims.TokenType = LinbikTokenType.Delegated;
 
                 var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
                 if (Guid.TryParse(subClaim, out var userId))
@@ -245,7 +245,7 @@ public sealed class IntegrationTokenValidator
     /// Get token type from validated token claims
     /// </summary>
     public static LinbikTokenType GetTokenType(LinbikTokenClaims? claims) =>
-        claims?.TokenType ?? LinbikTokenType.UserService;
+        claims?.TokenType ?? LinbikTokenType.Delegated;
 
     /// <summary>
     /// Get user ID from validated token claims (UserService tokens only)
@@ -266,13 +266,13 @@ public sealed class IntegrationTokenValidator
         claims?.DisplayName ?? string.Empty;
 
     /// <summary>
-    /// Get source service ID from validated token claims (S2S tokens only)
+    /// Get source service ID from validated token claims (application tokens only)
     /// </summary>
     public static Guid GetSourceServiceId(LinbikTokenClaims? claims) =>
         claims?.SourceServiceId ?? Guid.Empty;
 
     /// <summary>
-    /// Get source package name from validated token claims (S2S tokens only)
+    /// Get source package name from validated token claims (application tokens only)
     /// </summary>
     public static string GetSourcePackageName(LinbikTokenClaims? claims) =>
         claims?.SourcePackageName ?? string.Empty;

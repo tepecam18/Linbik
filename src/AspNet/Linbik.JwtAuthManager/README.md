@@ -57,13 +57,13 @@ app.Run();
 Choose **one** of the following approaches:
 
 ```csharp
-// Default configuration (reads from "Linbik:JwtAuth" section)
+// Default configuration
 AddLinbikJwtAuth();
 
 // From configuration
 AddLinbikJwtAuth(builder.Configuration.GetSection("Linbik:JwtAuth"));
 
-// Fluent configuration (overrides from "Linbik:JwtAuth" section)
+// Fluent configuration
 AddLinbikJwtAuth(opt => { });
 ```
   
