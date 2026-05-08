@@ -16,7 +16,7 @@ namespace Linbik.Server.Extensions;
 /// These must match the paths used by Linbik.App's IntegrationNotificationService.
 /// 
 /// Full endpoint = {BaseUrl}{IntegrationPath}{SubPath}
-/// Default IntegrationPath = "/api/external"
+/// Default IntegrationPath = "/api/Linbik"
 /// </summary>
 public static class LinbikIntegrationEndpoints
 {
@@ -44,7 +44,7 @@ public static class LinbikIntegrationEndpoints
 /// builder.Services.AddLinbikIntegrationHandler&lt;MyIntegrationHandler&gt;();
 /// 
 /// var app = builder.Build();
-/// app.MapLinbikIntegrationEndpoints(); // defaults to /api/external
+/// app.MapLinbikIntegrationEndpoints(); // defaults to /api/Linbik
 /// // or
 /// app.MapLinbikIntegrationEndpoints("/custom/path");
 /// </code>
@@ -91,14 +91,14 @@ public static class IntegrationEndpointExtensions
     /// All endpoints require LinbikApplication authentication by default.
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
-    /// <param name="basePath">Base path for integration endpoints (default: /api/external)</param>
+    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
     /// <returns>A route group builder for further configuration</returns>
     public static RouteGroupBuilder MapLinbikIntegrationEndpoints(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/external")
+        string basePath = "/api/Linbik/")
     {
         var group = endpoints.MapGroup(basePath)
-            .WithTags("Linbik Integrations")
+            .WithTags("Linbik System")
             .RequireAuthorization(policy =>
             {
                 policy.AuthenticationSchemes = [LinbikDefaults.ApplicationScheme];
@@ -217,7 +217,7 @@ public static class IntegrationEndpointExtensions
     /// </summary>
     public static RouteGroupBuilder MapLinbikIntegrationEndpointsAnonymous(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/external")
+        string basePath = "/api/Linbik")
     {
         var group = MapLinbikIntegrationEndpoints(endpoints, basePath);
         group.AllowAnonymous();

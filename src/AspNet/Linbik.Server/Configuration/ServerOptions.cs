@@ -61,9 +61,9 @@ public sealed class ServerOptions
     public int ClockSkewMinutes { get; set; } = 5;
 
     /// <summary>
-    /// Base path for integration webhook endpoints (default: /api/external)
+    /// Base path for integration webhook endpoints (default: /api/Linbik)
     /// This is where Linbik platform sends integration lifecycle events.
     /// This value is used as the default basePath when calling MapLinbikIntegrationEndpoints().
     /// </summary>
-    public string IntegrationEndpointPath { get; set; } = "/api/external";
+    public string IntegrationEndpointPath { get; set; } = "/api/Linbik";
 }
