@@ -4,8 +4,8 @@ using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 
 namespace Linbik.Core.Services;
@@ -80,12 +80,17 @@ public sealed class LinbikAuthService(
 
         try
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(authToken);
+            // Unsafe read — only parses claims without signature validation.
+            // The cookie token is HS256 JWT; payload is base64url-encoded JSON at segment [1].
+            var claims = ReadJwtPayloadClaims(authToken);
 
-            var userId = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value;
-            var userName = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "name" || c.Type == "preferred_username")?.Value;
-            var nickName = jwt.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value;
+            var userId = claims.GetValueOrDefault(ClaimTypes.NameIdentifier)
+                      ?? claims.GetValueOrDefault("sub");
+            var userName = claims.GetValueOrDefault(ClaimTypes.Name)
+                        ?? claims.GetValueOrDefault("name")
+                        ?? claims.GetValueOrDefault("preferred_username");
+            var nickName = claims.GetValueOrDefault("nickname")
+                        ?? claims.GetValueOrDefault("display_name");
 
             if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
             {
@@ -273,4 +278,43 @@ public sealed class LinbikAuthService(
     }
 
     #endregion
+
+    // ─── Private helpers ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// JWT payload'ını imza doğrulaması yapmadan okur (cookie-based HS256 token için).
+    /// JWT: header.payload.signature — payload base64url-encoded JSON'dur.
+    /// </summary>
+    private static Dictionary<string, string> ReadJwtPayloadClaims(string token)
+    {
+        var parts = token.Split('.');
+        if (parts.Length < 3) return [];
+
+        try
+        {
+            var base64 = parts[1].Replace('-', '+').Replace('_', '/');
+            base64 = (base64.Length % 4) switch
+            {
+                2 => base64 + "==",
+                3 => base64 + "=",
+                _ => base64,
+            };
+
+            var payloadJson = Encoding.UTF8.GetString(Convert.FromBase64String(base64));
+
+            using var doc = JsonDocument.Parse(payloadJson);
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                result[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
+                    ? prop.Value.GetString() ?? string.Empty
+                    : prop.Value.GetRawText();
+            }
+            return result;
+        }
+        catch
+        {
+            return [];
+        }
+    }
 }

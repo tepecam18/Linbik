@@ -6,6 +6,7 @@ using Linbik.JwtAuthManager.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -34,7 +35,6 @@ public static class LinbikJwtAuthExtensions
         var options = new JwtAuthOptions();
         configureOptions(options);
         builder.Services.Configure(configureOptions);
-        builder.Services.AddSingleton<IJwtHelper, JwtHelperService>();
         builder.Services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
@@ -55,7 +55,6 @@ public static class LinbikJwtAuthExtensions
     {
         ArgumentNullException.ThrowIfNull(configuration);
         builder.Services.Configure<JwtAuthOptions>(configuration);
-        builder.Services.AddSingleton<IJwtHelper, JwtHelperService>();
         builder.Services.AddSingleton<IValidateOptions<JwtAuthOptions>, JwtAuthOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, JwtAuthStartupValidator>();
 
@@ -97,6 +96,9 @@ public static class LinbikJwtAuthExtensions
     /// </summary>
     private static void AddLinbikAuthenticationDeferred(IServiceCollection services)
     {
+        // JWT-specific local cookie token reader
+        services.TryAddSingleton<ILocalJwtTokenReader, LocalJwtTokenReader>();
+
         services.AddAuthentication();
 
         services.AddOptions<JwtBearerOptions>(LinbikScheme)
@@ -158,11 +160,6 @@ public static class LinbikJwtAuthExtensions
             // Force eager validation of JwtAuthOptions (triggers JwtAuthOptionsValidator)
             var jwtOptions = services.GetRequiredService<IOptions<JwtAuthOptions>>();
             _ = jwtOptions.Value;
-
-            // Verify IJwtHelper is registered
-            _ = services.GetService<IJwtHelper>()
-                ?? throw new InvalidOperationException(
-                    "IJwtHelper is not registered. Call services.AddLinbikJwtAuth() or builder.AddLinbikJwtAuth() in Program.cs.");
 
             // Auto-update RedirectUri if enabled
             if (jwtOptions.Value.AutoUpdateRedirectUri)

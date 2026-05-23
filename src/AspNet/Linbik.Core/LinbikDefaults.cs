@@ -6,27 +6,27 @@
 /// </summary>
 public static class LinbikDefaults
 {
-    // ─── JWT Issuer ───────────────────────────────────────────────
+    // ─── Token Issuer ─────────────────────────────────────────────────────
     /// <summary>
-    /// Default JWT issuer name used across all Linbik services
+    /// Default issuer name used across all Linbik services
     /// </summary>
     public const string Issuer = "Linbik";
 
     // ─── Authentication Schemes ───────────────────────────────────
     /// <summary>
-    /// Client-side HS256 JWT scheme (cookie-based, for main services)
+    /// Client-side HS256 JWT scheme (cookie-based, for main services).
     /// Use with [LinbikAuthorize] attribute
     /// </summary>
     public const string ClientScheme = "LinbikScheme";
 
     /// <summary>
-    /// Server-side RS256 JWT scheme for user-initiated requests
+    /// Server-side PASETO v4.public scheme for user-initiated (delegated) requests.
     /// Use with [LinbikDelegatedAuthorize] attribute
     /// </summary>
     public const string DelegatedScheme = "LinbikDelegated";
 
     /// <summary>
-    /// Server-side RS256 JWT scheme for service-to-service requests
+    /// Server-side PASETO v4.public scheme for service-to-service requests.
     /// Use with [LinbikApplicationAuthorize] attribute
     /// </summary>
     public const string ApplicationScheme = "LinbikApplication";

@@ -5,6 +5,7 @@ using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -141,6 +142,9 @@ public static class LinbikServiceCollectionExtensions
                 // Add timeout
                 builder.AddTimeout(TimeSpan.FromSeconds(resilienceOptions.TimeoutSeconds));
             });
+
+        // Register PASETO helper (stateless, singleton-safe)
+        services.TryAddSingleton<IPasetoHelper, PasetoHelperService>();
 
         // Register main auth service
         services.AddScoped<IAuthService, LinbikAuthService>();

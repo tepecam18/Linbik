@@ -120,9 +120,9 @@ app.Run();
 
 | URL | Method | Açıklama |
 |-----|--------|----------|
-| `/linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
-| `/linbik/logout` | POST | Cookie'leri temizle ve çıkış yap |
-| `/linbik/refresh` | POST | Refresh token ile yeni token'lar al |
+| `/api/linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
+| `/api/linbik/logout` | POST | Cookie'leri temizle ve çıkış yap |
+| `/api/linbik/refresh` | POST | Refresh token ile yeni token'lar al |
 
 ### Test Endpoints
 

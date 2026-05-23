@@ -25,7 +25,7 @@ http://localhost:7020/test
 ### Giriş Yapmadıysa
 - ❌ "Kullanıcı Giriş Yapmamış" durumu
 - 🔵 **"Linbik ile Giriş Yap"** butonu
-- Tıklayınca → `/linbik/login` → linbik.com'a redirect
+- Tıklayınca → `/api/linbik/login` → linbik.com'a redirect
 
 ### Giriş Yaptıysa
 - ✅ "Kullanıcı Giriş Yapmış" durumu

@@ -5,19 +5,29 @@ using Linbik.Core.Services.Interfaces;
 using Linbik.Core.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+using System.Globalization;
 
 namespace AspNet.Controllers;
 
 public sealed class TestController(
     LinbikMetrics metrics,
     IAuthService authService,
+    IPasetoHelper pasetoHelper,
     IHttpClientFactory httpClientFactory) : Controller
 {
     private const string AuthTokenCookie = "authToken";
     private const string RefreshTokenCookie = "linbikRefreshToken";
     private const string IntegrationTokenPrefix = "integration_";
+
+    private static DateTime? ParseUnixSeconds(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
+            return DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            return dt;
+        return null;
+    }
 
     /// <summary>
     /// Ana dashboard sayfası - Kullanıcı durumu ve token bilgilerini gösterir
@@ -27,32 +37,21 @@ public sealed class TestController(
         UserProfile? profile = null;
         List<LinbikIntegrationToken> tokens = [];
 
-        // Check for auth token cookie
-        var authToken = Request.Cookies[AuthTokenCookie];
-        if (!string.IsNullOrEmpty(authToken))
+        // User is populated by the authentication middleware when the auth cookie is valid.
+        if (User.Identity?.IsAuthenticated == true)
         {
-            try
+            var userId = User.FindFirst("sub")?.Value;
+            var userName = User.FindFirst("preferred_username")?.Value;
+            var displayName = User.FindFirst("name")?.Value;
+
+            if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
             {
-                var handler = new JwtSecurityTokenHandler();
-                var jwt = handler.ReadJwtToken(authToken);
-
-                var userId = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-                var userName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.PreferredUsername)?.Value;
-                var displayName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
-
-                if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
+                profile = new UserProfile
                 {
-                    profile = new UserProfile
-                    {
-                        UserId = userGuid,
-                        UserName = userName ?? string.Empty,
-                        NickName = displayName ?? userName ?? string.Empty
-                    };
-                }
-            }
-            catch
-            {
-                // Invalid token, user not logged in
+                    UserId = userGuid,
+                    UserName = userName ?? string.Empty,
+                    NickName = displayName ?? userName ?? string.Empty
+                };
             }
         }
 
@@ -92,9 +91,9 @@ public sealed class TestController(
     [HttpGet]
     public IActionResult Protected()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-        var displayName = User.FindFirst("display_name")?.Value;
+        var userId = User.FindFirst("sub")?.Value;
+        var userName = User.FindFirst("preferred_username")?.Value;
+        var displayName = User.FindFirst("name")?.Value;
 
         return Json(new
         {
@@ -118,10 +117,10 @@ public sealed class TestController(
 
         return Json(new
         {
-            userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-            userName = User.FindFirst(ClaimTypes.Name)?.Value,
-            displayName = User.FindFirst("display_name")?.Value,
-            email = User.FindFirst(ClaimTypes.Email)?.Value,
+            userId = User.FindFirst("sub")?.Value,
+            userName = User.FindFirst("preferred_username")?.Value,
+            displayName = User.FindFirst("name")?.Value,
+            email = User.FindFirst("email")?.Value,
             isAuthenticated = User.Identity?.IsAuthenticated ?? false,
             authenticationType = User.Identity?.AuthenticationType,
             allClaims = claims
@@ -260,23 +259,22 @@ public sealed class TestController(
 
         try
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(token);
+            var claims = pasetoHelper.GetTokenClaims(token);
 
             // Token bilgilerini göster (validation yapmadan - sadece demo)
             return Json(new
             {
                 success = true,
                 message = "✅ Integration service mock endpoint'ine erişildi!",
-                note = "Gerçek integration service RSA public key ile doğrulama yapar",
+                note = "Gerçek integration service Ed25519 public key ile PASETO doğrulaması yapar",
                 tokenInfo = new
                 {
-                    issuer = jwt.Issuer,
-                    audience = jwt.Audiences.FirstOrDefault(),
-                    subject = jwt.Subject,
-                    issuedAt = jwt.IssuedAt,
-                    expires = jwt.ValidTo,
-                    claims = jwt.Claims.Select(c => new { c.Type, c.Value })
+                    issuer = claims.GetValueOrDefault("iss"),
+                    audience = claims.GetValueOrDefault("aud"),
+                    subject = claims.GetValueOrDefault("sub"),
+                    issuedAt = ParseUnixSeconds(claims.GetValueOrDefault("iat")),
+                    expires = ParseUnixSeconds(claims.GetValueOrDefault("exp")),
+                    claims = claims.Select(c => new { Type = c.Key, c.Value })
                 },
                 timestamp = DateTime.UtcNow
             });
@@ -286,7 +284,7 @@ public sealed class TestController(
             return BadRequest(new
             {
                 success = false,
-                error = "Geçersiz JWT token",
+                error = "Geçersiz PASETO token",
                 message = ex.Message
             });
         }
@@ -341,8 +339,8 @@ public sealed class TestController(
 
         try
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(token);
+            var claims = pasetoHelper.GetTokenClaims(token);
+            var expires = ParseUnixSeconds(claims.GetValueOrDefault("exp"));
 
             return Json(new
             {
@@ -352,13 +350,13 @@ public sealed class TestController(
                 note = "Bu token, integration service'e istek yaparken Authorization header'a eklenir",
                 tokenInfo = new
                 {
-                    issuer = jwt.Issuer,
-                    audience = jwt.Audiences.FirstOrDefault(),
-                    subject = jwt.Subject,
-                    issuedAt = jwt.IssuedAt,
-                    expires = jwt.ValidTo,
-                    isExpired = jwt.ValidTo < DateTime.UtcNow,
-                    claimCount = jwt.Claims.Count()
+                    issuer = claims.GetValueOrDefault("iss"),
+                    audience = claims.GetValueOrDefault("aud"),
+                    subject = claims.GetValueOrDefault("sub"),
+                    issuedAt = ParseUnixSeconds(claims.GetValueOrDefault("iat")),
+                    expires,
+                    isExpired = expires.HasValue && expires.Value < DateTime.UtcNow,
+                    claimCount = claims.Count
                 },
                 usage = new
                 {
@@ -402,24 +400,23 @@ public sealed class TestController(
         object? authTokenInfo = null;
         if (!string.IsNullOrEmpty(authToken))
         {
-            try
+            if (User.Identity?.IsAuthenticated == true)
             {
-                var handler = new JwtSecurityTokenHandler();
-                var jwt = handler.ReadJwtToken(authToken);
+                var expires = ParseUnixSeconds(User.FindFirst("exp")?.Value);
                 authTokenInfo = new
                 {
                     exists = true,
-                    issuer = jwt.Issuer,
-                    audience = jwt.Audiences.FirstOrDefault(),
-                    issuedAt = jwt.IssuedAt,
-                    expires = jwt.ValidTo,
-                    isExpired = jwt.ValidTo < DateTime.UtcNow,
-                    remainingMinutes = (jwt.ValidTo - DateTime.UtcNow).TotalMinutes
+                    issuer = User.FindFirst("iss")?.Value,
+                    audience = User.FindFirst("aud")?.Value,
+                    issuedAt = ParseUnixSeconds(User.FindFirst("iat")?.Value),
+                    expires,
+                    isExpired = expires.HasValue && expires.Value < DateTime.UtcNow,
+                    remainingMinutes = expires.HasValue ? (expires.Value - DateTime.UtcNow).TotalMinutes : (double?)null
                 };
             }
-            catch
+            else
             {
-                authTokenInfo = new { exists = true, valid = false, error = "Token decode edilemedi" };
+                authTokenInfo = new { exists = true, valid = false, error = "Token gecersiz veya suresi dolmus" };
             }
         }
 

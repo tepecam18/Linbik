@@ -3,8 +3,8 @@
 public sealed class ServerOptions
 {
     /// <summary>
-    /// RSA public key for JWT validation (PEM format or Base64 DER)
-    /// This is the public key corresponding to this service's private key
+    /// Ed25519 public key for PASETO v4.public validation (Base64-encoded 32-byte public key).
+    /// This is the public key corresponding to the Linbik platform's signing key.
     /// </summary>
     public string PublicKey { get; set; } = string.Empty;
 
@@ -19,7 +19,8 @@ public sealed class ServerOptions
     public bool ValidateAudience { get; set; } = true;
 
     /// <summary>
-    /// JWT issuer name (default: "Linbik")
+    /// JWT issuer name (default: "Linbik"). Kept for backward compatibility — used as the expected issuer
+    /// in PASETO token validation.
     /// </summary>
     public string JwtIssuer { get; set; } = Core.LinbikDefaults.Issuer;
 

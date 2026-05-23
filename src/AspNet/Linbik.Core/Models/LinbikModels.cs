@@ -48,7 +48,7 @@ public sealed class LinbikTokenResponse
 
     /// <summary>
     /// List of integration service tokens
-    /// Each service gets its own JWT token signed with that service's private key
+    /// Each service gets its own PASETO token signed with that service's private key
     /// </summary>
     public List<LinbikIntegrationToken>? Integrations { get; set; }
 
@@ -215,7 +215,7 @@ public sealed class LinbikApplicationTokenResponse
 
 /// <summary>
 /// S2S integration token data
-/// Contains JWT token signed with target service's private key
+/// Contains PASETO token signed with target service's private key
 /// Token contains only service claims (no user information)
 /// </summary>
 public sealed class LinbikApplicationIntegration

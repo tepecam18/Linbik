@@ -40,7 +40,7 @@ public static class LinbikSecurityEventType
     /// <summary>API anahtarı yanlış / iptal edilmiş / süresi dolmuş.</summary>
     public const string ApiKeyInvalid = "api_key_invalid";
 
-    /// <summary>S2S JWT, beklenenin aksine user-token (cross-scheme injection denemesi).</summary>
+    /// <summary>S2S token, beklenenin aksine user-token (cross-scheme injection denemesi).</summary>
     public const string S2sJwtInvalid = "s2s_jwt_invalid";
 
     /// <summary>Rate limit aşıldı.</summary>

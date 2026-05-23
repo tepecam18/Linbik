@@ -1,5 +1,5 @@
 ﻿using Linbik.Core.Extensions;
-using Linbik.JwtAuthManager.Extensions;
+using Linbik.PasetoAuthManager.Extensions;
 using Linbik.Server.Extensions;
 using Linbik.YARP.Extensions;
 using Scalar.AspNetCore;
@@ -12,9 +12,9 @@ builder.Services.AddOpenApi();
 
 
 // ✅ Linbik - Fluent builder pattern for all Linbik services
-builder.Services.AddLinbik()
-    .AddLinbikJwtAuth()
-    .AddLinbikServer()
+builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+    .AddLinbikPasetoAuth()
+    //.AddLinbikServer(); //hata veriyo
     .AddLinbikYarp();
 
 // ✅ Linbik Integration Handler - Handles integration lifecycle events from Linbik platform
@@ -22,7 +22,7 @@ builder.Services.AddLinbik()
 builder.Services.AddLinbikIntegrationHandler();
 
 // ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
-builder.Services.AddLinbikRateLimiting();
+builder.Services.AddLinbikRateLimiting();//hata veriyor
 
 // Logging for development
 builder.Logging.ClearProviders();
@@ -62,7 +62,7 @@ app.MapControllerRoute(
     pattern: "{controller=Test}/{action=Index}/{id?}");
 
 // ✅ Map Linbik OAuth endpoints (login, refresh, logout)
-app.UseLinbikJwtAuth();
+app.UseLinbikPasetoAuth();
 
 // ✅ Map Linbik Integration webhook endpoints
 // Receives notifications when services create/remove/toggle integrations

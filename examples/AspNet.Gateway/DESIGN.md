@@ -5,6 +5,7 @@ Branch: main
 Repo: tepecam18/Linbik
 Status: DRAFT
 Mode: Builder (intrapreneurship / örnek proje)
+Auth: PASETO v4.public (Ed25519) — JWT değil
 
 ## Problem Statement
 
@@ -36,7 +37,11 @@ bunların hepsi tek bir runnable örnekte birleşince Linbik'in nasıl
 ## Constraints
 
 - .NET 10. `Microsoft.AspNetCore.OpenApi` (Swashbuckle değil).
-- Linbik.Core, Linbik.JwtAuthManager mevcut paketler, olduğu gibi kullanılır.
+- Tüm 3 scheme **PASETO v4.public (Ed25519)** kullanır — JWT yok.
+- `Linbik.PasetoAuthManager` henüz bitmediği için `Linbik.Core`'daki
+  `PasetoHelperService` + `IPasetoHelper` doğrudan kullanılır. Paket hazır
+  olunca gateway `AddLinbikPasetoAuth()` çağrısına swap edilir.
+- Linbik.JwtAuthManager **kullanılmaz**.
 - Linbik.YARP **kullanılmaz** (outbound token injection için tasarlanmış,
   gateway senaryosu inbound claim extraction).
 - Sample bir paket çıkarmaz; gateway parçaları sample içinde yerel sınıflar.
@@ -106,13 +111,28 @@ examples/AspNet.Gateway/
 
 `GatewayAuthenticationExtensions.AddLinbikGatewayAuthentication(...)`:
 
-- **LinbikScheme** (Self): cookie `authToken` → HS256.
-  `Linbik.JwtAuthManager.AddLinbikJwtAuth(...)` zaten bunu kuruyor; gateway aynı
-  extension'ı çağırır.
-- **LinbikDelegated**: `Authorization: Bearer` → RS256, user-context claim'leri
-  bekler (`sub`, `name`, `preferred_username`, `azp`).
-- **LinbikApplication**: `Authorization: Bearer` → RS256, S2S claim'leri
-  (`source_service_id`, `source_package`, `target_package`, `role`).
+Üç scheme de **PASETO v4.public (Ed25519)** kullanır. `Linbik.Core`'da
+`PasetoHelperService : IPasetoHelper` (`Paseto.Core` NuGet, Ed25519 / v4.public)
+zaten hazır.
+
+Gateway'e özgü `PasetoAuthenticationHandler : AuthenticationHandler<PasetoAuthenticationOptions>`
+yazılır. Seçenekler:
+
+| Scheme | Token kaynağı | Public key kaynağı | Beklenen claim'ler |
+|---|---|---|---|
+| **LinbikScheme** (Self) | `authToken` cookie | `appsettings Linbik:Gateway:SelfPublicKey` | `sub`, `name`, `preferred_username` |
+| **LinbikDelegated** | `Authorization: Bearer` | `appsettings Linbik:Gateway:DelegatedPublicKey` | `sub`, `name`, `preferred_username`, `azp` |
+| **LinbikApplication** | `Authorization: Bearer` | `appsettings Linbik:Gateway:AppsPublicKey` | `source_service_id`, `source_package`, `target_package`, `role` |
+
+`PasetoAuthenticationOptions` alanları: `PublicKeyBase64`, `TokenSource` (Cookie|Bearer),
+`CookieName`, `ExpectedAudience`, `SchemeLabel`.
+
+Handler akışı:
+1. Token'ı oku (cookie veya Bearer header).
+2. `IPasetoHelper.ValidateTokenAsync(token, publicKey, audience)` çağır.
+3. Geçerliyse `IPasetoHelper.GetTokenClaims(token)` ile claim dict'i al.
+4. `ClaimsPrincipal` oluştur, `AuthenticateResult.Success(ticket)` döndür.
+5. Geçersizse `AuthenticateResult.Fail(...)`.
 
 Üç policy: `SelfPolicy`, `DelegatedPolicy`, `AppsPolicy` — her biri tek scheme
 zorunlu kılar (`RequireAuthenticatedUser` + `AddAuthenticationSchemes`).
@@ -258,7 +278,7 @@ ile: `self.json`'da `/self/...`, `delegated.json`'da `/delegated/...`).
 }
 ```
 
-UI: `Scalar.AspNetCore` veya `Swashbuckle.AspNetCore.SwaggerUI` (sadece UI için)
+UI: `Scalar.AspNetCore` (sadece UI için)
 3 ayrı sayfa. Sample'da `Scalar` tercih edilir; .NET 10 OpenAPI ile native uyumlu.
 
 ### Downstream.Sample
@@ -319,10 +339,11 @@ runtime test optional, README'de manuel curl adımları yeterli.
 
 1. `examples/AspNet.Gateway/Linbik.Gateway.Sample/Linbik.Gateway.Sample.csproj`
    oluştur. Referanslar: `Yarp.ReverseProxy`, `Microsoft.AspNetCore.OpenApi`,
-   `Scalar.AspNetCore`, `Linbik.Core`, `Linbik.JwtAuthManager`.
+   `Scalar.AspNetCore`, `Linbik.Core` (Paseto.Core geçişkendi gelir). Linbik.JwtAuthManager yok.
 2. `LinbikGatewayDefaults.cs` — prefix sabiti, allowlist, metadata key sabitleri.
-3. `GatewayAuthenticationExtensions.cs` — 3 scheme + 3 policy + JwtAuthOptions
-   bağlama. Linbik.JwtAuthManager'ı reuse et.
+3. `Authentication/PasetoAuthenticationOptions.cs` — `AuthenticationSchemeOptions` alt sınıfı.
+3b. `Authentication/PasetoAuthenticationHandler.cs` — custom `AuthenticationHandler<>` (cookie|bearer, IPasetoHelper).
+3c. `GatewayAuthenticationExtensions.cs` — `AddPasetoScheme()` helper + 3 scheme + 3 policy kaydı.
 4. `ClaimToHeaderTransform.cs` — sanitize + inject.
 5. `GatewayRoutingExtensions.cs` — `AddReverseProxy().LoadFromConfig().AddTransforms()`.
 6. `OpenApi/OpenApiAggregator.cs` — HttpClient ile downstream'lerden çekme,

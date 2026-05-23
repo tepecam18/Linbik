@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11620.152 stable
+VisualStudioVersion = 18.4.11620.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNet", "AspNet\AspNet.csproj", "{60EBE4E8-D357-4018-B58F-6A85B169EBAA}"
 EndProject
@@ -14,6 +14,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.Server", "..\..\src\AspNet\Linbik.Server\Linbik.Server.csproj", "{5C9DFF9F-B893-41C8-9996-799942572F13}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.CLI", "..\..\src\AspNet\Linbik.CLI\Linbik.CLI.csproj", "{C47CB72F-45B6-6198-341F-53846AAFB4AC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.PasetoAuthManager", "..\..\src\AspNet\Linbik.PasetoAuthManager\Linbik.PasetoAuthManager.csproj", "{96B0BA63-1440-A972-7897-364BCBBF982E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Librarys", "Librarys", "{374AF1C8-AE7C-49ED-B59F-436C71C77A66}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,9 +49,20 @@ Global
 		{C47CB72F-45B6-6198-341F-53846AAFB4AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C47CB72F-45B6-6198-341F-53846AAFB4AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C47CB72F-45B6-6198-341F-53846AAFB4AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96B0BA63-1440-A972-7897-364BCBBF982E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96B0BA63-1440-A972-7897-364BCBBF982E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96B0BA63-1440-A972-7897-364BCBBF982E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96B0BA63-1440-A972-7897-364BCBBF982E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{04D69CD1-7369-458A-9189-72E969983CF6} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{B1B4DC5E-6722-4B95-8398-50123317436A} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{D04F1E09-B3E1-EBAD-2112-22A093ED0E26} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{5C9DFF9F-B893-41C8-9996-799942572F13} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{96B0BA63-1440-A972-7897-364BCBBF982E} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {931D3B9D-BD5B-4927-BD65-4AD347ECC129}

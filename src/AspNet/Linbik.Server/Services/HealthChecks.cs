@@ -4,7 +4,7 @@ namespace Linbik.Server.Services;
 
 /// <summary>
 /// Health check for Linbik integration service authentication
-/// Verifies that the RSA public key is loaded and JWT validation is ready
+/// Verifies that the Ed25519 public key is configured and PASETO validation is ready
 /// </summary>
 public sealed class LinbikAuthHealthCheck(IntegrationTokenValidator tokenValidator) : IHealthCheck
 {

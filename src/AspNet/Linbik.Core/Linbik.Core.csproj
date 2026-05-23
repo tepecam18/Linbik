@@ -11,7 +11,7 @@
 		<Description>Core library providing shared dependencies and models for Linbik. Recommended for advanced manual integration; otherwise included by default in other Linbik packages.</Description>
 		<Authors>tepecam18</Authors>
 		<Company>Linbik</Company>
-		<PackageTags>authentication;jwt;yarp;tepecam18;linbik;core</PackageTags>
+		<PackageTags>authentication;paseto;yarp;tepecam18;linbik;core</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
@@ -51,7 +51,7 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
 		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.5" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+		<PackageReference Include="Paseto.Core" Version="1.5.0" />
 		
 		<!-- HttpClient support -->
 		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />

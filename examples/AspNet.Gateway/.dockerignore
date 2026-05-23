@@ -1,0 +1,29 @@
+# Build artefactları — image'a girmesin
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+# Local geliştirme
+**/*.user
+**/secrets.json
+**/.env
+**/.env.*
+
+# Docker — recursive copy'de gereksiz
+**/Dockerfile
+**/docker-compose*.yml
+**/.dockerignore
+
+# Git
+**/.git/
+**/.gitignore
+**/.gitattributes
+
+# Test sonuçları
+**/TestResults/
+**/coverage/
+
+# README/docs (image'a gerek yok)
+**/*.md

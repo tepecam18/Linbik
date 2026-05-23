@@ -1,0 +1,37 @@
+# Linbik kökü için Docker build context ignore.
+# AspNet.Gateway örneği için docker-compose Linbik kökünü context yapar,
+# bu yüzden ignore'lar burada olmalı.
+
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/secrets.json
+**/.env
+**/.env.*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+**/Dockerfile
+**/docker-compose*.yml
+**/.dockerignore
+
+# Node / Nuxt / örnekler
+**/node_modules/
+**/.nuxt/
+**/.output/
+**/dist/
+
+# Test sonuçları
+**/TestResults/
+**/coverage/
+
+# Dökümanlar — image'a gerek yok
+**/*.md
+LICENSE*

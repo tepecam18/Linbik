@@ -1,107 +1,63 @@
-﻿using Linbik.Server.Configuration;
+﻿using Linbik.Core.Services.Interfaces;
+using Linbik.Server.Configuration;
 using Linbik.Server.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace Linbik.Server.Services;
 
 /// <summary>
-/// JWT validation service for integration services (payment, survey, comments, etc.)
-/// Validates tokens issued by Linbik.App using RSA public keys
-/// Does NOT generate tokens - only validates
+/// PASETO v4.public doğrulama servisi.
+/// Linbik.App tarafından imzalanmış Ed25519 token'larını doğrular.
+/// Token üretmez; yalnızca doğrulama yapar.
 /// </summary>
 public sealed class IntegrationTokenValidator
 {
     private readonly ServerOptions _options;
+    private readonly IPasetoHelper _pasetoHelper;
     private readonly ILogger<IntegrationTokenValidator>? _logger;
-    private RSA? _rsaPublicKey;
-    private readonly object _keyLock = new();
 
-    public IntegrationTokenValidator(IOptions<ServerOptions> options, ILogger<IntegrationTokenValidator>? logger = null)
+    public IntegrationTokenValidator(
+        IOptions<ServerOptions> options,
+        IPasetoHelper pasetoHelper,
+        ILogger<IntegrationTokenValidator>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(pasetoHelper);
         _options = options.Value;
+        _pasetoHelper = pasetoHelper;
         _logger = logger;
-        InitializePublicKey();
-    }
-
-    private void InitializePublicKey()
-    {
-        if (string.IsNullOrEmpty(_options.PublicKey))
-        {
-            _logger?.LogWarning("No public key configured for JWT validation");
-            return;
-        }
-
-        lock (_keyLock)
-        {
-            try
-            {
-                _rsaPublicKey = RSA.Create();
-
-                // Try to import as PEM first
-                if (_options.PublicKey.Contains("-----BEGIN"))
-                {
-                    _rsaPublicKey.ImportFromPem(_options.PublicKey);
-                }
-                else
-                {
-                    // Try as Base64 DER format
-                    var keyBytes = Convert.FromBase64String(_options.PublicKey);
-                    _rsaPublicKey.ImportSubjectPublicKeyInfo(keyBytes, out _);
-                }
-
-                _logger?.LogInformation("RSA public key initialized successfully for service {ServiceId}", _options.PackageName);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Failed to initialize RSA public key");
-                _rsaPublicKey = null;
-            }
-        }
     }
 
     /// <summary>
-    /// Check if the token validator is properly configured
-    /// Used by health checks to verify service readiness
+    /// Doğrulayıcının kullanıma hazır olup olmadığını döner.
+    /// Health check tarafından kullanılır.
     /// </summary>
-    /// <returns>True if RSA public key is loaded and ready for validation</returns>
-    public bool IsConfigured()
-    {
-        lock (_keyLock)
-        {
-            return _rsaPublicKey != null;
-        }
-    }
+    public bool IsConfigured() => !string.IsNullOrEmpty(_options.PublicKey);
 
     /// <summary>
-    /// Validate JWT token from Authorization header
+    /// Authorization header'dan PASETO token'ı çıkarıp doğrular.
     /// </summary>
-    /// <param name="context">HTTP context</param>
-    /// <returns>Token claims if valid, null if invalid</returns>
     public LinbikTokenClaims? ValidateToken(HttpContext context)
     {
-        // Extract token from Authorization header
-        var authHeader = context.Request.Headers["Authorization"].ToString();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        var authHeader = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(authHeader) ||
+            !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             _logger?.LogDebug("Missing or invalid Authorization header");
             return null;
         }
 
-        var token = authHeader.Substring("Bearer ".Length).Trim();
+        var token = authHeader["Bearer ".Length..].Trim();
         return ValidateToken(token);
     }
 
     /// <summary>
     /// Validate JWT token string
     /// </summary>
-    /// <param name="token">JWT token string</param>
+    /// <param name="token">PASETO token string'i</param>
     /// <returns>Token claims if valid, null if invalid</returns>
     public LinbikTokenClaims? ValidateToken(string token)
     {
@@ -111,134 +67,103 @@ public sealed class IntegrationTokenValidator
             return null;
         }
 
-        if (_rsaPublicKey == null)
+        if (!IsConfigured())
         {
-            _logger?.LogError("RSA public key not initialized");
+            _logger?.LogError("No Ed25519 public key configured for PASETO validation");
             return null;
         }
 
-        try
+        // ValidateTokenAsync is CPU-bound (Ed25519 verify), GetAwaiter().GetResult() is safe here
+        var isValid = _pasetoHelper
+            .ValidateTokenAsync(token, _options.PublicKey, _options.PackageName, _options.JwtIssuer)
+            .GetAwaiter().GetResult();
+
+        if (!isValid)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new RsaSecurityKey(_rsaPublicKey),
-                ValidateIssuer = _options.ValidateIssuer,
-                ValidIssuer = _options.JwtIssuer,
-                ValidateAudience = _options.ValidateAudience,
-                ValidAudience = _options.PackageName.ToString(),
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(_options.ClockSkewMinutes)
-            };
-
-            var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
-
-            if (validatedToken is not JwtSecurityToken jwtToken)
-            {
-                _logger?.LogWarning("Token is not a valid JWT");
-                return null;
-            }
-
-            // Extract claims
-            var claims = new LinbikTokenClaims
-            {
-                Issuer = jwtToken.Issuer,
-                IssuedAt = jwtToken.ValidFrom,
-                ExpiresAt = jwtToken.ValidTo,
-                RawClaims = jwtToken.Claims.ToDictionary(c => c.Type, c => c.Value)
-            };
-
-            // Determine token type by checking for token_type claim or user claims presence
-            var tokenTypeClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "token_type")?.Value;
-            var hasUserClaims = jwtToken.Claims.Any(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username");
-
-            if (tokenTypeClaim == "s2s" || !hasUserClaims)
-            {
-                // Application Token
-                claims.TokenType = LinbikTokenType.Application;
-
-                var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-                if (Guid.TryParse(subClaim, out var sourceServiceId))
-                {
-                    claims.SourceServiceId = sourceServiceId;
-                }
-
-                claims.SourcePackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == "source_package_name")?.Value;
-
-                _logger?.LogDebug("Application token validated successfully for service {SourceServiceId}", claims.SourceServiceId);
-            }
-            else
-            {
-                // User-Service Token
-                claims.TokenType = LinbikTokenType.Delegated;
-
-                var subClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-                if (Guid.TryParse(subClaim, out var userId))
-                {
-                    claims.UserId = userId;
-                }
-
-                claims.UserName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name || c.Type == "preferred_username")?.Value;
-                claims.DisplayName = jwtToken.Claims.FirstOrDefault(c => c.Type == "nickname" || c.Type == "display_name")?.Value ?? claims.UserName;
-
-                _logger?.LogDebug("User-Service Token validated successfully for user {UserId}", claims.UserId);
-            }
-
-            // Common claims for both token types
-            var azpClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Azp)?.Value;
-            if (Guid.TryParse(azpClaim, out var azp))
-            {
-                claims.AuthorizedParty = azp;
-            }
-
-            claims.PackageName = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Aud)?.Value ?? string.Empty;
-
-            // Validate ServiceId matches this service
-            if (_options.ValidateAudience && claims.PackageName != _options.PackageName)
-            {
-                _logger?.LogWarning("Token audience {Audience} does not match service {ServiceId}", claims.PackageName, _options.PackageName);
-                return null;
-            }
-
-            return claims;
-        }
-        catch (SecurityTokenExpiredException)
-        {
-            _logger?.LogDebug("Token has expired");
+            _logger?.LogWarning("PASETO token validation failed for service {PackageName}", _options.PackageName);
             return null;
         }
-        catch (SecurityTokenInvalidSignatureException)
+
+        var rawClaims = _pasetoHelper.GetTokenClaims(token);
+        if (rawClaims.Count == 0)
         {
-            _logger?.LogWarning("Token has invalid signature");
+            _logger?.LogWarning("Could not extract claims from PASETO token");
             return null;
         }
-        catch (SecurityTokenException ex)
+
+        var claims = new LinbikTokenClaims
         {
-            _logger?.LogWarning(ex, "Token validation failed");
+            Issuer = rawClaims.GetValueOrDefault("iss") ?? string.Empty,
+            IssuedAt = ParseIso8601(rawClaims.GetValueOrDefault("iat")),
+            ExpiresAt = ParseIso8601(rawClaims.GetValueOrDefault("exp")),
+            RawClaims = rawClaims,
+        };
+
+        var tokenType = rawClaims.GetValueOrDefault("token_type");
+        var hasUserClaims = rawClaims.ContainsKey("name") || rawClaims.ContainsKey("preferred_username");
+
+        if (tokenType == "s2s" || !hasUserClaims)
+        {
+            claims.TokenType = LinbikTokenType.Application;
+            var sub = rawClaims.GetValueOrDefault("sub");
+            if (Guid.TryParse(sub, out var sourceServiceId))
+                claims.SourceServiceId = sourceServiceId;
+            claims.SourcePackageName = rawClaims.GetValueOrDefault("source_package_name");
+            _logger?.LogDebug("PASETO application token validated for source {SourceServiceId}", claims.SourceServiceId);
+        }
+        else
+        {
+            claims.TokenType = LinbikTokenType.Delegated;
+            var sub = rawClaims.GetValueOrDefault("sub");
+            if (Guid.TryParse(sub, out var userId))
+                claims.UserId = userId;
+            claims.UserName = rawClaims.GetValueOrDefault("preferred_username")
+                           ?? rawClaims.GetValueOrDefault("name");
+            claims.DisplayName = rawClaims.GetValueOrDefault("nickname")
+                              ?? rawClaims.GetValueOrDefault("display_name")
+                              ?? claims.UserName;
+            _logger?.LogDebug("PASETO delegated token validated for user {UserId}", claims.UserId);
+        }
+
+        var azp = rawClaims.GetValueOrDefault("azp");
+        if (Guid.TryParse(azp, out var authorizedParty))
+            claims.AuthorizedParty = authorizedParty;
+
+        claims.PackageName = rawClaims.GetValueOrDefault("aud") ?? string.Empty;
+
+        if (_options.ValidateAudience && claims.PackageName != _options.PackageName)
+        {
+            _logger?.LogWarning(
+                "Token audience '{Audience}' does not match service '{PackageName}'",
+                claims.PackageName, _options.PackageName);
             return null;
         }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Unexpected error during token validation");
-            return null;
-        }
+
+        return claims;
     }
 
     /// <summary>
-    /// Validate JWT token from Authorization header (async version for interface compatibility)
+    /// Authorization header'dan async PASETO doğrulama (ClaimsPrincipal için).
     /// </summary>
     public Task<ClaimsPrincipal?> ValidateTokenAsync(HttpContext context)
     {
-        var claims = ValidateToken(context);
-        if (claims == null)
+        var tokenClaims = ValidateToken(context);
+        if (tokenClaims is null)
             return Task.FromResult<ClaimsPrincipal?>(null);
 
-        var claimsList = claims.RawClaims.Select(kvp => new Claim(kvp.Key, kvp.Value)).ToList();
+        var claimsList = tokenClaims.RawClaims.Select(kvp => new Claim(kvp.Key, kvp.Value)).ToList();
         var identity = new ClaimsIdentity(claimsList, "Bearer");
-        var principal = new ClaimsPrincipal(identity);
+        return Task.FromResult<ClaimsPrincipal?>(new ClaimsPrincipal(identity));
+    }
 
-        return Task.FromResult<ClaimsPrincipal?>(principal);
+    // ─── Private helpers ─────────────────────────────────────────────────────
+
+    private static DateTime ParseIso8601(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return DateTime.MinValue;
+        if (DateTime.TryParse(value, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+            return dt;
+        return DateTime.MinValue;
     }
 
     /// <summary>

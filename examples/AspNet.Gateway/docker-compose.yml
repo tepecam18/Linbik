@@ -1,0 +1,87 @@
+# Linbik AspNet.Gateway — örnek docker-compose
+#
+# Çalıştırma (Linbik kökünden):
+#   docker compose -f examples/AspNet.Gateway/docker-compose.yml up --build
+#
+# Gateway:    http://localhost:5100
+#   /health             — health check
+#   /openapi/self.json  — Self şeması (dev'de KeylessMode=true)
+#   /openapi/delegated.json
+#   /openapi/apps.json
+#   /scalar             — birleşik UI
+#
+# Downstream:  doğrudan ulaşılmaz, sadece iç ağda
+# Downstream2: doğrudan ulaşılmaz, sadece iç ağda
+#
+# Not: Gateway içinde ASPNETCORE_ENVIRONMENT=Docker → appsettings.Docker.json okunur
+# (cluster adresleri 'downstream' ve 'downstream2' servis adlarına yönlendirilir).
+
+name: linbik-gateway-sample
+
+services:
+  gateway:
+    build:
+      # Linbik kökü, çünkü Linbik.Core 3 dizin yukarıda
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/Linbik.Gateway.Sample/Dockerfile
+    image: linbik/gateway-sample:dev
+    container_name: linbik-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      LinbikGateway__Auth__Self__KeylessMode:      "true"
+      LinbikGateway__Auth__Delegated__KeylessMode: "true"
+      LinbikGateway__Auth__Apps__KeylessMode:      "true"
+    ports:
+      - "5100:8080"
+    depends_on:
+      downstream:
+        condition: service_healthy
+      downstream2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linbik-net
+
+  downstream:
+    build:
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/Downstream.Sample/Dockerfile
+    image: linbik/downstream-sample:dev
+    container_name: linbik-downstream
+    expose:
+      - "8080"
+    healthcheck:
+      # Echo controller GET / → 404 ama servis ayakta demek; openapi yi probe et
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/openapi/v1.json"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linbik-net
+
+  downstream2:
+    build:
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/Downstream.Sample2/Dockerfile
+    image: linbik/downstream-sample2:dev
+    container_name: linbik-downstream2
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/openapi/v1.json"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linbik-net
+
+networks:
+  linbik-net:
+    driver: bridge
