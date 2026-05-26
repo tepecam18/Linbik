@@ -191,7 +191,7 @@ public static class LinbikYarpExtensions
                             tokenProvider.ClearCache();
 
                             transformContext.HttpContext.Response.StatusCode = 401;
-                            transformContext.HttpContext.Response.Headers["X-Linbik-Auth-Error"] = "token_expired";
+                            transformContext.HttpContext.Response.Headers["Linbik-Auth-Error"] = "token_expired";
                             await transformContext.HttpContext.Response.WriteAsync(
                                 "Session expired. Please log in again.");
                         }
@@ -407,7 +407,7 @@ public static class LinbikYarpExtensions
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integrationDetails.Token);
 
                     // Add application indicator header
-                    requestMessage.Headers.TryAddWithoutValidation("X-Linbik-Application", "true");
+                    requestMessage.Headers.TryAddWithoutValidation("Linbik-Application", "true");
 
                     // Copy headers (except Host and Authorization)
                     foreach (var header in context.Request.Headers)

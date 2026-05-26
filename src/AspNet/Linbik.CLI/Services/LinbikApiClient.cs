@@ -27,8 +27,8 @@ internal sealed class LinbikApiClient : IDisposable
             BaseAddress = new Uri(linbikUrl.TrimEnd('/')),
             Timeout = TimeSpan.FromSeconds(30)
         };
-        _client.DefaultRequestHeaders.Add("X-Linbik-Mode", "CLI");
-        _client.DefaultRequestHeaders.Add("X-Linbik-Platform", "dotnet-cli");
+        _client.DefaultRequestHeaders.Add("Linbik-Mode", "CLI");
+        _client.DefaultRequestHeaders.Add("Linbik-Platform", "dotnet-cli");
     }
 
     /// <summary>

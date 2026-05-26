@@ -67,20 +67,20 @@ public static class LinbikDefaults
     /// <summary>
     /// SDK operation mode (Keyless, Standard, CLI)
     /// </summary>
-    public const string HeaderMode = "X-Linbik-Mode";
+    public const string HeaderMode = "Linbik-Mode";
 
     /// <summary>
     /// SDK version (e.g., "1.2.0")
     /// </summary>
-    public const string HeaderVersion = "X-Linbik-Version";
+    public const string HeaderVersion = "Linbik-Version";
 
     /// <summary>
     /// SDK platform (e.g., "aspnet", "nuxt")
     /// </summary>
-    public const string HeaderPlatform = "X-Linbik-Platform";
+    public const string HeaderPlatform = "Linbik-Platform";
 
     /// <summary>
     /// Client type (e.g., "Web", "Mobile")
     /// </summary>
-    public const string HeaderClientType = "X-Linbik-Client";
+    public const string HeaderClientType = "Linbik-Client";
 }

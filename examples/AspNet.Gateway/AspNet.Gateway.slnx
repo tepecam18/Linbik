@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Services/">
+    <Project Path="Services/AggregationService/AggregationService.csproj" />
+    <Project Path="Services/ArithmeticService/ArithmeticService.csproj" />
+  </Folder>
+  <Project Path="ApiGateway/ApiGateway.csproj" />
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
+</Solution>

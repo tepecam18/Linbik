@@ -142,9 +142,13 @@ public sealed class PasetoHelperService : IPasetoHelper
     /// <inheritdoc/>
     public (string PrivateKeyBase64, string PublicKeyBase64) GenerateKeyPair()
     {
+        // Paseto.NET v4.public Ed25519 anahtarı için 32-byte seed gerektirir.
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+
         var keyPair = new PasetoBuilder()
             .Use(ProtocolVersion.V4, Purpose.Public)
-            .GenerateAsymmetricKeyPair();
+            .GenerateAsymmetricKeyPair(seed);
 
         return (
             Convert.ToBase64String(keyPair.SecretKey.Key.ToArray()),

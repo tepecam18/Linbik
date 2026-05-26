@@ -29,7 +29,7 @@ public sealed class YARPOptions
     public string IntegrationTokenCookiePrefix { get; set; } = "integration_";
 
     /// <summary>
-    /// This service's package name (used in X-Linbik-Source-Package header)
+    /// This service's package name (used in Linbik-Source-Package header)
     /// Identifies the calling service in S2S communication
     /// </summary>
     public string? SourcePackageName { get; set; }

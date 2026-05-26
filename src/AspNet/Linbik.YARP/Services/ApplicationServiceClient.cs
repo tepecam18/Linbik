@@ -279,9 +279,9 @@ public sealed class ApplicationServiceClient(
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integration.Token);
 
         // Add application indicator headers
-        httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Application", "true");
-        httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Source-Package", _options.SourcePackageName ?? "unknown");
-        httpRequest.Headers.TryAddWithoutValidation("X-Linbik-Target-Service-Id", integration.ServiceId.ToString());
+        httpRequest.Headers.TryAddWithoutValidation("Linbik-Application", "true");
+        httpRequest.Headers.TryAddWithoutValidation("Linbik-Source-Package", _options.SourcePackageName ?? "unknown");
+        httpRequest.Headers.TryAddWithoutValidation("Linbik-Target-Service-Id", integration.ServiceId.ToString());
 
         // Add request body for POST/PUT/PATCH
         if (request != null && (method == HttpMethod.Post || method == HttpMethod.Put || method == HttpMethod.Patch))
