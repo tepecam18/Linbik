@@ -1,4 +1,5 @@
 using ApiGateway.Middleware;
+using Linbik.Core;
 using Yarp.ReverseProxy.Model;
 using Yarp.ReverseProxy.Transforms;
 
@@ -13,8 +14,7 @@ namespace ApiGateway.Transforms;
 /// </summary>
 public sealed class LinbikClaimsHeaderTransform : RequestTransform
 {
-    public const string FlowHeader = "Linbik-Flow";
-    public const string FlowMetadataKey = "Linbik-Flow";
+    public const string FlowMetadataKey = LinbikDefaults.HeaderFlow;
 
     public override ValueTask ApplyAsync(RequestTransformContext context)
     {
@@ -22,18 +22,27 @@ public sealed class LinbikClaimsHeaderTransform : RequestTransform
         context.ProxyRequest.Headers.Remove("Authorization");
         context.ProxyRequest.Headers.Remove("Cookie");
 
-        // Route metadata'sından akış tipini (Self / Delegated / Application) downstream'e ilet.
-        var routeMetadata = context.HttpContext.GetReverseProxyFeature()?.Route?.Config?.Metadata;
-        if (routeMetadata is not null &&
-            routeMetadata.TryGetValue(FlowMetadataKey, out var flow) &&
-            !string.IsNullOrWhiteSpace(flow))
+        var principal = context.HttpContext.User;
+        var isAuthenticated = principal?.Identity?.IsAuthenticated == true;
+
+        // ÖNEMLİ: Linbik-Flow header'ı **yalnız authenticated** istekler için yazılır.
+        // Anonim istemciye flow header inject edilirse service-side `[LFlowAuthorize]`
+        // (kimlik kontrolü yapmaz, yalnız header varlığını/değerini doğrular) yanlışlıkla
+        // izin verir. Anonim istek → flow header yok → attribute 401 → service kapısı sağlam.
+        // Anonim op'lar (`linbik-flows: ["*"]`) attribute taşımadığı için zaten geçer.
+        if (isAuthenticated)
         {
-            context.ProxyRequest.Headers.Remove(FlowHeader);
-            context.ProxyRequest.Headers.TryAddWithoutValidation(FlowHeader, flow);
+            var routeMetadata = context.HttpContext.GetReverseProxyFeature()?.Route?.Config?.Metadata;
+            if (routeMetadata is not null &&
+                routeMetadata.TryGetValue(FlowMetadataKey, out var flow) &&
+                !string.IsNullOrWhiteSpace(flow))
+            {
+                context.ProxyRequest.Headers.Remove(LinbikDefaults.HeaderFlow);
+                context.ProxyRequest.Headers.TryAddWithoutValidation(LinbikDefaults.HeaderFlow, flow);
+            }
         }
 
-        var principal = context.HttpContext.User;
-        if (principal?.Identity?.IsAuthenticated != true)
+        if (!isAuthenticated || principal is null)
             return ValueTask.CompletedTask;
 
         // Claim grupları (aynı claim type birden fazla değer alabilir).

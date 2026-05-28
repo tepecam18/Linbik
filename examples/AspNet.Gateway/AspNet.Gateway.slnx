@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Libraries/">
+    <Project Path="../../src/AspNet/Linbik.Core/Linbik.Core.csproj" />
+    <Project Path="../../src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj" />
+    <Project Path="../../src/AspNet/Linbik.Server/Linbik.Server.csproj" />
+  </Folder>
   <Folder Name="/Services/">
     <Project Path="Services/AggregationService/AggregationService.csproj" />
     <Project Path="Services/ArithmeticService/ArithmeticService.csproj" />

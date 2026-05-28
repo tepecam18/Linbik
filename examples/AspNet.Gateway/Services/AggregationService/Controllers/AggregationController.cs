@@ -1,3 +1,4 @@
+using Linbik.Core.Attributes;
 using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ namespace AggregationService.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[LFlowAuthorize] // tüm aksiyonlar: gateway'den geçmiş ve authenticate edilmiş herhangi bir flow.
 public class AggregationController : ControllerBase
 {
     public record AggregationRequest(double[] Values);

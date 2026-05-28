@@ -31,7 +31,7 @@ public sealed class LGatewayAuthContext
     public static LGatewayAuthContext FromRequest(HttpRequest request)
     {
         const string prefix = "Linbik-";
-        const string flowHeader = "Linbik-Flow";
+        var flowHeader = LinbikDefaults.HeaderFlow;
 
         var ctx = new LGatewayAuthContext();
 

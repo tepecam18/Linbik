@@ -3,12 +3,43 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
+      # Docker network içinde downstream'lere service DNS adıyla eriş.
+      # Host'tan çalıştırıldığında (dotnet run) appsettings.json'daki
+      # localhost:3101/3102 kullanılır; bu env'ler yalnız compose'da geçerli.
+      # Index sırası appsettings.json:Sources ile eşleşir:
+      #   0 = linbik (gateway kendisi, container'a localhost:8080 ile loopback)
+      #   1 = arithmetic
+      #   2 = aggregation
+      - LinbikGateway__Sources__0__Address=http://localhost:8080/
+      - LinbikGateway__Sources__1__Address=http://arithmeticservice:8080/
+      - LinbikGateway__Sources__2__Address=http://aggregationservice:8080/
     ports:
-      - "8080"
-      - "8081"
+      - "3100:8080"
+    depends_on:
+      - arithmeticservice
+      - aggregationservice
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+
+
+  aggregationservice:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+    ports:
+      - "3101:8080"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+
+
+  arithmeticservice:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+    ports:
+      - "3102:8080"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro

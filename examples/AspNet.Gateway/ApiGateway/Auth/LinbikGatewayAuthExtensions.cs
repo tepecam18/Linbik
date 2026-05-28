@@ -1,17 +1,13 @@
 using Linbik.Core;
-using Linbik.Core.Extensions;
-using Linbik.Core.Services;
-using Linbik.Core.Services.Interfaces;
-using Linbik.PasetoAuthManager.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace ApiGateway.Auth;
 
 /// <summary>
-/// Gateway için Delegated ve Application PASETO bearer şemalarını kayıt eder
-/// ve <c>LinbikAuthorize</c> / <c>LinbikDelegatedAuthorize</c> /
-/// <c>LinbikApplicationAuthorize</c> policy'lerini tanımlar.
+/// Gateway için authorization policy'lerini tanımlar.
+/// Delegated + Application PASETO bearer şemaları <c>AddLinbikServer(...)</c>
+/// tarafından kayıt edilir (Program.cs); Self (cookie) şeması ise
+/// <c>AddLinbikPasetoAuth()</c> tarafından. Burada yalnız policy'ler tanımlanır.
 /// </summary>
 public static class LinbikGatewayAuthExtensions
 {
@@ -19,27 +15,24 @@ public static class LinbikGatewayAuthExtensions
     public const string DelegatedPolicy = "LinbikDelegatedAuthorize";
     public const string ApplicationPolicy = "LinbikApplicationAuthorize";
 
+    /// <summary>
+    /// <c>delegated.json</c>, <c>apps.json</c> JSON endpoint'leri için: cookie (Self)
+    /// veya Application bearer'dan biriyle erişim. İnsan kullanıcı cookie ile,
+    /// server-to-server app Application token'ı ile doc'u çekebilir.
+    /// </summary>
+    public const string SelfOrApplicationPolicy = "LinbikSelfOrApplicationAuthorize";
+
+    // Gateway YARP route'larında kullanılır. Auth scheme'i tetikler (claim üretir,
+    // transform Linbik-Flow ve Linbik-{Claim} header'larını yazabilsin diye), ama
+    // 401 fırlatmaz: "service-authoritative" invariantı — anonim op'lar (örn.
+    // `/arithmetic/add` `linbik-flows: ["*"]`) gateway katmanında reddedilmesin.
+    // Asıl güvenlik kapısı downstream servis tarafındaki `[LFlowAuthorize]`.
+    public const string SelfOptional = "LinbikSelfOptional";
+    public const string DelegatedOptional = "LinbikDelegatedOptional";
+    public const string ApplicationOptional = "LinbikApplicationOptional";
+
     public static IServiceCollection AddLinbikGatewayAuth(this IServiceCollection services)
     {
-        // Delegated + Application bearer şemalarını ekle.
-        services.AddAuthentication()
-            .AddLinbikPasetoBearer(LinbikDefaults.DelegatedScheme, _ => { })
-            .AddLinbikPasetoBearer(LinbikDefaults.ApplicationScheme, _ => { });
-
-        // Delegated şema options'ı: Authorization: Bearer ile gelen kullanıcı token'ı.
-        services.AddOptions<PasetoBearerOptions>(LinbikDefaults.DelegatedScheme)
-            .Configure<IOptions<PasetoAuthOptions>>((bearer, paseto) =>
-            {
-                ApplyPasetoSettings(bearer, paseto.Value, requireApplicationToken: false);
-            });
-
-        // Application şema options'ı: Authorization: Bearer ile gelen S2S token'ı.
-        services.AddOptions<PasetoBearerOptions>(LinbikDefaults.ApplicationScheme)
-            .Configure<IOptions<PasetoAuthOptions>>((bearer, paseto) =>
-            {
-                ApplyPasetoSettings(bearer, paseto.Value, requireApplicationToken: true);
-            });
-
         // Üç policy: PasetoAuthManager.AddLinbikPasetoAuth() zaten "LinbikAuthorize"
         // policy'sini kayıt ediyor; biz Delegated ve Application'ı ekliyoruz.
         services.AddAuthorization(options =>
@@ -55,29 +48,37 @@ public static class LinbikGatewayAuthExtensions
                 p.AddAuthenticationSchemes(LinbikDefaults.ApplicationScheme);
                 p.RequireAuthenticatedUser();
             });
+
+            // Cookie (Self) VEYA Application bearer'dan birini kabul eder.
+            // delegated.json + apps.json JSON endpoint'leri için: insan kullanıcı
+            // cookie ile, server-to-server app Application token'ı ile erişir.
+            options.AddPolicy(SelfOrApplicationPolicy, p =>
+            {
+                p.AddAuthenticationSchemes(LinbikDefaults.ClientScheme, LinbikDefaults.ApplicationScheme);
+                p.RequireAuthenticatedUser();
+            });
+
+            // Optional policies: auth scheme'i tetikler, geçerli ise principal
+            // doldurulur; geçersiz/yok ise anonim olarak devam eder. Authorization
+            // her durumda OK (RequireAssertion true). Downstream `[LFlowAuthorize]`
+            // kapıyı korur.
+            options.AddPolicy(SelfOptional, p =>
+            {
+                p.AddAuthenticationSchemes(LinbikDefaults.ClientScheme);
+                p.RequireAssertion(_ => true);
+            });
+            options.AddPolicy(DelegatedOptional, p =>
+            {
+                p.AddAuthenticationSchemes(LinbikDefaults.DelegatedScheme);
+                p.RequireAssertion(_ => true);
+            });
+            options.AddPolicy(ApplicationOptional, p =>
+            {
+                p.AddAuthenticationSchemes(LinbikDefaults.ApplicationScheme);
+                p.RequireAssertion(_ => true);
+            });
         });
 
         return services;
-    }
-
-    private static void ApplyPasetoSettings(
-        PasetoBearerOptions bearer,
-        PasetoAuthOptions paseto,
-        bool requireApplicationToken)
-    {
-        bearer.Mode = paseto.Mode;
-        bearer.ExpectedAudience = paseto.Audience;
-        bearer.ExpectedIssuer = paseto.Issuer;
-        bearer.RequireApplicationToken = requireApplicationToken;
-
-        if (paseto.Mode == PasetoMode.Local)
-        {
-            bearer.SharedKey = paseto.SharedKeyBase64 ?? string.Empty;
-        }
-        else
-        {
-            bearer.PublicKey = paseto.PublicKeyBase64 ?? string.Empty;
-        }
-        // TokenRetriever atanmadı → varsayılan davranış (Authorization: Bearer header).
     }
 }

@@ -1,3 +1,5 @@
+using Linbik.Core;
+using Linbik.Core.Attributes;
 using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Microsoft.AspNetCore.Mvc;
@@ -19,19 +21,26 @@ public class ArithmeticController : ControllerBase
         public LGatewayAuthContext? Gateway { get; init; }
     }
 
+    // add: yetkilendirme şartı yok — her flow için (ve Linbik-Flow olmadan dahi) erişilebilir.
     [HttpPost("add")]
     public ActionResult<LBaseResponse<OperationResult>> Add([FromBody] BinaryOperationRequest request)
         => Ok(Wrap(new OperationResult(request.A + request.B)));
 
+    // subtract: sadece Self.
     [HttpPost("subtract")]
+    [LFlowAuthorize(LinbikDefaults.Flows.Self)]
     public ActionResult<LBaseResponse<OperationResult>> Subtract([FromBody] BinaryOperationRequest request)
         => Ok(Wrap(new OperationResult(request.A - request.B)));
 
+    // multiply: Self + Delegated.
     [HttpPost("multiply")]
+    [LFlowAuthorize(LinbikDefaults.Flows.Self, LinbikDefaults.Flows.Delegated)]
     public ActionResult<LBaseResponse<OperationResult>> Multiply([FromBody] BinaryOperationRequest request)
         => Ok(Wrap(new OperationResult(request.A * request.B)));
 
+    // divide: Self + Application.
     [HttpPost("divide")]
+    [LFlowAuthorize(LinbikDefaults.Flows.Self, LinbikDefaults.Flows.Application)]
     public ActionResult<LBaseResponse<OperationResult>> Divide([FromBody] BinaryOperationRequest request)
     {
         if (request.B == 0)
@@ -51,4 +60,5 @@ public class ArithmeticController : ControllerBase
         return new LBaseResponse<OperationResult>(result with { Gateway = ctx });
     }
 }
+
 

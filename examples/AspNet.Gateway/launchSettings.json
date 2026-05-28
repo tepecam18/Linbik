@@ -4,7 +4,9 @@
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
       "serviceActions": {
-        "apigateway": "StartDebugging"
+        "apigateway": "StartDebugging",
+        "aggregationservice": "StartDebugging",
+        "arithmeticservice": "StartDebugging"
       }
     }
   }

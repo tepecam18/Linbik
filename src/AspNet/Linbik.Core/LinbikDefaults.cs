@@ -83,4 +83,28 @@ public static class LinbikDefaults
     /// Client type (e.g., "Web", "Mobile")
     /// </summary>
     public const string HeaderClientType = "Linbik-Client";
+
+    // ─── Gateway → Service Contract ───────────────────────────────
+    /// <summary>
+    /// API Gateway tarafından downstream servise iletilen yetkilendirme akışı.
+    /// Değerleri için bkz. <see cref="Flows"/>.
+    /// </summary>
+    public const string HeaderFlow = "Linbik-Flow";
+
+    /// <summary>
+    /// API Gateway → Service header'larında kullanılan yetkilendirme akış adları.
+    /// Bu sabitler hem <c>[LFlowAuthorize(...)]</c> deklarasyonlarında hem de
+    /// YARP route metadata'sında ortak kullanılır.
+    /// </summary>
+    public static class Flows
+    {
+        /// <summary>Self / cookie tabanlı kullanıcı oturumu (ClientScheme).</summary>
+        public const string Self = "Self";
+
+        /// <summary>Başka bir uygulama, son kullanıcı adına çağırıyor (DelegatedScheme).</summary>
+        public const string Delegated = "Delegated";
+
+        /// <summary>Service-to-service / client_credentials (ApplicationScheme).</summary>
+        public const string Application = "Application";
+    }
 }

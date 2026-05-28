@@ -4,3 +4,18 @@ services:
     build:
       context: .
       dockerfile: ApiGateway/Dockerfile
+
+
+  aggregationservice:
+    image: ${DOCKER_REGISTRY-}aggregationservice
+    build:
+      context: .
+      dockerfile: Services/AggregationService/Dockerfile
+
+
+  arithmeticservice:
+    image: ${DOCKER_REGISTRY-}arithmeticservice
+    build:
+      context: .
+      dockerfile: Services/ArithmeticService/Dockerfile
+

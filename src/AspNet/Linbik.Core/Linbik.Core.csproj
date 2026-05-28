@@ -47,22 +47,19 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
-		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.5" />
+		<!--
+			Aşağıdaki Microsoft.AspNetCore.* / Microsoft.Extensions.* paketleri
+			Microsoft.AspNetCore.App framework reference'ı tarafından zaten sağlanır;
+			ayrıca PackageReference olarak listelemek NU1510 uyarısı üretir.
+			Yalnızca framework dışı paketler burada kalır.
+		-->
 		<PackageReference Include="Paseto.Core" Version="1.5.0" />
-		
-		<!-- HttpClient support -->
-		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
-		<PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.3.9" />
-		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.9" />
-		
-		<!-- Resilience (Polly) for HttpClient -->
+
+		<!-- Resilience (Polly) for HttpClient — framework dışı -->
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
-		
-		<!-- Health Checks -->
-		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.5" />
+
+		<!-- OpenAPI document generation + linbik-flows extension transformer — framework dışı -->
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
 	</ItemGroup>
 
 	<ItemGroup>
