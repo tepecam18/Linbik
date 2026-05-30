@@ -37,8 +37,7 @@ public sealed class PasetoHelperService : IPasetoHelper
             .Issuer(LinbikDefaults.Issuer)
             .Audience(audience)
             .Expiration(now.AddMinutes(expirationMinutes))
-            .NotBefore(now.AddSeconds(-60)) // 60s clock-skew toleransı: Api/gateway farklı sunucularda çalışıyorsa
-            .IssuedAt(now);                  // ve saatler sapıyorsa ilk istek nbf nedeniyle reddedilmez.
+            .IssuedAt(now.AddSeconds(-60));  // ve saatler sapıyorsa ilk istek nbf nedeniyle reddedilmez.
 
         // Add extra claims
         foreach (var claim in claims)
@@ -180,8 +179,7 @@ public sealed class PasetoHelperService : IPasetoHelper
             .Issuer(LinbikDefaults.Issuer)
             .Audience(audience)
             .Expiration(now.AddMinutes(expirationMinutes))
-            .NotBefore(now.AddSeconds(-60)) // 60s clock-skew toleransı
-            .IssuedAt(now);
+            .IssuedAt(now.AddSeconds(-60)); // 60s clock-skew toleransı
 
         foreach (var claim in claims)
         {

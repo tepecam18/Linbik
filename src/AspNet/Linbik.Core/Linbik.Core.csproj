@@ -56,7 +56,7 @@
 		<PackageReference Include="Paseto.Core" Version="1.5.0" />
 
 		<!-- Resilience (Polly) for HttpClient — framework dışı -->
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
 
 		<!-- OpenAPI document generation + linbik-flows extension transformer — framework dışı -->
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />

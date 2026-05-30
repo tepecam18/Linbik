@@ -25,10 +25,6 @@ public sealed class LinbikHeaderSanitizationMiddleware
             .Where(k => k.StartsWith(HeaderPrefix, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        if(context.Request.Method == HttpMethods.Post)
-        {
-        }
-
         foreach (var key in toRemove)
         {
             context.Request.Headers.Remove(key);

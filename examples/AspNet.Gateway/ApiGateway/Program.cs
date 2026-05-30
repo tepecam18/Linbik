@@ -78,7 +78,7 @@ app.UseHttpsRedirection();
 
 // ⚠️ ÖNCE: gelen istekteki Linbik-* header'larını koşulsuz sil.
 // Bu adım routing/auth'tan önce gerçekleşir; dış istemciler claim spoof edemez.
-app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();
+//app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();
 
 app.UseRouting();
 
