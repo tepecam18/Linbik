@@ -12,10 +12,11 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Services/ArithmeticService/ArithmeticService.csproj", "Services/ArithmeticService/"]
-RUN dotnet restore "./Services/ArithmeticService/ArithmeticService.csproj"
+COPY ["examples/AspNet.Gateway/Services/ArithmeticService/ArithmeticService.csproj", "examples/AspNet.Gateway/Services/ArithmeticService/"]
+COPY ["src/AspNet/Linbik.Core/Linbik.Core.csproj", "src/AspNet/Linbik.Core/"]
+RUN dotnet restore "./examples/AspNet.Gateway/Services/ArithmeticService/ArithmeticService.csproj"
 COPY . .
-WORKDIR "/src/Services/ArithmeticService"
+WORKDIR "/src/examples/AspNet.Gateway/Services/ArithmeticService"
 RUN dotnet build "./ArithmeticService.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage

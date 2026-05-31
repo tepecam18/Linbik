@@ -12,10 +12,13 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["ApiGateway/ApiGateway.csproj", "ApiGateway/"]
-RUN dotnet restore "./ApiGateway/ApiGateway.csproj"
+COPY ["examples/AspNet.Gateway/ApiGateway/ApiGateway.csproj", "examples/AspNet.Gateway/ApiGateway/"]
+COPY ["src/AspNet/Linbik.Core/Linbik.Core.csproj", "src/AspNet/Linbik.Core/"]
+COPY ["src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj", "src/AspNet/Linbik.PasetoAuthManager/"]
+COPY ["src/AspNet/Linbik.Server/Linbik.Server.csproj", "src/AspNet/Linbik.Server/"]
+RUN dotnet restore "./examples/AspNet.Gateway/ApiGateway/ApiGateway.csproj"
 COPY . .
-WORKDIR "/src/ApiGateway"
+WORKDIR "/src/examples/AspNet.Gateway/ApiGateway"
 RUN dotnet build "./ApiGateway.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage

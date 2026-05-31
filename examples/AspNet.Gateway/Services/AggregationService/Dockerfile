@@ -12,10 +12,11 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Services/AggregationService/AggregationService.csproj", "Services/AggregationService/"]
-RUN dotnet restore "./Services/AggregationService/AggregationService.csproj"
+COPY ["examples/AspNet.Gateway/Services/AggregationService/AggregationService.csproj", "examples/AspNet.Gateway/Services/AggregationService/"]
+COPY ["src/AspNet/Linbik.Core/Linbik.Core.csproj", "src/AspNet/Linbik.Core/"]
+RUN dotnet restore "./examples/AspNet.Gateway/Services/AggregationService/AggregationService.csproj"
 COPY . .
-WORKDIR "/src/Services/AggregationService"
+WORKDIR "/src/examples/AspNet.Gateway/Services/AggregationService"
 RUN dotnet build "./AggregationService.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage

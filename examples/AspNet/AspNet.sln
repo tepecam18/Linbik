@@ -21,6 +21,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Librarys", "Librarys", "{37
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cli", "Cli", "{7849E84E-E8ED-4A6D-8A2E-47B48395324B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.Slices", "..\..\src\AspNet\Linbik.Slices\Linbik.Slices.csproj", "{7B7AB018-88C7-319C-5D69-C14C75F17AEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.Slices.Generators", "..\..\src\AspNet\Linbik.Slices.Generators\Linbik.Slices.Generators.csproj", "{C9C6FADD-C011-5E22-8D83-EC5784C3752D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +59,14 @@ Global
 		{96B0BA63-1440-A972-7897-364BCBBF982E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{96B0BA63-1440-A972-7897-364BCBBF982E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{96B0BA63-1440-A972-7897-364BCBBF982E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B7AB018-88C7-319C-5D69-C14C75F17AEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B7AB018-88C7-319C-5D69-C14C75F17AEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B7AB018-88C7-319C-5D69-C14C75F17AEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B7AB018-88C7-319C-5D69-C14C75F17AEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9C6FADD-C011-5E22-8D83-EC5784C3752D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9C6FADD-C011-5E22-8D83-EC5784C3752D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9C6FADD-C011-5E22-8D83-EC5784C3752D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9C6FADD-C011-5E22-8D83-EC5784C3752D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -66,6 +78,8 @@ Global
 		{5C9DFF9F-B893-41C8-9996-799942572F13} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
 		{C47CB72F-45B6-6198-341F-53846AAFB4AC} = {7849E84E-E8ED-4A6D-8A2E-47B48395324B}
 		{96B0BA63-1440-A972-7897-364BCBBF982E} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{7B7AB018-88C7-319C-5D69-C14C75F17AEC} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
+		{C9C6FADD-C011-5E22-8D83-EC5784C3752D} = {374AF1C8-AE7C-49ED-B59F-436C71C77A66}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {931D3B9D-BD5B-4927-BD65-4AD347ECC129}

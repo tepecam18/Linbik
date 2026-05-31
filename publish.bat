@@ -63,9 +63,10 @@ echo [4] Sadece Linbik.YARP
 echo [5] Sadece Linbik.Server
 echo [6] Sadece Linbik.Cli
 echo [7] Sadece Linbik.PasetoAuthManager
+echo [8] Sadece Linbik.Slices
 echo ===========================================
 set TARGET=1
-set /p TARGET="Seciminiz (1-7) [Varsayilan 1]: "
+set /p TARGET="Seciminiz (1-8) [Varsayilan 1]: "
 
 set PACK_CORE=0
 set PACK_JWT=0
@@ -73,6 +74,7 @@ set PACK_YARP=0
 set PACK_SERVER=0
 set PACK_CLI=0
 set PACK_PASETO=0
+set PACK_SLICES=0
 
 if "%TARGET%"=="1" (
     set PACK_CORE=1
@@ -81,6 +83,7 @@ if "%TARGET%"=="1" (
     set PACK_SERVER=1
     set PACK_CLI=1
     set PACK_PASETO=1
+    set PACK_SLICES=1
 )
 if "%TARGET%"=="2" (set PACK_CORE=1)
 if "%TARGET%"=="3" (set PACK_JWT=1)
@@ -88,6 +91,7 @@ if "%TARGET%"=="4" (set PACK_YARP=1)
 if "%TARGET%"=="5" (set PACK_SERVER=1)
 if "%TARGET%"=="6" (set PACK_CLI=1)
 if "%TARGET%"=="7" (set PACK_PASETO=1)
+if "%TARGET%"=="8" (set PACK_SLICES=1)
 
 :: Eger SUFFIX yoksa Patch (son rakam) degerini bir arttiralim
 :: SUFFIX varsa ana versiyona dokunmuyoruz, manuel takip edilmesi daha guvenlidir.
@@ -153,6 +157,10 @@ if "%PACK_CLI%"=="1" (
 if "%PACK_PASETO%"=="1" (
     echo - Linbik.PasetoAuthManager paketleniyor...
     dotnet pack ./src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+)
+if "%PACK_SLICES%"=="1" (
+    echo - Linbik.Slices paketleniyor...
+    dotnet pack ./src/AspNet/Linbik.Slices/Linbik.Slices.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
 )
 echo.
 echo [5/5] Paketler Nuget'e Yayinlanacak...
