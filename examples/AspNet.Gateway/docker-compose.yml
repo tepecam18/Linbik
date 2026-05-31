@@ -9,13 +9,14 @@ services:
   aggregationservice:
     image: ${DOCKER_REGISTRY-}aggregationservice
     build:
-      context: .
-      dockerfile: Services/AggregationService/Dockerfile
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/Services/AggregationService/Dockerfile
 
 
   arithmeticservice:
     image: ${DOCKER_REGISTRY-}arithmeticservice
     build:
-      context: .
-      dockerfile: Services/ArithmeticService/Dockerfile
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/Services/ArithmeticService/Dockerfile
+
 
