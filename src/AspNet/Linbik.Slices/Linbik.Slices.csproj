@@ -8,38 +8,30 @@
 		<PackageVersion>0.0.1</PackageVersion>
 		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
-		<Description>Provides seamless Linbik PASETO Authorize and Login capabilities. Uses PASETO v4.public (Ed25519) for cookie-based local authentication. Registration and login flows are executed on Linbik.com and handled securely by this package.</Description>
+		<Description>Vertical-slice infrastructure for Linbik services: ILinbikSender dispatch, Result&lt;T&gt;, validation pipeline, minimal-API endpoint helpers, plus a source generator and analyzer that turn declarative [LinbikSlice]/[LFlow] slices into endpoint mappings and DI registrations.</Description>
 		<Authors>tepecam18</Authors>
 		<Company>Linbik</Company>
-		<PackageTags>authentication;paseto;ed25519;tepecam18;linbik;auth;login</PackageTags>
+		<PackageTags>linbik;vertical-slice;cqrs;minimal-api;source-generator;tepecam18</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
-		<PackageReadmeFile>README.md</PackageReadmeFile>
 
-		<IncludeSource>true</IncludeSource>
-
-		<!-- deterministic/CI -->
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
-		<!-- Debug bilgisi - HER ZAMAN embedded -->
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>
 		<EmbedAllSources>true</EmbedAllSources>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-
-		<!-- Optimizasyonları Debug'da kapat -->
 		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
 
-		<!-- sourcelink -->
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- Minimal API + endpoint metadata + DI için ASP.NET Core shared framework. -->
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<!-- Paseto.Core is already pulled in transitively via Linbik.Core -->
 	</ItemGroup>
 
 	<ItemGroup>
@@ -47,6 +39,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="" Condition="Exists('README.md')" />
+		<!--
+			Source generator + analyzer. OutputItemType=Analyzer ile derleme zamanı
+			bileşeni olarak bağlanır; ReferenceOutputAssembly=false runtime bağımlılığı
+			oluşturmaz. Bu paketi referanslayan her servis slice üretimini ve
+			LINBIK001 deny-by-default analyzer'ını otomatik alır.
+		-->
+		<ProjectReference Include="..\Linbik.Slices.Generators\Linbik.Slices.Generators.csproj"
+						  OutputItemType="Analyzer"
+						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
+
 </Project>

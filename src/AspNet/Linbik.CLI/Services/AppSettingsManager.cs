@@ -83,10 +83,14 @@ internal static class AppSettingsManager
             ["Clients"] = new JsonArray { clientConfig }
         };
 
-        // Preserve existing JwtAuth section if present
-        if (root["Linbik"] is JsonObject existingLinbik && existingLinbik["JwtAuth"] is JsonNode existingJwtAuth)
+        // Preserve existing auth manager sections (JwtAuth / PasetoAuth) if present
+        if (root["Linbik"] is JsonObject existingLinbik)
         {
-            linbikSection["JwtAuth"] = existingJwtAuth.DeepClone();
+            if (existingLinbik["JwtAuth"] is JsonNode existingJwtAuth)
+                linbikSection["JwtAuth"] = existingJwtAuth.DeepClone();
+
+            if (existingLinbik["PasetoAuth"] is JsonNode existingPasetoAuth)
+                linbikSection["PasetoAuth"] = existingPasetoAuth.DeepClone();
         }
 
         root["Linbik"] = linbikSection;
@@ -120,7 +124,9 @@ internal static class AppSettingsManager
             LinbikUrl = linbikNode["LinbikUrl"]?.GetValue<string>() ?? "",
             ServiceId = linbikNode["ServiceId"]?.GetValue<string>() ?? "",
             ApiKey = linbikNode["ApiKey"]?.GetValue<string>() ?? "",
-            KeylessMode = linbikNode["KeylessMode"]?.GetValue<bool>() ?? false
+            KeylessMode = linbikNode["KeylessMode"]?.GetValue<bool>() ?? false,
+            HasJwtAuth = linbikNode["JwtAuth"] is JsonObject,
+            HasPasetoAuth = linbikNode["PasetoAuth"] is JsonObject
         };
     }
 }
@@ -131,4 +137,6 @@ internal sealed class LinbikConfig
     public string ServiceId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
     public bool KeylessMode { get; set; }
+    public bool HasJwtAuth { get; set; }
+    public bool HasPasetoAuth { get; set; }
 }

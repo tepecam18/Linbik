@@ -1,32 +1,49 @@
 namespace Linbik.CLI.Services;
 
 /// <summary>
+/// Linbik authentication provider choice for Program.cs injection.
+/// </summary>
+internal enum LinbikAuthType
+{
+    Jwt,
+    Paseto
+}
+
+/// <summary>
 /// Diagnoses which Linbik components are present in Program.cs.
+/// Tracks both JWT and PASETO so the same Program.cs can be analyzed for either.
 /// </summary>
 internal record ProgramCsDiagnosis
 {
     public bool HasAddLinbik { get; init; }
     public bool HasAddLinbikJwtAuth { get; init; }
+    public bool HasAddLinbikPasetoAuth { get; init; }
     public bool HasEnsureLinbik { get; init; }
     public bool HasUseLinbikJwtAuth { get; init; }
+    public bool HasUseLinbikPasetoAuth { get; init; }
     public bool HasUseAuthentication { get; init; }
     public bool HasUseAuthorization { get; init; }
     public bool HasUseRouting { get; init; }
     public bool HasMapControllers { get; init; }
 
+    public bool HasAnyAuthRegistration => HasAddLinbikJwtAuth || HasAddLinbikPasetoAuth;
+    public bool HasAnyAuthMiddleware => HasUseLinbikJwtAuth || HasUseLinbikPasetoAuth;
+
     /// <summary>
-    /// All required Linbik components are correctly wired up.
+    /// All required Linbik components are correctly wired up
+    /// (each registered auth provider also has its middleware).
     /// </summary>
     public bool IsFullyConfigured =>
         HasAddLinbik && HasEnsureLinbik
-        && (HasAddLinbikJwtAuth == HasUseLinbikJwtAuth);
+        && HasAddLinbikJwtAuth == HasUseLinbikJwtAuth
+        && HasAddLinbikPasetoAuth == HasUseLinbikPasetoAuth;
 
     /// <summary>
     /// No Linbik markers exist at all — a fresh project.
     /// </summary>
     public bool HasNoLinbikIntegration =>
-        !HasAddLinbik && !HasAddLinbikJwtAuth
-        && !HasEnsureLinbik && !HasUseLinbikJwtAuth;
+        !HasAddLinbik && !HasAnyAuthRegistration
+        && !HasEnsureLinbik && !HasAnyAuthMiddleware;
 }
 
 /// <summary>
@@ -64,8 +81,10 @@ internal static class ProgramCsManager
         {
             HasAddLinbik = content.Contains("AddLinbik(", StringComparison.Ordinal),
             HasAddLinbikJwtAuth = content.Contains("AddLinbikJwtAuth(", StringComparison.Ordinal),
+            HasAddLinbikPasetoAuth = content.Contains("AddLinbikPasetoAuth(", StringComparison.Ordinal),
             HasEnsureLinbik = content.Contains("EnsureLinbik(", StringComparison.Ordinal),
             HasUseLinbikJwtAuth = content.Contains("UseLinbikJwtAuth(", StringComparison.Ordinal),
+            HasUseLinbikPasetoAuth = content.Contains("UseLinbikPasetoAuth(", StringComparison.Ordinal),
             HasUseAuthentication = content.Contains("UseAuthentication(", StringComparison.Ordinal),
             HasUseAuthorization = content.Contains("UseAuthorization(", StringComparison.Ordinal),
             HasUseRouting = content.Contains("UseRouting(", StringComparison.Ordinal),
@@ -83,7 +102,11 @@ internal static class ProgramCsManager
     /// Inject or fix Linbik service registrations and middleware in Program.cs.
     /// Auto-fixes clearly broken configurations and warns about potentially intentional gaps.
     /// </summary>
-    public static async Task<ProgramCsFixResult> InjectLinbikAsync(string programCsPath)
+    /// <param name="programCsPath">Path to Program.cs.</param>
+    /// <param name="authType">Which Linbik auth provider to wire up (JWT or PASETO).</param>
+    public static async Task<ProgramCsFixResult> InjectLinbikAsync(
+        string programCsPath,
+        LinbikAuthType authType = LinbikAuthType.Jwt)
     {
         var content = await File.ReadAllTextAsync(programCsPath);
         var diagnosis = Diagnose(content);
@@ -93,21 +116,22 @@ internal static class ProgramCsManager
             return result;
 
         var lines = new List<string>(content.Split('\n').Select(l => l.TrimEnd('\r')));
+        var spec = AuthSpec.For(authType);
 
         // ── Phase 1: Fix service registrations ──────────────────────
-        FixServiceRegistrations(lines, diagnosis, result);
+        FixServiceRegistrations(lines, diagnosis, result, spec);
 
         // Re-diagnose after service fixes (line indices shifted)
         var midContent = string.Join("\n", lines);
         var midDiagnosis = Diagnose(midContent);
 
         // ── Phase 2: Fix middleware pipeline ────────────────────────
-        FixMiddlewarePipeline(lines, midDiagnosis, result);
+        FixMiddlewarePipeline(lines, midDiagnosis, result, spec);
 
         // ── Phase 3: Generate warnings for ambiguous gaps ───────────
         var finalContent = string.Join("\n", lines);
         var finalDiagnosis = Diagnose(finalContent);
-        GenerateWarnings(finalDiagnosis, result);
+        GenerateWarnings(finalDiagnosis, result, spec);
 
         if (result.Modified)
         {
@@ -118,13 +142,39 @@ internal static class ProgramCsManager
         return result;
     }
 
+    // ─── Auth provider method spec ──────────────────────────────────
+
+    private sealed record AuthSpec(
+        string AddMethod,
+        string UseMethod,
+        Func<ProgramCsDiagnosis, bool> HasAdd,
+        Func<ProgramCsDiagnosis, bool> HasUse)
+    {
+        public static AuthSpec For(LinbikAuthType type) => type switch
+        {
+            LinbikAuthType.Paseto => new AuthSpec(
+                "AddLinbikPasetoAuth",
+                "UseLinbikPasetoAuth",
+                d => d.HasAddLinbikPasetoAuth,
+                d => d.HasUseLinbikPasetoAuth),
+            _ => new AuthSpec(
+                "AddLinbikJwtAuth",
+                "UseLinbikJwtAuth",
+                d => d.HasAddLinbikJwtAuth,
+                d => d.HasUseLinbikJwtAuth),
+        };
+    }
+
     // ─── Service Registration Fixes ─────────────────────────────────
 
     private static void FixServiceRegistrations(
-        List<string> lines, ProgramCsDiagnosis diagnosis, ProgramCsFixResult result)
+        List<string> lines, ProgramCsDiagnosis diagnosis, ProgramCsFixResult result, AuthSpec spec)
     {
-        if (diagnosis.HasAddLinbik && diagnosis.HasAddLinbikJwtAuth)
-            return; // Both present — nothing to fix
+        var hasAuthAdd = spec.HasAdd(diagnosis);
+        var hasAuthUse = spec.HasUse(diagnosis);
+
+        if (diagnosis.HasAddLinbik && hasAuthAdd)
+            return; // Both present — nothing to fix for this auth provider
 
         var builderIdx = FindLine(lines, l =>
             l.Contains("WebApplication.CreateBuilder", StringComparison.Ordinal));
@@ -144,11 +194,11 @@ internal static class ProgramCsManager
                 "",
                 "builder.Services",
                 "    .AddLinbik()",
-                "    .AddLinbikJwtAuth();",
+                $"    .{spec.AddMethod}();",
                 ""
             });
 
-            result.Fixes.Add("AddLinbik() ve AddLinbikJwtAuth() servis kayıtları eklendi.");
+            result.Fixes.Add($"AddLinbik() ve {spec.AddMethod}() servis kayıtları eklendi.");
             result.Modified = true;
             return;
         }
@@ -156,28 +206,28 @@ internal static class ProgramCsManager
         // ── Fix: Missing AddLinbik (prerequisite for all Linbik services) ──
         if (!diagnosis.HasAddLinbik)
         {
-            if (diagnosis.HasAddLinbikJwtAuth)
+            if (hasAuthAdd)
             {
-                // AddLinbikJwtAuth exists without AddLinbik → insert before it
-                var jwtIdx = FindLine(lines, l =>
-                    l.Contains("AddLinbikJwtAuth(", StringComparison.Ordinal));
+                // Auth registration exists without AddLinbik → insert before it
+                var authIdx = FindLine(lines, l =>
+                    l.Contains($"{spec.AddMethod}(", StringComparison.Ordinal));
 
-                if (jwtIdx >= 0)
+                if (authIdx >= 0)
                 {
-                    var trimmed = lines[jwtIdx].TrimStart();
-                    if (trimmed.StartsWith(".AddLinbikJwtAuth", StringComparison.Ordinal))
+                    var trimmed = lines[authIdx].TrimStart();
+                    if (trimmed.StartsWith($".{spec.AddMethod}", StringComparison.Ordinal))
                     {
                         // Chain continuation → insert .AddLinbik() before it
-                        var indent = GetIndent(lines[jwtIdx]);
-                        lines.Insert(jwtIdx, $"{indent}.AddLinbik()");
+                        var indent = GetIndent(lines[authIdx]);
+                        lines.Insert(authIdx, $"{indent}.AddLinbik()");
                     }
                     else
                     {
-                        // Standalone / builder.Services.AddLinbikJwtAuth → add before
-                        lines.Insert(jwtIdx, "builder.Services.AddLinbik();");
+                        // Standalone / builder.Services.AddLinbik...Auth → add before
+                        lines.Insert(authIdx, "builder.Services.AddLinbik();");
                     }
 
-                    result.Fixes.Add("Eksik AddLinbik() eklendi (AddLinbikJwtAuth ön koşulu).");
+                    result.Fixes.Add($"Eksik AddLinbik() eklendi ({spec.AddMethod} ön koşulu).");
                     result.Modified = true;
                 }
             }
@@ -192,10 +242,10 @@ internal static class ProgramCsManager
                 serviceLines.Add("builder.Services");
                 serviceLines.Add("    .AddLinbik()");
 
-                if (diagnosis.HasUseLinbikJwtAuth)
+                if (hasAuthUse)
                 {
-                    serviceLines.Add("    .AddLinbikJwtAuth();");
-                    result.Fixes.Add("Eksik AddLinbik() ve AddLinbikJwtAuth() servis kayıtları eklendi.");
+                    serviceLines.Add($"    .{spec.AddMethod}();");
+                    result.Fixes.Add($"Eksik AddLinbik() ve {spec.AddMethod}() servis kayıtları eklendi.");
                 }
                 else
                 {
@@ -210,12 +260,12 @@ internal static class ProgramCsManager
             }
         }
 
-        // ── Fix: Missing AddLinbikJwtAuth (required by UseLinbikJwtAuth) ──
-        if (diagnosis.HasAddLinbik && !diagnosis.HasAddLinbikJwtAuth && diagnosis.HasUseLinbikJwtAuth)
+        // ── Fix: Missing auth registration (required by its middleware) ──
+        if (diagnosis.HasAddLinbik && !hasAuthAdd && hasAuthUse)
         {
-            if (InsertIntoServiceChain(lines, "AddLinbik(", "AddLinbikJwtAuth()"))
+            if (InsertIntoServiceChain(lines, "AddLinbik(", $"{spec.AddMethod}()"))
             {
-                result.Fixes.Add("Eksik AddLinbikJwtAuth() eklendi (UseLinbikJwtAuth middleware'i için gerekli).");
+                result.Fixes.Add($"Eksik {spec.AddMethod}() eklendi ({spec.UseMethod} middleware'i için gerekli).");
                 result.Modified = true;
             }
         }
@@ -224,8 +274,11 @@ internal static class ProgramCsManager
     // ─── Middleware Pipeline Fixes ───────────────────────────────────
 
     private static void FixMiddlewarePipeline(
-        List<string> lines, ProgramCsDiagnosis diagnosis, ProgramCsFixResult result)
+        List<string> lines, ProgramCsDiagnosis diagnosis, ProgramCsFixResult result, AuthSpec spec)
     {
+        var hasAuthAdd = spec.HasAdd(diagnosis);
+        var hasAuthUse = spec.HasUse(diagnosis);
+
         var appBuildIdx = FindLine(lines, l =>
             l.Contains(".Build()", StringComparison.Ordinal)
             && (l.Contains("var app", StringComparison.Ordinal)
@@ -236,10 +289,10 @@ internal static class ProgramCsManager
             return;
 
         // Middleware fully configured for what's registered
-        if (diagnosis.HasEnsureLinbik && (diagnosis.HasUseLinbikJwtAuth || !diagnosis.HasAddLinbikJwtAuth))
+        if (diagnosis.HasEnsureLinbik && (hasAuthUse || !hasAuthAdd))
             return;
 
-        if (!diagnosis.HasEnsureLinbik && !diagnosis.HasUseLinbikJwtAuth && diagnosis.HasAddLinbik)
+        if (!diagnosis.HasEnsureLinbik && !hasAuthUse && diagnosis.HasAddLinbik)
         {
             // No Linbik middleware at all but services exist → fresh middleware injection
             var insertIdx = appBuildIdx + 1;
@@ -259,14 +312,14 @@ internal static class ProgramCsManager
 
             middlewareLines.Add("app.EnsureLinbik();");
 
-            if (diagnosis.HasAddLinbikJwtAuth)
-                middlewareLines.Add("app.UseLinbikJwtAuth();");
+            if (hasAuthAdd)
+                middlewareLines.Add($"app.{spec.UseMethod}();");
 
             middlewareLines.Add("");
             lines.InsertRange(insertIdx, middlewareLines);
 
             result.Fixes.Add("Middleware pipeline'a EnsureLinbik()"
-                + (diagnosis.HasAddLinbikJwtAuth ? " ve UseLinbikJwtAuth()" : "") + " eklendi.");
+                + (hasAuthAdd ? $" ve {spec.UseMethod}()" : "") + " eklendi.");
             result.Modified = true;
             return;
         }
@@ -286,27 +339,30 @@ internal static class ProgramCsManager
 
     // ─── Warning Generation ─────────────────────────────────────────
 
-    private static void GenerateWarnings(ProgramCsDiagnosis diagnosis, ProgramCsFixResult result)
+    private static void GenerateWarnings(ProgramCsDiagnosis diagnosis, ProgramCsFixResult result, AuthSpec spec)
     {
-        if (diagnosis.HasAddLinbik && !diagnosis.HasAddLinbikJwtAuth && !diagnosis.HasUseLinbikJwtAuth)
+        var hasAuthAdd = spec.HasAdd(diagnosis);
+        var hasAuthUse = spec.HasUse(diagnosis);
+
+        if (diagnosis.HasAddLinbik && !hasAuthAdd && !hasAuthUse)
         {
             result.Warnings.Add(
-                "AddLinbikJwtAuth() bulunamadı. JWT kimlik doğrulama gerekiyorsa builder zincirine .AddLinbikJwtAuth() ekleyin.");
+                $"{spec.AddMethod}() bulunamadı. Kimlik doğrulama gerekiyorsa builder zincirine .{spec.AddMethod}() ekleyin.");
         }
 
-        if (diagnosis.HasAddLinbikJwtAuth && !diagnosis.HasUseLinbikJwtAuth)
+        if (hasAuthAdd && !hasAuthUse)
         {
             result.Warnings.Add(
-                "UseLinbikJwtAuth() middleware'i bulunamadı. JWT endpoint'leri (login, callback, refresh, logout) aktif olmayacak.");
+                $"{spec.UseMethod}() middleware'i bulunamadı. Auth endpoint'leri (login, callback, refresh, logout) aktif olmayacak.");
         }
 
-        if ((diagnosis.HasUseLinbikJwtAuth || diagnosis.HasEnsureLinbik) && !diagnosis.HasUseAuthentication)
+        if ((hasAuthUse || diagnosis.HasEnsureLinbik) && !diagnosis.HasUseAuthentication)
         {
             result.Warnings.Add(
-                "UseAuthentication() bulunamadı. Authentication middleware olmadan JWT koruması çalışmaz.");
+                "UseAuthentication() bulunamadı. Authentication middleware olmadan token koruması çalışmaz.");
         }
 
-        if ((diagnosis.HasUseLinbikJwtAuth || diagnosis.HasEnsureLinbik) && !diagnosis.HasUseAuthorization)
+        if ((hasAuthUse || diagnosis.HasEnsureLinbik) && !diagnosis.HasUseAuthorization)
         {
             result.Warnings.Add(
                 "UseAuthorization() bulunamadı. Yetkilendirme gerektiren endpoint'ler korumasız kalabilir.");

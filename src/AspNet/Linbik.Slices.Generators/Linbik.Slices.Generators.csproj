@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>disable</ImplicitUsings>
+
+		<!-- Roslyn bileşeni: runtime'a değil, derleyiciye yüklenir. -->
+		<IsRoslynComponent>true</IsRoslynComponent>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+
+		<Deterministic>true</Deterministic>
+
+		<!-- RS2008: analyzer release tracking (NuGet paketi değil); RS1032: mesaj biçimi. -->
+		<NoWarn>$(NoWarn);RS2008;RS1032</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
+	</ItemGroup>
+
+</Project>

@@ -17,10 +17,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\src\AspNet\Linbik.Core\Linbik.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
+    <ProjectReference Include="..\..\..\..\src\AspNet\Linbik.Slices\Linbik.Slices.csproj" />
+    <!--
+      Source generator + analyzer doğrudan referans. ProjectReference ile analyzer'lar
+      Linbik.Slices üzerinden transitive akmadığından, slice üretimi ve LINBIK001
+      deny-by-default doğrulaması için generator'ı bu tüketici projeye analyzer olarak
+      bağlıyoruz. (NuGet paketi olarak tüketildiğinde bu otomatik akar.)
+    -->
+    <ProjectReference Include="..\..\..\..\src\AspNet\Linbik.Slices.Generators\Linbik.Slices.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

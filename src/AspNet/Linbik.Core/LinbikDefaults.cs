@@ -106,5 +106,11 @@ public static class LinbikDefaults
 
         /// <summary>Service-to-service / client_credentials (ApplicationScheme).</summary>
         public const string Application = "Application";
+
+        /// <summary>
+        /// Bilinçli olarak public/anonim endpoint. Deny-by-default analyzer'ı
+        /// tatmin etmek için açıkça işaretlenir; gateway doc'larında her flow'a görünür.
+        /// </summary>
+        public const string Public = "*";
     }
 }

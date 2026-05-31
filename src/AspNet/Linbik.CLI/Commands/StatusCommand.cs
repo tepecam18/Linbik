@@ -11,7 +11,11 @@ internal static class StatusCommand
     public static Command Create()
     {
         var command = new Command("status", "Show current Linbik service status and connectivity");
-        command.SetHandler(HandleAsync);
+        command.SetAction(async (_, _) =>
+        {
+            await HandleAsync();
+            return 0;
+        });
         return command;
     }
 

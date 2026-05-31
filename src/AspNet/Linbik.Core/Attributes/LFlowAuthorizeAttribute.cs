@@ -34,58 +34,15 @@ public sealed class LFlowAuthorizeAttribute : Attribute, IAsyncActionFilter
     {
         var headerValues = context.HttpContext.Request.Headers[LinbikDefaults.HeaderFlow];
 
-        // Güvenlik: header birden fazla kez veya virgülle birleştirilmiş gelirse
-        // bu, gateway transform'unu manipüle etme/inject etme girişimi sayılır.
-        // Tek değer + tek token zorunlu.
-        if (headerValues.Count > 1)
+        var decision = LFlowGate.Evaluate(headerValues, AllowedFlows);
+        if (!decision.Allowed)
         {
             context.Result = new ObjectResult(new LBaseResponse<object>(
-                title: "unauthorized",
-                message: $"Header '{LinbikDefaults.HeaderFlow}' must appear exactly once.",
+                title: decision.Title,
+                message: decision.Message,
                 isSuccess: false))
             {
-                StatusCode = StatusCodes.Status401Unauthorized
-            };
-            return;
-        }
-
-        var flow = headerValues.ToString().Trim();
-
-        if (string.IsNullOrEmpty(flow))
-        {
-            context.Result = new ObjectResult(new LBaseResponse<object>(
-                title: "unauthorized",
-                message: $"Required header '{LinbikDefaults.HeaderFlow}' is missing. Requests must be routed through the API Gateway.",
-                isSuccess: false))
-            {
-                StatusCode = StatusCodes.Status401Unauthorized
-            };
-            return;
-        }
-
-        // Virgül, boşluk veya kontrol karakteri içeren değerleri reddet —
-        // tek bir flow tokenı bekliyoruz.
-        if (flow.IndexOfAny(new[] { ',', ';', ' ', '\t', '\r', '\n' }) >= 0)
-        {
-            context.Result = new ObjectResult(new LBaseResponse<object>(
-                title: "unauthorized",
-                message: $"Header '{LinbikDefaults.HeaderFlow}' contains invalid characters.",
-                isSuccess: false))
-            {
-                StatusCode = StatusCodes.Status401Unauthorized
-            };
-            return;
-        }
-
-        if (AllowedFlows.Length > 0 &&
-            !AllowedFlows.Contains(flow, StringComparer.OrdinalIgnoreCase))
-        {
-            context.Result = new ObjectResult(new LBaseResponse<object>(
-                title: "forbidden_flow",
-                message: $"This operation is not allowed for the '{flow}' flow. Allowed: {string.Join(", ", AllowedFlows)}.",
-                isSuccess: false))
-            {
-                StatusCode = StatusCodes.Status403Forbidden
+                StatusCode = decision.StatusCode
             };
             return;
         }

@@ -1,14 +1,16 @@
 using Linbik.Core.Extensions;
+using Linbik.Slices.Generated;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Slice altyapısı: ILinbikSender + tüm [LinbikSlice] handler/validator kayıtları
+// (source generator tarafından üretilen LinbikSlicesRegistry).
+builder.Services.AddLinbikSlices();
 
-builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
 {
-    // Her operation'a [LFlowAuthorize] kuralından türetilen linbik-flows extension'ını ekler.
+    // Her operation'a [LFlow]/[LFlowPublic]'ten türeyen linbik-flows extension'ını ekler.
     options.AddLinbikFlowExtension();
 });
 
@@ -19,8 +21,7 @@ app.MapOpenApi();
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
-
-app.MapControllers();
+// Tüm slice endpoint'lerini map'le (flow metadata + Linbik-Flow doğrulama filter'ı dahil).
+app.MapLinbikSlices();
 
 app.Run();

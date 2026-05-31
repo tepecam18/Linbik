@@ -14,14 +14,16 @@ internal static class InitCommand
 
     public static Command Create()
     {
-        var urlOption = new Option<string>(
-            "--url",
-            () => DefaultLinbikUrl,
-            "Linbik server URL");
+        var urlOption = new Option<string>("--url")
+        {
+            Description = "Linbik server URL",
+            DefaultValueFactory = _ => DefaultLinbikUrl
+        };
 
-        var nameOption = new Option<string?>(
-            "--name",
-            "Application name (default: auto-detect from assembly/directory)");
+        var nameOption = new Option<string?>("--name")
+        {
+            Description = "Application name (default: auto-detect from assembly/directory)"
+        };
 
         var command = new Command("init", "Initialize a new Linbik service and write configuration")
         {
@@ -29,7 +31,13 @@ internal static class InitCommand
             nameOption
         };
 
-        command.SetHandler(HandleAsync, urlOption, nameOption);
+        command.SetAction(async (parseResult, _) =>
+        {
+            await HandleAsync(
+                parseResult.GetValue(urlOption) ?? DefaultLinbikUrl,
+                parseResult.GetValue(nameOption));
+            return 0;
+        });
         return command;
     }
 
@@ -75,7 +83,8 @@ internal static class InitCommand
                     linbikUrl = existingConfig.LinbikUrl;
 
                     // Still ensure Program.cs is configured
-                    InjectProgramCs(basePath);
+                    var existingAuthType = DetectAuthTypeFromConfig(existingConfig) ?? PromptAuthType();
+                    InjectProgramCs(basePath, existingAuthType);
 
                     Console.WriteLine();
                     ConsoleUI.Header(Messages.SetupComplete);
@@ -94,6 +103,9 @@ internal static class InitCommand
         var detectedUrl = DetectAppUrl(basePath);
         var appUrl = ConsoleUI.Prompt(Messages.PromptAppUrl, detectedUrl) ?? "https://localhost:5001";
         var callbackPath = ConsoleUI.Prompt(Messages.PromptCallbackPath, "/api/linbik/callback") ?? "/api/linbik/callback";
+
+        // Auth provider selection (JWT default, PASETO alternative)
+        var authType = PromptAuthType();
 
         Console.WriteLine();
         ConsoleUI.Step(Messages.StepCreatingService);
@@ -167,7 +179,7 @@ internal static class InitCommand
 
         // 4. Update Program.cs
         Console.WriteLine();
-        InjectProgramCs(basePath);
+        InjectProgramCs(basePath, authType);
 
         // Summary
         Console.WriteLine();
@@ -176,7 +188,7 @@ internal static class InitCommand
         Console.WriteLine();
     }
 
-    private static void InjectProgramCs(string basePath)
+    private static void InjectProgramCs(string basePath, LinbikAuthType authType)
     {
         var programCsPath = ProgramCsManager.FindProgramCs(basePath);
         if (programCsPath == null)
@@ -202,7 +214,7 @@ internal static class InitCommand
 
         try
         {
-            var result = ProgramCsManager.InjectLinbikAsync(programCsPath).GetAwaiter().GetResult();
+            var result = ProgramCsManager.InjectLinbikAsync(programCsPath, authType).GetAwaiter().GetResult();
 
             foreach (var fix in result.Fixes)
                 ConsoleUI.Success(fix);
@@ -335,5 +347,29 @@ internal static class InitCommand
         }
 
         return "https://localhost:5001";
+    }
+
+    private static LinbikAuthType PromptAuthType()
+    {
+        Console.WriteLine();
+        ConsoleUI.Info(Messages.AuthTypePromptHint);
+        var input = ConsoleUI.Prompt(Messages.AuthTypePrompt, "jwt")?.Trim().ToLowerInvariant();
+
+        return input switch
+        {
+            "p" or "paseto" => LinbikAuthType.Paseto,
+            _ => LinbikAuthType.Jwt,
+        };
+    }
+
+    /// <summary>
+    /// Infer the configured auth provider from an existing appsettings.json.
+    /// Returns null when neither section is present so the caller can prompt.
+    /// </summary>
+    private static LinbikAuthType? DetectAuthTypeFromConfig(LinbikConfig config)
+    {
+        if (config.HasPasetoAuth && !config.HasJwtAuth) return LinbikAuthType.Paseto;
+        if (config.HasJwtAuth && !config.HasPasetoAuth) return LinbikAuthType.Jwt;
+        return null;
     }
 }

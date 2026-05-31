@@ -11,7 +11,7 @@
 		<Description>Provides seamless Linbik JWT Authorize and Login capabilities. Registration and login flows are executed on Linbik.com and handled securely by this package.</Description>
 		<Authors>tepecam18</Authors>
 		<Company>Linbik</Company>
-		<PackageTags>authentication;jwt;yarp;tepecam18;linbik;auth;login</PackageTags>
+		<PackageTags>authentication;jwt;tepecam18;linbik;auth;login</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
@@ -40,9 +40,9 @@
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
 		<!-- System.IdentityModel.Tokens.Jwt is needed here for LocalJwtTokenIssuer (HS256 cookie auth) -->
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
 	</ItemGroup>
 
 	<ItemGroup>

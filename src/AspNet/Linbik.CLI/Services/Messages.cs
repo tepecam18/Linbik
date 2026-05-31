@@ -39,6 +39,14 @@ internal static class Messages
         ? "Callback path"
         : "Callback path";
 
+    public static string AuthTypePromptHint => IsTurkish
+        ? "Auth sağlayıcı seçimi: jwt (HS256/RS256) veya paseto (v4)."
+        : "Auth provider selection: jwt (HS256/RS256) or paseto (v4).";
+
+    public static string AuthTypePrompt => IsTurkish
+        ? "Auth tipi (jwt/paseto)"
+        : "Auth type (jwt/paseto)";
+
     public static string StepCreatingService => IsTurkish
         ? "Servis oluşturuluyor..."
         : "Creating service...";
@@ -254,4 +262,45 @@ internal static class Messages
     public static string SpecifyPathOption => IsTurkish
         ? "--path parametresi ile dosya yolunu belirtin."
         : "Specify the file path with the --path option.";
+
+    // ── Doctor Command ───────────────────────────────────────────────
+    public static string DoctorHeader => "Linbik Doctor";
+
+    public static string DoctorCredentialsSection => IsTurkish ? "Kimlik bilgileri:" : "Credentials:";
+    public static string DoctorAppSettingsSection => "appsettings.json:";
+    public static string DoctorProgramCsSection => "Program.cs:";
+
+    public static string DoctorNotFound => IsTurkish ? "bulunamadı." : "not found.";
+
+    public static string DoctorUnclaimed => IsTurkish
+        ? "Servis henüz claim edilmemiş. 'linbik init' ile tamamlayın."
+        : "Service is not yet claimed. Run 'linbik init' to complete.";
+
+    public static string DoctorMissing => IsTurkish ? "eksik" : "missing";
+
+    public static string DoctorNotConfigured => IsTurkish ? "yapılandırılmamış" : "not configured";
+
+    public static string DoctorMissingServiceId => IsTurkish
+        ? "Linbik:ServiceId boş."
+        : "Linbik:ServiceId is empty.";
+
+    public static string DoctorNoAuthSection => IsTurkish
+        ? "Ne JwtAuth ne PasetoAuth bölümü var. Token üretimi/doğrulaması çalışmaz."
+        : "Neither JwtAuth nor PasetoAuth section is present. Token issuance/validation will not work.";
+
+    public static string DoctorConfigProgramMismatch(string section, string method) => IsTurkish
+        ? $"appsettings.json {section} bölümünü tanımlıyor ama Program.cs {method}() çağırmıyor."
+        : $"appsettings.json defines a {section} section but Program.cs does not call {method}().";
+
+    public static string DoctorAllGood => IsTurkish
+        ? "Her şey yolunda. Linbik entegrasyonu tamamlanmış görünüyor."
+        : "All good. Linbik integration looks complete.";
+
+    public static string DoctorIssuesFound(int count) => IsTurkish
+        ? $"{count} sorun tespit edildi."
+        : $"{count} issue(s) detected.";
+
+    public static string DoctorRunInitHint => IsTurkish
+        ? "Düzeltmek için 'linbik init' komutunu çalıştırın."
+        : "Run 'linbik init' to fix.";
 }

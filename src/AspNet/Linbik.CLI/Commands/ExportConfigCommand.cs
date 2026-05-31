@@ -10,16 +10,21 @@ internal static class ExportConfigCommand
 {
     public static Command Create()
     {
-        var pathOption = new Option<string?>(
-            "--path",
-            "Path to appsettings.json (default: auto-detect)");
+        var pathOption = new Option<string?>("--path")
+        {
+            Description = "Path to appsettings.json (default: auto-detect)"
+        };
 
         var command = new Command("export-config", "Export Linbik credentials to appsettings.json")
         {
             pathOption
         };
 
-        command.SetHandler(HandleAsync, pathOption);
+        command.SetAction(async (parseResult, _) =>
+        {
+            await HandleAsync(parseResult.GetValue(pathOption));
+            return 0;
+        });
         return command;
     }
 
