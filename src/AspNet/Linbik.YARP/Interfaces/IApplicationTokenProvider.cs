@@ -17,7 +17,7 @@ public interface IApplicationTokenProvider
     /// </summary>
     /// <param name="integrationPackageName">Target integration service package name</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>JWT token string, or null if not available</returns>
+    /// <returns>PASETO token string, or null if not available</returns>
     Task<string?> GetApplicationTokenAsync(string integrationPackageName, CancellationToken cancellationToken = default);
 
     /// <summary>

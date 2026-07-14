@@ -2,8 +2,8 @@ services:
   apigateway:
     image: ${DOCKER_REGISTRY-}apigateway
     build:
-      context: .
-      dockerfile: ApiGateway/Dockerfile
+      context: ../..
+      dockerfile: examples/AspNet.Gateway/ApiGateway/Dockerfile
 
 
   aggregationservice:

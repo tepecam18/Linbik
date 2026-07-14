@@ -20,6 +20,17 @@ public sealed class YARPOptionsValidator : IValidateOptions<YARPOptions>
             errors.Add($"Linbik:YARP:S2STimeoutSeconds must be between 1 and 300. Current value: {options.S2STimeoutSeconds}.");
         }
 
+        // NSwag document reachability probe timeout validation
+        if (options.DocumentCheckTimeoutSeconds < 1 || options.DocumentCheckTimeoutSeconds > 60)
+        {
+            errors.Add($"Linbik:YARP:DocumentCheckTimeoutSeconds must be between 1 and 60. Current value: {options.DocumentCheckTimeoutSeconds}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.GeneratedClientOutputDirectory))
+        {
+            errors.Add("Linbik:YARP:GeneratedClientOutputDirectory is required.");
+        }
+
         // Validate each integration service configuration
         foreach (var (key, service) in options.IntegrationServices)
         {
@@ -41,6 +52,11 @@ public sealed class YARPOptionsValidator : IValidateOptions<YARPOptions>
             if (service.TimeoutSeconds < 1 || service.TimeoutSeconds > 300)
             {
                 errors.Add($"Linbik:YARP:IntegrationServices:{key}:TimeoutSeconds must be between 1 and 300. Current value: {service.TimeoutSeconds}.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(service.DocumentPath) && !service.DocumentPath.StartsWith('/'))
+            {
+                errors.Add($"Linbik:YARP:IntegrationServices:{key}:DocumentPath must start with '/'. Current value: '{service.DocumentPath}'.");
             }
         }
 

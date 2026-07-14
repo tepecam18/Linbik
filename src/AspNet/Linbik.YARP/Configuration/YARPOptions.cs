@@ -39,6 +39,21 @@ public sealed class YARPOptions
     /// Default: 30
     /// </summary>
     public int S2STimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Relative output directory (from content root) where NSwag-generated Application
+    /// clients (see <see cref="IntegrationServiceOptions.DocumentPath"/>) are written.
+    /// Default: "Generated"
+    /// </summary>
+    public string GeneratedClientOutputDirectory { get; set; } = "Generated";
+
+    /// <summary>
+    /// Timeout in seconds used when probing an integration service's OpenAPI document
+    /// (<see cref="IntegrationServiceOptions.TargetBaseUrl"/> + <see cref="IntegrationServiceOptions.DocumentPath"/>)
+    /// before falling back to the previously generated Application client.
+    /// Default: 5
+    /// </summary>
+    public int DocumentCheckTimeoutSeconds { get; set; } = 5;
 }
 
 public sealed class ClusterOptions
@@ -75,4 +90,13 @@ public sealed class IntegrationServiceOptions
     /// Optional: Timeout in seconds (default: 30)
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Path to this integration service's OpenAPI document (e.g., "/openapi/apps.json").
+    /// Combined with <see cref="TargetBaseUrl"/> at gateway startup to probe the document and,
+    /// if reachable, regenerate a typed Application (S2S) client with NSwag. When left empty,
+    /// no client generation is attempted for this service. When the document is unreachable,
+    /// the previously generated client (if any) keeps being used as-is.
+    /// </summary>
+    public string? DocumentPath { get; set; } = "/openapi/apps.json";
 }

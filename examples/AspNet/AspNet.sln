@@ -17,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.CLI", "..\..\src\Asp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Linbik.PasetoAuthManager", "..\..\src\AspNet\Linbik.PasetoAuthManager\Linbik.PasetoAuthManager.csproj", "{96B0BA63-1440-A972-7897-364BCBBF982E}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Librarys", "Librarys", "{374AF1C8-AE7C-49ED-B59F-436C71C77A66}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{374AF1C8-AE7C-49ED-B59F-436C71C77A66}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cli", "Cli", "{7849E84E-E8ED-4A6D-8A2E-47B48395324B}"
 EndProject

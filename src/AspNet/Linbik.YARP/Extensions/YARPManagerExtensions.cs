@@ -53,7 +53,6 @@ public static class YARPManagerExtensions
 
     private static void AddCommonYarpServices(IServiceCollection services, List<YARPOptions> yarpOptions)
     {
-        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
         services.AddHttpClient();
 
         // Register LinbikProxyPolicy — requires any authenticated user

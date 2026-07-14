@@ -76,6 +76,12 @@ public static class ServerExtensions
         {
             AddLinbikAuthentication(services, options);
         }
+        else
+        {
+            var logger = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Linbik.Server");
+            logger.LogWarning("Linbik.Server: PublicKey is not configured. Delegated and application token validation will be disabled. Please configure PublicKey in ServerOptions.");
+        }
     }
 
     /// <summary>

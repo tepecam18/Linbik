@@ -19,6 +19,12 @@ public sealed class LinbikSliceAttribute : Attribute
     /// <summary>OpenAPI tag(ler)i. Belirtilmezse slice tipinin adı kullanılır.</summary>
     public string? Tag { get; init; }
 
+    /// <summary>OpenAPI operasyon özeti (<c>.WithSummary()</c>). Belirtilmezse eklenmez.</summary>
+    public string? Summary { get; init; }
+
+    /// <summary>OpenAPI operasyon açıklaması (<c>.WithDescription()</c>). Belirtilmezse eklenmez.</summary>
+    public string? Description { get; init; }
+
     /// <param name="pattern">Endpoint route şablonu.</param>
     public LinbikSliceAttribute(string pattern)
     {

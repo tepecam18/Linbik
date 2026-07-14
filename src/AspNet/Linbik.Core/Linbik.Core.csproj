@@ -53,13 +53,13 @@
 			ayrıca PackageReference olarak listelemek NU1510 uyarısı üretir.
 			Yalnızca framework dışı paketler burada kalır.
 		-->
-		<PackageReference Include="Paseto.Core" Version="1.5.0" />
+		<PackageReference Include="Paseto.Core" Version="1.6.0" />
 
 		<!-- Resilience (Polly) for HttpClient — framework dışı -->
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
 
 		<!-- OpenAPI document generation + linbik-flows extension transformer — framework dışı -->
-		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
 	</ItemGroup>
 
 	<ItemGroup>

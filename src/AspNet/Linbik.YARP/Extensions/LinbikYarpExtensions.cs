@@ -37,14 +37,20 @@ public static class LinbikYarpExtensions
         builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
         // Add application token provider for application-to-application tokens
+        // Obtains PASETO tokens for the Application (S2S) flow via Linbik.Core's ILinbikAuthClient
         builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
 
         // Add validators
         builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-
+        
         // Add application service client with HttpClientFactory
         builder.Services.AddApplicationHttpClient();
+        
+        // Materialize options to discover integration services configured for NSwag client generation
+        var optionsInstance = new YARPOptions();
+        configureOptions(optionsInstance);
+        builder.Services.AddApplicationClientGeneration(optionsInstance);
 
         return builder;
     }
@@ -63,15 +69,20 @@ public static class LinbikYarpExtensions
         builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
         // Add application token provider for application-to-application tokens
+        // Obtains PASETO tokens for the Application (S2S) flow via Linbik.Core's ILinbikAuthClient
         builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
 
         // Add validators
         builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
         builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-
+        
         // Add application service client with HttpClientFactory
         builder.Services.AddApplicationHttpClient();
-        
+
+        // Materialize options to discover integration services configured for NSwag client generation
+        var optionsInstance = configuration.Get<YARPOptions>() ?? new YARPOptions();
+        builder.Services.AddApplicationClientGeneration(optionsInstance);
+
         return builder;
     }
 
@@ -95,6 +106,46 @@ public static class LinbikYarpExtensions
                 client.Timeout = TimeSpan.FromSeconds(options?.S2STimeoutSeconds ?? 30);
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
             });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the NSwag Application client regeneration hosted service, along with:
+    /// (1) a probe <see cref="HttpClient"/> used to check OpenAPI document reachability, and
+    /// (2) one named, PASETO-authenticated <see cref="HttpClient"/> per integration service that
+    /// has a <see cref="IntegrationServiceOptions.DocumentPath"/> configured — for use by the
+    /// generated <c>{PackageName}ApplicationClient</c> class (named "{PackageName}ApplicationClient").
+    /// No-op when no integration service configures a DocumentPath.
+    /// </summary>
+    private static IServiceCollection AddApplicationClientGeneration(this IServiceCollection services, YARPOptions yarpOptions)
+    {
+        var servicesWithDocument = yarpOptions.IntegrationServices
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Value.DocumentPath))
+            .ToList();
+
+        if (servicesWithDocument.Count == 0)
+            return services;
+
+        services.AddHttpClient(ApplicationClientGenerationHostedService.ProbeClientName)
+            .ConfigureHttpClient(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(yarpOptions.DocumentCheckTimeoutSeconds);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+            });
+
+        services.AddHostedService<ApplicationClientGenerationHostedService>();
+
+        foreach (var (packageName, serviceConfig) in servicesWithDocument)
+        {
+            services.AddHttpClient($"{packageName}ApplicationClient", client =>
+                {
+                    client.BaseAddress = new Uri(serviceConfig.TargetBaseUrl.TrimEnd('/') + "/");
+                    client.Timeout = TimeSpan.FromSeconds(serviceConfig.TimeoutSeconds);
+                })
+                .AddHttpMessageHandler(sp =>
+                    new ApplicationPasetoAuthHandler(packageName, sp.GetRequiredService<IApplicationTokenProvider>()));
+        }
 
         return services;
     }
@@ -157,7 +208,9 @@ public static class LinbikYarpExtensions
                     {
                         // Log error using ILogger instead of Console.WriteLine
                         var logger = transformContext.HttpContext.RequestServices
-                            .GetService<ILogger<MultiJwtTokenProvider>>();
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("LinbikYarpExtensions");
+
                         logger?.LogError(ex, "Token injection failed for service {ServicePackage}", servicePackage);
 
                         transformContext.HttpContext.Response.StatusCode = 500;
@@ -334,7 +387,7 @@ public static class LinbikYarpExtensions
     /// <summary>
     /// Map Application proxy routes
     /// Pattern: /app/{packageName}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
-    /// Automatically injects application JWT token from cache (no user context required)
+    /// Automatically injects the application's PASETO S2S token from cache (no user context required)
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
     /// <param name="routePrefix">Route prefix for S2S endpoints (default: "s2s")</param>
@@ -358,7 +411,7 @@ public static class LinbikYarpExtensions
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
 
-                // Get application JWT token from provider (auto-cached, auto-refreshed)
+                // Get application PASETO token from provider (auto-cached, auto-refreshed)
                 var integrationDetails = await applicationTokenProvider.GetApplicationIntegrationAsync(packageName);
 
                 if (integrationDetails == null)
@@ -402,7 +455,7 @@ public static class LinbikYarpExtensions
                         RequestUri = new Uri(targetUrl)
                     };
 
-                    // Add Authorization header with S2S JWT token
+                    // Add Authorization header with S2S PASETO token
                     requestMessage.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integrationDetails.Token);
 

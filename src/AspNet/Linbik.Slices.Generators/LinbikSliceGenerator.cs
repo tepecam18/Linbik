@@ -50,12 +50,18 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
 
         var method = "POST";
         string? tag = null;
+        string? summary = null;
+        string? description = null;
         foreach (var named in sliceAttr.NamedArguments)
         {
             if (named.Key == "Method" && named.Value.Value is string m && !string.IsNullOrWhiteSpace(m))
                 method = m;
             else if (named.Key == "Tag" && named.Value.Value is string t && !string.IsNullOrWhiteSpace(t))
                 tag = t;
+            else if (named.Key == "Summary" && named.Value.Value is string s && !string.IsNullOrWhiteSpace(s))
+                summary = s;
+            else if (named.Key == "Description" && named.Value.Value is string d && !string.IsNullOrWhiteSpace(d))
+                description = d;
         }
         tag ??= slice.Name;
 
@@ -121,6 +127,8 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
             Pattern: pattern!,
             Method: method.ToUpperInvariant(),
             Tag: tag,
+            Summary: summary,
+            Description: description,
             FlowArgs: flowArgs,
             RequestFqn: requestFqn,
             ResponseFqn: responseFqn,
@@ -190,11 +198,25 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
             var mapMethod = MapMethodFor(m.Method);
             sb.AppendLine("            {");
             sb.AppendLine($"                var __e = app.{mapMethod}(\"{Escape(m.Pattern)}\",");
-            sb.AppendLine($"                    static ({m.RequestFqn} request, global::Linbik.Slices.ILinbikSender sender, global::System.Threading.CancellationToken ct)");
+            // GET/DELETE/HEAD gövdesiz (çoğu istemci — taray\u0131c\u0131 fetch/XHR dahil —
+            // bu metotlara body koymay\u0131 client-side reddeder): [AsParameters] ile
+            // Request'in property'leri query string'ten ba\u011flan\u0131r (\u00f6r. ?threadId=..&page=1).
+            // POST/PUT/PATCH: [FromBody] ile JSON g\u00f6vdeden okunur (konvansiyon).
+            // Request tipleri (t\u00fcm slice'larda) d\u00fcz alanlardan olu\u015ftu\u011fu i\u00e7in
+            // [AsParameters] ile tam uyumlu (Guid/string/int?/bool vb.).
+            var isBodylessVerb = m.Method is "GET" or "DELETE" or "HEAD";
+            var bindingAttr = isBodylessVerb
+                ? "[global::Microsoft.AspNetCore.Http.AsParameters]"
+                : "[global::Microsoft.AspNetCore.Mvc.FromBody]";
+            sb.AppendLine($"                    static ({bindingAttr} {m.RequestFqn} request, global::Linbik.Slices.ILinbikSender sender, global::System.Threading.CancellationToken ct)");
             sb.AppendLine($"                        => global::Linbik.Slices.Endpoints.LinbikEndpoint.Handle<{m.RequestFqn}, {m.ResponseFqn}>(request, sender, ct));");
             sb.AppendLine("                __e.AddEndpointFilter<global::Linbik.Slices.Endpoints.LinbikFlowEndpointFilter>();");
             sb.AppendLine($"                __e.WithMetadata(new global::Linbik.Core.Attributes.LFlowAuthorizeAttribute({m.FlowArgs}));");
             sb.AppendLine($"                __e.WithTags(\"{Escape(m.Tag)}\");");
+            if (m.Summary is not null)
+                sb.AppendLine($"                __e.WithSummary(\"{Escape(m.Summary)}\");");
+            if (m.Description is not null)
+                sb.AppendLine($"                __e.WithDescription(\"{Escape(m.Description)}\");");
             sb.AppendLine("            }");
         }
         sb.AppendLine("            return app;");
@@ -237,6 +259,8 @@ internal sealed record SliceModel(
     string Pattern,
     string Method,
     string Tag,
+    string? Summary,
+    string? Description,
     string FlowArgs,
     string? RequestFqn,
     string? ResponseFqn,

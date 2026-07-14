@@ -241,7 +241,7 @@ public sealed class LinbikApplicationIntegration
     public string ServiceUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// JWT access token for S2S authentication
+    /// PASETO access token for S2S authentication
     /// Contains: token_type=s2s, source_service_id, source_package_name
     /// Does NOT contain user information
     /// </summary>
