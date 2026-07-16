@@ -267,7 +267,7 @@ public sealed class ApplicationServiceClient(
         where TResponse : class
     {
         var targetUrl = BuildTargetUrl(baseUrl, endpoint);
-        var targetDescription = $"{integration.PackageName ?? integration.ServiceId.ToString()}";
+        var targetDescription = integration.PackageName;
 
         logger.LogDebug("Application {Method} request to {Target}: {Url}", method, targetDescription, targetUrl);
 
@@ -281,7 +281,7 @@ public sealed class ApplicationServiceClient(
         // Add application indicator headers
         httpRequest.Headers.TryAddWithoutValidation("Linbik-Application", "true");
         httpRequest.Headers.TryAddWithoutValidation("Linbik-Source-Package", _options.SourcePackageName ?? "unknown");
-        httpRequest.Headers.TryAddWithoutValidation("Linbik-Target-Service-Id", integration.ServiceId.ToString());
+        httpRequest.Headers.TryAddWithoutValidation("Linbik-Target-Package", integration.PackageName);
 
         // Add request body for POST/PUT/PATCH
         if (request != null && (method == HttpMethod.Post || method == HttpMethod.Put || method == HttpMethod.Patch))

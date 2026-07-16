@@ -40,9 +40,9 @@
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
 		<!-- System.IdentityModel.Tokens.Jwt is needed here for LocalJwtTokenIssuer (HS256 cookie auth) -->
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -14,7 +14,7 @@ dotnet add package Linbik.Core
 
 - **OAuth 2.1 Authorization Code Flow** with PKCE support
 - **Multi-Service Integration** — Issue multiple JWT tokens in single response
-- **S2S (Service-to-Service)** token operations
+- **Apps (Service-to-Service)** token operations
 - **Keyless Mode** — Zero-configuration development
 - **Heartbeat** — SDK-to-server health signals
 - **Configuration Validation** — Startup-time validation with `IValidateOptions<T>`
@@ -57,8 +57,8 @@ app.EnsureLinbik(); // Validates all registered Linbik modules at startup
     "EnablePKCE": true,
     "AccessTokenLifetimeMinutes": 60,
     "RefreshTokenLifetimeDays": 30,
-    "S2STokenEndpoint": "/api/auth/s2s-token",
-    "S2STargetServices": {
+    "AppsTokenEndpoint": "/api/oauth/apps-token",
+    "AppsTargetServices": {
       "payment-gateway": "target-service-guid"
     },
     "EnableHeartbeat": true,

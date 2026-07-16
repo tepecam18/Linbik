@@ -138,16 +138,69 @@ public static class LinbikYarpExtensions
 
         foreach (var (packageName, serviceConfig) in servicesWithDocument)
         {
-            services.AddHttpClient($"{packageName}ApplicationClient", client =>
+            var httpClientName = $"{packageName}ApplicationClient";
+
+            services.AddHttpClient(httpClientName, client =>
                 {
                     client.BaseAddress = new Uri(serviceConfig.TargetBaseUrl.TrimEnd('/') + "/");
                     client.Timeout = TimeSpan.FromSeconds(serviceConfig.TimeoutSeconds);
                 })
                 .AddHttpMessageHandler(sp =>
-                    new ApplicationPasetoAuthHandler(packageName, sp.GetRequiredService<IApplicationTokenProvider>()));
+                    new ApplicationPasetoAuthHandler(
+                        packageName,
+                        sp.GetRequiredService<IApplicationTokenProvider>(),
+                        sp.GetRequiredService<ILogger<ApplicationPasetoAuthHandler>>()));
+
+            services.TryRegisterGeneratedApplicationClient(packageName, httpClientName);
         }
 
         return services;
+    }
+
+    /// <summary>
+    /// Attempts to register the NSwag-generated <c>I{PackageName}ApplicationClient</c> /
+    /// <c>{PackageName}ApplicationClient</c> pair (namespace <c>Linbik.YARP.Generated</c>, see
+    /// <see cref="ApplicationClientGenerationHostedService"/>) as a typed client bound to the
+    /// PASETO-authenticated, named <see cref="HttpClient"/> already registered for this
+    /// integration service. This is what makes the generated client both DI-resolvable and
+    /// automatically authenticated (the generated partial <c>PrepareRequest</c> hook is left
+    /// empty by design — token injection happens on the <see cref="HttpClient"/> pipeline via
+    /// <see cref="ApplicationPasetoAuthHandler"/>, not in generated code).
+    /// Linbik.YARP cannot reference the generated type at compile time (it lives in the
+    /// consuming application's assembly, once generated and rebuilt), so it is located via
+    /// reflection instead. On the very first run — before any client has ever been generated —
+    /// the type does not exist yet, so this is a no-op; the app must be rebuilt once after the
+    /// first successful generation for the typed client to become resolvable.
+    /// </summary>
+    private static void TryRegisterGeneratedApplicationClient(
+        this IServiceCollection services,
+        string packageName,
+        string httpClientName)
+    {
+        var className = $"{ApplicationClientGenerationHostedService.ToPascalCase(packageName)}ApplicationClient";
+        var classTypeName = $"Linbik.YARP.Generated.{className}";
+        var interfaceTypeName = $"Linbik.YARP.Generated.I{className}";
+
+        Type? classType = null;
+        Type? interfaceType = null;
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            classType ??= assembly.GetType(classTypeName);
+            interfaceType ??= assembly.GetType(interfaceTypeName);
+
+            if (classType is not null && interfaceType is not null)
+                break;
+        }
+
+        if (classType is null || interfaceType is null)
+            return;
+
+        services.AddTransient(interfaceType, sp =>
+        {
+            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(httpClientName);
+            return ActivatorUtilities.CreateInstance(sp, classType, httpClient);
+        });
     }
 
     /// <summary>

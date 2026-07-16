@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace Linbik.Core.Attributes;
 
 /// <summary>
-/// Authorize attribute for Service-to-Service (S2S) requests.
+/// Authorize attribute for Service-to-Service (apps) requests.
 /// Validates JWT tokens that contain only service claims (no user information).
 /// Use this when services communicate directly without a user context.
 ///
@@ -11,7 +11,7 @@ namespace Linbik.Core.Attributes;
 /// Token does NOT contain: UserId, Username, DisplayName
 ///
 /// Usage in integration services:
-/// [LinbikApplicationAuthorize]                    // Any S2S token accepted
+/// [LinbikApplicationAuthorize]                    // Any apps token accepted
 /// public IActionResult SyncInventory() { ... }
 ///
 /// [LinbikApplicationAuthorize("Linbik")]          // Only Linbik platform tokens accepted
@@ -29,7 +29,7 @@ namespace Linbik.Core.Attributes;
 public sealed class LinbikApplicationAuthorizeAttribute : AuthorizeAttribute
 {
     /// <summary>
-    /// Accepts any valid S2S token regardless of role
+    /// Accepts any valid apps token regardless of role
     /// </summary>
     public LinbikApplicationAuthorizeAttribute()
     {

@@ -31,7 +31,7 @@ public interface ILinbikSecurityEventSink
 /// </summary>
 public static class LinbikSecurityEventType
 {
-    /// <summary>JWT (kullanıcı veya S2S) imza/exp/issuer doğrulaması başarısız.</summary>
+    /// <summary>JWT (kullanıcı veya apps) imza/exp/issuer doğrulaması başarısız.</summary>
     public const string AuthenticationFailed = "authentication_failed";
 
     /// <summary>Kimlik doğrulanmış ama policy/role yetki vermedi (HTTP 403).</summary>
@@ -40,7 +40,7 @@ public static class LinbikSecurityEventType
     /// <summary>API anahtarı yanlış / iptal edilmiş / süresi dolmuş.</summary>
     public const string ApiKeyInvalid = "api_key_invalid";
 
-    /// <summary>S2S token, beklenenin aksine user-token (cross-scheme injection denemesi).</summary>
+    /// <summary>Apps token, beklenenin aksine user-token (cross-scheme injection denemesi).</summary>
     public const string S2sJwtInvalid = "s2s_jwt_invalid";
 
     /// <summary>Rate limit aşıldı.</summary>

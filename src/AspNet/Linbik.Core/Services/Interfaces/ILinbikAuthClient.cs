@@ -5,7 +5,7 @@ namespace Linbik.Core.Services.Interfaces;
 
 /// <summary>
 /// HTTP client interface for Linbik authorization server communication
-/// Handles token exchange, refresh, and S2S (Service-to-Service) operations
+/// Handles token exchange, refresh, and apps (Service-to-Service) operations
 /// </summary>
 public interface ILinbikAuthClient
 {
@@ -44,26 +44,26 @@ public interface ILinbikAuthClient
 
     #endregion
 
-    #region S2S (Service-to-Service) Token Operations
+    #region Apps (Service-to-Service) Token Operations
 
     /// <summary>
-    /// Get S2S tokens for service-to-service communication (no user context)
-    /// POST /auth/s2s-token
+    /// Get apps tokens for service-to-service communication (no user context)
+    /// POST /api/oauth/apps-token
     /// Headers: ApiKey
-    /// Body: { sourceServiceId, targetServiceIds }
+    /// Body: { sourceServiceId, targetServiceIds, targetPackageNames }
     /// </summary>
-    /// <param name="request">S2S token request with source and target service IDs</param>
+    /// <param name="request">Apps token request with source service ID and target service IDs and/or package names</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>S2S token response with integration tokens for target services</returns>
+    /// <returns>Apps token response with integration tokens for target services</returns>
     Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(LinbikApplicationTokenRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get S2S tokens by target package names (uses configured service ID mapping)
-    /// Requires Linbik:S2STargetServices configuration
+    /// Get apps tokens by target package names. Package names are sent to the server as-is;
+    /// no local Linbik:AppsTargetServices configuration is required.
     /// </summary>
     /// <param name="targetPackageNames">Target service package names</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>S2S token response with integration tokens for target services</returns>
+    /// <returns>Apps token response with integration tokens for target services</returns>
     Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(IEnumerable<string> targetPackageNames, CancellationToken cancellationToken = default);
 
     #endregion

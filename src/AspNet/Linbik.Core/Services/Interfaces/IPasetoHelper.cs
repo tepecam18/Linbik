@@ -4,7 +4,7 @@ namespace Linbik.Core.Services.Interfaces;
 
 /// <summary>
 /// PASETO v4.public token üretimi ve doğrulaması için Ed25519 tabanlı yardımcı arayüz.
-/// Servisler arası (S2S) ve kullanıcı-servis (delegated) token'larını yönetir.
+/// Servisler arası (apps) ve kullanıcı-servis (delegated) token'larını yönetir.
 /// </summary>
 public interface IPasetoHelper
 {

@@ -166,11 +166,11 @@ public sealed class LinbikInitiateResponse
     public string RedirectUrl { get; set; } = string.Empty;
 }
 
-#region S2S (Service-to-Service) Models
+#region Apps (Service-to-Service) Models
 
 /// <summary>
-/// Request body for S2S token endpoint
-/// POST /auth/s2s-token
+/// Request body for apps token endpoint
+/// POST /api/oauth/apps-token
 /// Headers: { ApiKey }
 /// </summary>
 public sealed class LinbikApplicationTokenRequest
@@ -181,27 +181,25 @@ public sealed class LinbikApplicationTokenRequest
     public Guid SourceServiceId { get; set; }
 
     /// <summary>
-    /// List of target integration service IDs to get tokens for
+    /// List of target integration service IDs to get tokens for.
+    /// Used for dynamic (not pre-configured) targets, e.g. callbacks/webhooks.
     /// </summary>
     public List<Guid> TargetServiceIds { get; set; } = [];
+
+    /// <summary>
+    /// List of target integration service package names to get tokens for.
+    /// Used for config-based targets (Linbik:AppsTargetServices) — preferred over
+    /// <see cref="TargetServiceIds"/> since the server resolves the package name directly.
+    /// </summary>
+    public List<string> TargetPackageNames { get; set; } = [];
 }
 
 /// <summary>
-/// Response from S2S token endpoint
+/// Response from apps token endpoint
 /// Contains JWT tokens for each requested integration service
 /// </summary>
 public sealed class LinbikApplicationTokenResponse
 {
-    /// <summary>
-    /// Source service ID that requested the tokens
-    /// </summary>
-    public Guid SourceServiceId { get; set; }
-
-    /// <summary>
-    /// Source service package name
-    /// </summary>
-    public string SourcePackageName { get; set; } = string.Empty;
-
     /// <summary>
     /// List of integration tokens for target services
     /// </summary>
@@ -214,24 +212,19 @@ public sealed class LinbikApplicationTokenResponse
 }
 
 /// <summary>
-/// S2S integration token data
+/// Apps integration token data
 /// Contains PASETO token signed with target service's private key
 /// Token contains only service claims (no user information)
 /// </summary>
 public sealed class LinbikApplicationIntegration
 {
     /// <summary>
-    /// Target integration service ID
-    /// </summary>
-    public Guid ServiceId { get; set; }
-
-    /// <summary>
     /// Target service display name
     /// </summary>
     public string ServiceName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Target service package name (URL-safe identifier)
+    /// Target service package name (URL-safe identifier) — the stable identifier to key/cache this token by
     /// </summary>
     public string PackageName { get; set; } = string.Empty;
 
@@ -241,8 +234,8 @@ public sealed class LinbikApplicationIntegration
     public string ServiceUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// PASETO access token for S2S authentication
-    /// Contains: token_type=s2s, source_service_id, source_package_name
+    /// PASETO access token for apps authentication
+    /// Contains: token_type=apps, source_service_id, source_package_name
     /// Does NOT contain user information
     /// </summary>
     public string Token { get; set; } = string.Empty;

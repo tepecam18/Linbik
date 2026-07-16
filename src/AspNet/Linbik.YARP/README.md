@@ -1,6 +1,6 @@
 # Linbik.YARP
 
-YARP (Yet Another Reverse Proxy) integration for Linbik multi-service authentication. Provides automatic token injection, S2S token provider, and typed S2S HTTP client.
+YARP (Yet Another Reverse Proxy) integration for Linbik multi-service authentication. Provides automatic token injection, apps token provider, and typed apps HTTP client.
 
 ## 📦 Installation
 
@@ -15,9 +15,9 @@ dotnet add package Linbik.YARP
 - **Cookie-Based Storage** — Integration tokens stored in HttpOnly cookies
 - **Per-Service Routing** — `/{packageName}/{**path}` routes to integration service BaseUrl
 
-### S2S (Service-to-Service)
-- **IS2STokenProvider** — Token caching, auto-refresh, config-based and dynamic targets
-- **IS2SServiceClient** — Full typed HTTP client (GET, POST, PUT, DELETE, PATCH) with automatic S2S token injection
+### Apps (Service-to-Service)
+- **IApplicationTokenProvider** — Token caching, auto-refresh, config-based and dynamic targets
+- **IApplicationServiceClient** — Full typed HTTP client (GET, POST, PUT, DELETE, PATCH) with automatic apps token injection
 - **LBaseResponse\<T\> Enforcement** — Consistent response format
 - **Role-Based Tokens** — `Service` (service-to-service) and `Linbik` (platform) roles
 
@@ -37,8 +37,8 @@ app.EnsureLinbik();
 // Map user-context integration proxy: /{packageName}/{**path}
 app.UseLinbikYarp();
 
-// Map S2S proxy endpoints (optional)
-app.UseLinbikS2S();
+// Map apps proxy endpoints (optional)
+app.UseLinbikApplication();
 ```
 
 ### appsettings.json
@@ -49,12 +49,12 @@ app.UseLinbikS2S();
     "LinbikUrl": "https://api.linbik.com",
     "ServiceId": "your-service-guid",
     "ApiKey": "lnbk_your_api_key",
-    "S2STargetServices": {
+    "AppsTargetServices": {
       "payment-gateway": "guid-of-payment-service",
       "courier-service": "guid-of-courier-service"
     },
-    "S2SAutoRefresh": true,
-    "S2SRefreshThreshold": 0.75
+    "AppsAutoRefresh": true,
+    "AppsRefreshThreshold": 0.75
   },
   "YARP": {
     "IntegrationServices": {

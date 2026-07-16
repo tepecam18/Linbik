@@ -41,9 +41,9 @@ public sealed class PasetoBearerOptions : AuthenticationSchemeOptions
     public string ExpectedIssuer { get; set; } = string.Empty;
 
     /// <summary>
-    /// <c>true</c> ise yalnızca <c>token_type=s2s</c> içeren application token'ları kabul edilir
+    /// <c>true</c> ise yalnızca <c>token_type=apps</c> içeren application token'ları kabul edilir
     /// (kullanıcı token'ları reddedilir). <c>false</c> ise yalnızca user/delegated token'lar kabul edilir
-    /// (s2s token'lar reddedilir). Çapraz enjeksiyon koruması.
+    /// (apps token'lar reddedilir). Çapraz enjeksiyon koruması.
     /// </summary>
     public bool RequireApplicationToken { get; set; }
 
@@ -148,9 +148,9 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         var tokenType = rawClaims.GetValueOrDefault("token_type");
 
         // Cross-scheme injection guard — based on per-scheme RequireApplicationToken flag
-        if (Options.RequireApplicationToken && tokenType != "s2s")
+        if (Options.RequireApplicationToken && tokenType != "apps")
         {
-            const string msg = "Only application tokens (token_type=s2s) are accepted by this scheme.";
+            const string msg = "Only application tokens (token_type=apps) are accepted by this scheme.";
             await ReportSecurityEventAsync(
                 isS2S: false,
                 eventType: LinbikSecurityEventType.S2sJwtInvalid,
@@ -160,9 +160,9 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
             return AuthenticateResult.Fail(msg);
         }
 
-        if (!Options.RequireApplicationToken && tokenType == "s2s")
+        if (!Options.RequireApplicationToken && tokenType == "apps")
         {
-            const string msg = "Application tokens (token_type=s2s) are not accepted by this scheme.";
+            const string msg = "Application tokens (token_type=apps) are not accepted by this scheme.";
             await ReportSecurityEventAsync(
                 isS2S: true,
                 eventType: LinbikSecurityEventType.S2sJwtInvalid,

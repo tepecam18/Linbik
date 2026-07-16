@@ -12,8 +12,9 @@ public interface IApplicationTokenProvider
     #region Package Name Based (Config-based targets)
 
     /// <summary>
-    /// Gets an application token for the specified integration service by package name
-    /// Requires service to be configured in Linbik:S2STargetServices (kept for config compat)
+    /// Gets an application token for the specified integration service by package name.
+    /// The package name is sent to the server directly; no local Linbik:AppsTargetServices
+    /// configuration is required.
     /// </summary>
     /// <param name="integrationPackageName">Target integration service package name</param>
     /// <param name="cancellationToken">Cancellation token</param>

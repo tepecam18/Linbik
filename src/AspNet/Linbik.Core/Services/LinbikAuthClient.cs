@@ -218,7 +218,7 @@ public sealed class LinbikAuthClient(
         }
     }
 
-    #region S2S (Service-to-Service) Operations
+    #region Apps (Service-to-Service) Operations
 
     /// <inheritdoc />
     public async Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(
@@ -231,15 +231,17 @@ public sealed class LinbikAuthClient(
             return null;
         }
 
-        if (request.TargetServiceIds == null || request.TargetServiceIds.Count == 0)
+        var hasTargetIds = request.TargetServiceIds is { Count: > 0 };
+        var hasTargetPackageNames = request.TargetPackageNames is { Count: > 0 };
+        if (!hasTargetIds && !hasTargetPackageNames)
         {
-            _logger.LogWarning("GetApplicationTokensAsync called with empty target service IDs");
+            _logger.LogWarning("GetApplicationTokensAsync called with no target service IDs or package names");
             return null;
         }
 
         try
         {
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _options.S2STokenEndpoint.TrimStart('/'))
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _options.AppsTokenEndpoint.TrimStart('/'))
             {
                 Content = JsonContent.Create(request, options: JsonOptions)
             };
@@ -248,22 +250,22 @@ public sealed class LinbikAuthClient(
             httpRequest.Headers.Add("ApiKey", _options.ApiKey);
             AddDiagnosticHeaders(httpRequest);
 
-            _logger.LogDebug("Requesting S2S tokens for {TargetCount} services from {SourceServiceId}",
-                request.TargetServiceIds.Count, request.SourceServiceId);
+            _logger.LogDebug("Requesting apps tokens for {TargetCount} services from {SourceServiceId}",
+                (request.TargetServiceIds?.Count ?? 0) + (request.TargetPackageNames?.Count ?? 0), request.SourceServiceId);
 
             var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("S2S token request failed with status {StatusCode}: {Error}",
+                _logger.LogWarning("Apps token request failed with status {StatusCode}: {Error}",
                     response.StatusCode, errorContent);
 
                 // Try to deserialize error response
                 try
                 {
                     var errorResponse = JsonSerializer.Deserialize<LinbikErrorResponse>(errorContent, JsonOptions);
-                    _logger.LogWarning("S2S token error: {Error} - {Description}",
+                    _logger.LogWarning("Apps token error: {Error} - {Description}",
                         errorResponse?.Error, errorResponse?.ErrorDescription);
                 }
                 catch
@@ -274,26 +276,26 @@ public sealed class LinbikAuthClient(
                 return null;
             }
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<LinbikApplicationTokenResponse>(JsonOptions, cancellationToken);
+            var tokenResponse = await response.Content.ReadFromJsonAsync<LBaseResponse<LinbikApplicationTokenResponse>>(JsonOptions, cancellationToken);
 
-            _logger.LogInformation("Successfully obtained S2S tokens for {IntegrationCount} services",
-                tokenResponse?.Integrations?.Count ?? 0);
+            _logger.LogInformation("Successfully obtained apps tokens for {IntegrationCount} services",
+                tokenResponse?.Data?.Integrations?.Count ?? 0);
 
-            return tokenResponse;
+            return tokenResponse?.Data;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "HTTP request failed during S2S token request");
+            _logger.LogError(ex, "HTTP request failed during apps token request");
             return null;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "JSON deserialization failed during S2S token request");
+            _logger.LogError(ex, "JSON deserialization failed during apps token request");
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error during S2S token request");
+            _logger.LogError(ex, "Unexpected error during apps token request");
             throw;
         }
     }
@@ -303,36 +305,17 @@ public sealed class LinbikAuthClient(
         IEnumerable<string> targetPackageNames,
         CancellationToken cancellationToken = default)
     {
-        // Check if target services are configured in options
-        if (_options.S2STargetServices == null || _options.S2STargetServices.Count == 0)
+        var packageNames = targetPackageNames.Distinct().ToList();
+        if (packageNames.Count == 0)
         {
-            _logger.LogError("No S2S target services configured. Add Linbik:S2STargetServices configuration.");
-            return null;
-        }
-
-        List<Guid> targetIds = [];
-        foreach (var packageName in targetPackageNames)
-        {
-            if (_options.S2STargetServices.TryGetValue(packageName, out var serviceId))
-            {
-                targetIds.Add(serviceId);
-            }
-            else
-            {
-                _logger.LogWarning("Target service {PackageName} not found in S2STargetServices configuration", packageName);
-            }
-        }
-
-        if (targetIds.Count == 0)
-        {
-            _logger.LogError("No matching target services found for requested package names");
+            _logger.LogError("No target package names provided");
             return null;
         }
 
         var request = new LinbikApplicationTokenRequest
         {
             SourceServiceId = Guid.Parse(_options.ServiceId),
-            TargetServiceIds = targetIds
+            TargetPackageNames = packageNames
         };
 
         return await GetApplicationTokensAsync(request, cancellationToken);

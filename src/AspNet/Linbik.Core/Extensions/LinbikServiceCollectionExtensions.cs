@@ -18,7 +18,7 @@ namespace Linbik.Core.Extensions;
 public static class LinbikServiceCollectionExtensions
 {
     /// <summary>
-    /// Default HttpClient name for Linbik authentication client (handles both user-context and S2S operations)
+    /// Default HttpClient name for Linbik authentication client (handles both user-context and apps operations)
     /// </summary>
     public const string LinbikHttpClientName = "LinbikAuthClient";
 

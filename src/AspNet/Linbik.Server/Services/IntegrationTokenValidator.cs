@@ -102,7 +102,7 @@ public sealed class IntegrationTokenValidator
         var tokenType = rawClaims.GetValueOrDefault("token_type");
         var hasUserClaims = rawClaims.ContainsKey("name") || rawClaims.ContainsKey("preferred_username");
 
-        if (tokenType == "s2s" || !hasUserClaims)
+        if (tokenType == "apps" || !hasUserClaims)
         {
             claims.TokenType = LinbikTokenType.Application;
             var sub = rawClaims.GetValueOrDefault("sub");

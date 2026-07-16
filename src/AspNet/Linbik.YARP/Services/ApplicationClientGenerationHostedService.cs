@@ -9,7 +9,7 @@ using NSwag.CodeGeneration.CSharp;
 namespace Linbik.YARP.Services;
 
 /// <summary>
-/// Startup hosted service that regenerates typed Application (S2S) clients with NSwag.
+/// Startup hosted service that regenerates typed Application (apps) clients with NSwag.
 /// For every <see cref="IntegrationServiceOptions"/> entry with a non-empty
 /// <see cref="IntegrationServiceOptions.DocumentPath"/>, probes
 /// <c>{TargetBaseUrl}{DocumentPath}</c>. When the OpenAPI document is reachable, the client
@@ -145,7 +145,13 @@ public sealed class ApplicationClientGenerationHostedService(
             className, packageName, outputPath);
     }
 
-    private static string ToPascalCase(string packageName)
+    /// <summary>
+    /// Derives the PascalCase prefix used for the generated <c>{Prefix}ApplicationClient</c>
+    /// class/interface names from an integration service's package name. Shared with
+    /// <see cref="Extensions.LinbikYarpExtensions"/>, which needs the exact same name to locate
+    /// the generated type via reflection for DI registration.
+    /// </summary>
+    internal static string ToPascalCase(string packageName)
     {
         var parts = packageName.Split(['-', '_', '.', ' '], StringSplitOptions.RemoveEmptyEntries);
         var builder = new StringBuilder();

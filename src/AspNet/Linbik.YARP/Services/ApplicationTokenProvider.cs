@@ -1,5 +1,6 @@
 ﻿using Linbik.Core.Configuration;
 using Linbik.Core.Models;
+using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -17,14 +18,18 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
 {
     private readonly ILinbikAuthClient _authClient;
     private readonly LinbikOptions _options;
+    private readonly LinbikProvisionClient _provisionClient;
     private readonly ILogger<ApplicationTokenProvider> _logger;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly Timer? _autoRefreshTimer;
 
     // Cache for application tokens - by package name (config-based)
     private readonly ConcurrentDictionary<string, ApplicationTokenCacheItem> _tokenCache = new();
-    // Cache for application tokens - by service ID (dynamic)
-    private readonly ConcurrentDictionary<Guid, ApplicationTokenCacheItem> _dynamicTokenCache = new();
+    // Cache for application tokens - by package name (dynamic targets, keyed the same way since
+    // the server only ever identifies a token by its target's package name)
+    private readonly ConcurrentDictionary<string, ApplicationTokenCacheItem> _dynamicTokenCache = new();
+    // Reverse index so dynamic (ID-based) lookups can find their cached token by package name
+    private readonly ConcurrentDictionary<Guid, string> _dynamicIdToPackageName = new();
     private DateTime _cacheExpiry = DateTime.MinValue;
 
     private sealed class ApplicationTokenCacheItem
@@ -41,20 +46,23 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
     public ApplicationTokenProvider(
         ILinbikAuthClient authClient,
         IOptions<LinbikOptions> options,
+        LinbikProvisionClient provisionClient,
         ILogger<ApplicationTokenProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(authClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(provisionClient);
         ArgumentNullException.ThrowIfNull(logger);
 
         _authClient = authClient;
         _options = options.Value;
+        _provisionClient = provisionClient;
         _logger = logger;
 
         // Setup auto-refresh timer if enabled (only for config-based services)
-        if (_options.S2SAutoRefresh && _options.S2STargetServices.Count > 0)
+        if (_options.AppsAutoRefresh && _options.AppsTargetServices.Count > 0)
         {
-            var refreshInterval = TimeSpan.FromMinutes(_options.S2STokenLifetimeMinutes * _options.S2SRefreshThreshold);
+            var refreshInterval = TimeSpan.FromMinutes(_options.AppsTokenLifetimeMinutes * _options.AppsRefreshThreshold);
             _autoRefreshTimer = new Timer(
                 async _ => await AutoRefreshTokensAsync(),
                 null,
@@ -125,10 +133,10 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
             if (!cached.IsExpired)
             {
                 // Check if needs proactive refresh
-                if (cached.NeedsRefresh(_options.S2SRefreshThreshold))
+                if (cached.NeedsRefresh(_options.AppsRefreshThreshold))
                 {
                     _logger.LogDebug("Application token for {Package} needs refresh (threshold: {Threshold}%)",
-                        integrationPackageName, _options.S2SRefreshThreshold * 100);
+                        integrationPackageName, _options.AppsRefreshThreshold * 100);
 
                     // Trigger background refresh but return current token
                     _ = Task.Run(async () => await RefreshApplicationTokensAsync(cancellationToken), cancellationToken);
@@ -163,18 +171,19 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         Guid targetServiceId,
         CancellationToken cancellationToken = default)
     {
-        // Check dynamic cache first
-        if (_dynamicTokenCache.TryGetValue(targetServiceId, out var cached))
+        // Check dynamic cache first (only possible once we've previously discovered its package name)
+        if (_dynamicIdToPackageName.TryGetValue(targetServiceId, out var packageName) &&
+            _dynamicTokenCache.TryGetValue(packageName, out var cached))
         {
             if (!cached.IsExpired)
             {
                 // Check if needs proactive refresh
-                if (cached.NeedsRefresh(_options.S2SRefreshThreshold))
+                if (cached.NeedsRefresh(_options.AppsRefreshThreshold))
                 {
                     _logger.LogDebug("Dynamic application token for {ServiceId} needs refresh", targetServiceId);
 
                     // Trigger background refresh but return current token
-                    _ = Task.Run(async () => await FetchAndCacheDynamicTokensAsync([targetServiceId], default), cancellationToken);
+                    _ = Task.Run(async () => await FetchAndCacheDynamicTokensAsync(targetServiceId, default), cancellationToken);
                 }
 
                 return cached.Integration;
@@ -186,9 +195,10 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         }
 
         // Need to fetch token
-        await FetchAndCacheDynamicTokensAsync([targetServiceId], cancellationToken);
+        await FetchAndCacheDynamicTokensAsync(targetServiceId, cancellationToken);
 
-        if (_dynamicTokenCache.TryGetValue(targetServiceId, out cached))
+        if (_dynamicIdToPackageName.TryGetValue(targetServiceId, out packageName) &&
+            _dynamicTokenCache.TryGetValue(packageName, out cached))
         {
             return cached.Integration;
         }
@@ -203,34 +213,15 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         CancellationToken cancellationToken = default)
     {
         var result = new Dictionary<Guid, LinbikApplicationIntegration>();
-        var serviceIds = targetServiceIds.ToList();
 
-        // Check which tokens we need to fetch
-        var needFetch = new List<Guid>();
-        foreach (var serviceId in serviceIds)
+        // The server only identifies a token by its target's package name (not the requested ID),
+        // so each ID is resolved individually to correlate results correctly.
+        foreach (var serviceId in targetServiceIds.Distinct())
         {
-            if (_dynamicTokenCache.TryGetValue(serviceId, out var cached) && !cached.IsExpired)
+            var integration = await GetApplicationIntegrationByIdAsync(serviceId, cancellationToken);
+            if (integration != null)
             {
-                result[serviceId] = cached.Integration;
-            }
-            else
-            {
-                needFetch.Add(serviceId);
-            }
-        }
-
-        // Fetch missing tokens
-        if (needFetch.Count > 0)
-        {
-            await FetchAndCacheDynamicTokensAsync(needFetch, cancellationToken);
-
-            // Add newly fetched tokens to result
-            foreach (var serviceId in needFetch)
-            {
-                if (_dynamicTokenCache.TryGetValue(serviceId, out var cached))
-                {
-                    result[serviceId] = cached.Integration;
-                }
+                result[serviceId] = integration;
             }
         }
 
@@ -244,7 +235,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
     /// <inheritdoc />
     public async Task RefreshApplicationTokensAsync(CancellationToken cancellationToken = default)
     {
-        var packageNames = _options.S2STargetServices.Keys.ToList();
+        var packageNames = _options.AppsTargetServices.Keys.ToList();
         if (packageNames.Count == 0)
         {
             _logger.LogWarning("No application target services configured");
@@ -259,6 +250,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
     {
         _tokenCache.Clear();
         _dynamicTokenCache.Clear();
+        _dynamicIdToPackageName.Clear();
         _cacheExpiry = DateTime.MinValue;
         _logger.LogInformation("Application token cache cleared (both config-based and dynamic)");
     }
@@ -299,45 +291,15 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         IEnumerable<string> packageNames,
         CancellationToken cancellationToken)
     {
-        // Get target service IDs from options
-        var targetIds = new List<Guid>();
-        foreach (var packageName in packageNames)
+        var requestedPackageNames = packageNames.Distinct().ToList();
+        if (requestedPackageNames.Count == 0)
         {
-            if (_options.S2STargetServices.TryGetValue(packageName, out var serviceId))
-            {
-                targetIds.Add(serviceId);
-            }
-            else
-            {
-                _logger.LogWarning("Application target service {Package} not found in configuration", packageName);
-            }
-        }
-
-        if (targetIds.Count == 0)
-        {
-            _logger.LogError("No valid application target service IDs found");
+            _logger.LogError("No application target package names found");
             return;
         }
 
-        await FetchAndCacheTokensCoreAsync(targetIds, isConfigBased: true, cancellationToken);
-    }
+        await EnsureKeylessProvisionedAsync(cancellationToken);
 
-    private async Task FetchAndCacheDynamicTokensAsync(
-        IEnumerable<Guid> targetServiceIds,
-        CancellationToken cancellationToken)
-    {
-        var targetIds = targetServiceIds.ToList();
-        if (targetIds.Count == 0)
-            return;
-
-        await FetchAndCacheTokensCoreAsync(targetIds, isConfigBased: false, cancellationToken);
-    }
-
-    private async Task FetchAndCacheTokensCoreAsync(
-        List<Guid> targetIds,
-        bool isConfigBased,
-        CancellationToken cancellationToken)
-    {
         // Acquire lock to prevent concurrent fetches
         if (!await _refreshLock.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken))
         {
@@ -348,27 +310,9 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         try
         {
             // Double-check cache after acquiring lock
-            var stillNeedFetch = new List<Guid>();
-            foreach (var id in targetIds)
-            {
-                if (isConfigBased)
-                {
-                    // For config-based, check by package name mapping
-                    var packageName = _options.S2STargetServices.FirstOrDefault(x => x.Value == id).Key;
-                    if (string.IsNullOrEmpty(packageName) || !_tokenCache.TryGetValue(packageName, out var c) || c.IsExpired)
-                    {
-                        stillNeedFetch.Add(id);
-                    }
-                }
-                else
-                {
-                    // For dynamic, check directly by ID
-                    if (!_dynamicTokenCache.TryGetValue(id, out var c) || c.IsExpired)
-                    {
-                        stillNeedFetch.Add(id);
-                    }
-                }
-            }
+            var stillNeedFetch = requestedPackageNames
+                .Where(packageName => !_tokenCache.TryGetValue(packageName, out var c) || c.IsExpired)
+                .ToList();
 
             if (stillNeedFetch.Count == 0)
             {
@@ -379,11 +323,10 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
             var request = new LinbikApplicationTokenRequest
             {
                 SourceServiceId = Guid.Parse(_options.ServiceId),
-                TargetServiceIds = stillNeedFetch
+                TargetPackageNames = stillNeedFetch
             };
 
-            var cacheType = isConfigBased ? "config-based" : "dynamic";
-            _logger.LogDebug("Fetching {CacheType} application tokens for {Count} services", cacheType, stillNeedFetch.Count);
+            _logger.LogDebug("Fetching config-based application tokens for {Count} services", stillNeedFetch.Count);
 
             var response = await _authClient.GetApplicationTokensAsync(request, cancellationToken);
 
@@ -397,7 +340,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
             // AccessTokenExpiresAt is Unix timestamp (seconds since epoch)
             var expiry = response.AccessTokenExpiresAt > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(response.AccessTokenExpiresAt).UtcDateTime
-                : now.AddMinutes(_options.S2STokenLifetimeMinutes);
+                : now.AddMinutes(_options.AppsTokenLifetimeMinutes);
 
             foreach (var integration in response.Integrations)
             {
@@ -408,29 +351,89 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
                     FetchedAt = now
                 };
 
-                if (isConfigBased)
-                {
-                    // Cache by package name
-                    _tokenCache.AddOrUpdate(integration.PackageName, cacheItem, (_, _) => cacheItem);
-                }
-                else
-                {
-                    // Cache by service ID
-                    _dynamicTokenCache.AddOrUpdate(integration.ServiceId, cacheItem, (_, _) => cacheItem);
-                }
+                // Cache by package name
+                _tokenCache.AddOrUpdate(integration.PackageName, cacheItem, (_, _) => cacheItem);
             }
 
-            if (isConfigBased)
-            {
-                _cacheExpiry = expiry;
-            }
+            _cacheExpiry = expiry;
 
-            _logger.LogInformation("Cached {CacheType} application tokens for {Count} services, expires at {Expiry}",
-                cacheType, response.Integrations.Count, expiry);
+            _logger.LogInformation("Cached config-based application tokens for {Count} services, expires at {Expiry}",
+                response.Integrations.Count, expiry);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch application tokens");
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
+    }
+
+    private async Task FetchAndCacheDynamicTokensAsync(
+        Guid targetServiceId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureKeylessProvisionedAsync(cancellationToken);
+
+        // Acquire lock to prevent concurrent fetches
+        if (!await _refreshLock.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken))
+        {
+            _logger.LogWarning("Application token fetch timed out waiting for lock");
+            return;
+        }
+
+        try
+        {
+            // Double-check cache after acquiring lock
+            if (_dynamicIdToPackageName.TryGetValue(targetServiceId, out var mappedPackageName) &&
+                _dynamicTokenCache.TryGetValue(mappedPackageName, out var existing) && !existing.IsExpired)
+            {
+                _logger.LogDebug("Application token already refreshed by another thread");
+                return;
+            }
+
+            var request = new LinbikApplicationTokenRequest
+            {
+                SourceServiceId = Guid.Parse(_options.ServiceId),
+                TargetServiceIds = [targetServiceId]
+            };
+
+            _logger.LogDebug("Fetching dynamic application token for service {ServiceId}", targetServiceId);
+
+            var response = await _authClient.GetApplicationTokensAsync(request, cancellationToken);
+
+            var integration = response?.Integrations?.FirstOrDefault();
+            if (integration == null)
+            {
+                _logger.LogWarning("Application token response was null or empty for service {ServiceId}", targetServiceId);
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            // AccessTokenExpiresAt is Unix timestamp (seconds since epoch)
+            var expiry = response!.AccessTokenExpiresAt > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(response.AccessTokenExpiresAt).UtcDateTime
+                : now.AddMinutes(_options.AppsTokenLifetimeMinutes);
+
+            var cacheItem = new ApplicationTokenCacheItem
+            {
+                Integration = integration,
+                ExpiresAt = expiry,
+                FetchedAt = now
+            };
+
+            // The server identifies the token only by package name, so remember which
+            // service ID it corresponds to for future cache lookups by ID.
+            _dynamicIdToPackageName[targetServiceId] = integration.PackageName;
+            _dynamicTokenCache.AddOrUpdate(integration.PackageName, cacheItem, (_, _) => cacheItem);
+
+            _logger.LogInformation("Cached dynamic application token for service {ServiceId} ({Package}), expires at {Expiry}",
+                targetServiceId, integration.PackageName, expiry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch dynamic application token for service {ServiceId}", targetServiceId);
         }
         finally
         {
@@ -446,7 +449,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
                 return;
 
             // Check if any config-based tokens need refresh (not dynamic - those are on-demand)
-            var needsRefresh = _tokenCache.Values.Any(c => c.NeedsRefresh(_options.S2SRefreshThreshold));
+            var needsRefresh = _tokenCache.Values.Any(c => c.NeedsRefresh(_options.AppsRefreshThreshold));
 
             if (needsRefresh)
             {
@@ -457,6 +460,28 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         catch (Exception ex)
         {
             _logger.LogError(ex, "Application token auto-refresh failed");
+        }
+    }
+
+    /// <summary>
+    /// In Keyless Mode, <see cref="LinbikOptions.ServiceId"/> is only populated once provisioning
+    /// completes. Provisioning normally happens lazily on the app's first OAuth login, which never
+    /// runs for pure S2S/webhook workloads. Calling this before any apps token request guarantees
+    /// ServiceId/ApiKey are available even if the app never processes a user login.
+    /// Cheap no-op once already provisioned or when not running in Keyless Mode.
+    /// </summary>
+    private async Task EnsureKeylessProvisionedAsync(CancellationToken cancellationToken)
+    {
+        if (!_options.KeylessMode || !string.IsNullOrEmpty(_options.ServiceId))
+            return;
+
+        try
+        {
+            await _provisionClient.EnsureProvisionedAsync("http://localhost", "/api/linbik/callback", clientName: null, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Keyless Mode auto-provisioning failed before apps token request");
         }
     }
 

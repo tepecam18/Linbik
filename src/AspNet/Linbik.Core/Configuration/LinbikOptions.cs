@@ -132,40 +132,40 @@ public sealed class LinbikOptions
     /// </summary>
     public string? CookieDomain { get; set; }
 
-    #region S2S (Service-to-Service) Configuration
+    #region Apps (Service-to-Service) Configuration
 
     /// <summary>
-    /// S2S token exchange endpoint path (default: "/api/auth/s2s-token")
+    /// Apps token exchange endpoint path (default: "/api/oauth/apps-token")
     /// Used for service-to-service authentication without user context
     /// </summary>
-    public string S2STokenEndpoint { get; set; } = "/api/auth/s2s-token";
+    public string AppsTokenEndpoint { get; set; } = "/api/oauth/apps-token";
 
     /// <summary>
-    /// S2S access token (JWT) lifetime in minutes (default: 60)
-    /// S2S tokens typically have the same lifetime as user tokens
+    /// Apps access token (JWT) lifetime in minutes (default: 60)
+    /// Apps tokens typically have the same lifetime as user tokens
     /// </summary>
-    public int S2STokenLifetimeMinutes { get; set; } = 60;
+    public int AppsTokenLifetimeMinutes { get; set; } = 60;
 
     /// <summary>
-    /// Target services for S2S authentication
+    /// Target services for apps authentication
     /// Key: Package name (e.g., "payment-gateway")
     /// Value: Service ID (GUID from Linbik registration)
     /// Used by GetApplicationTokensAsync(packageNames) method
     /// </summary>
-    public Dictionary<string, Guid> S2STargetServices { get; set; } = [];
+    public Dictionary<string, Guid> AppsTargetServices { get; set; } = [];
 
     /// <summary>
-    /// Enable automatic S2S token refresh before expiration
+    /// Enable automatic apps token refresh before expiration
     /// When true, tokens are refreshed automatically when 75% of lifetime has passed
     /// </summary>
-    public bool S2SAutoRefresh { get; set; } = true;
+    public bool AppsAutoRefresh { get; set; } = true;
 
     /// <summary>
-    /// S2S token refresh threshold as percentage of token lifetime
+    /// Apps token refresh threshold as percentage of token lifetime
     /// Token will be refreshed when this percentage of lifetime has passed
     /// Default: 0.75 (75% - refresh at 45 mins for 60 min token)
     /// </summary>
-    public double S2SRefreshThreshold { get; set; } = 0.75;
+    public double AppsRefreshThreshold { get; set; } = 0.75;
 
     #endregion
 
