@@ -40,14 +40,15 @@
 
 	<ItemGroup>
 		<!--
-			Source generator + analyzer. OutputItemType=Analyzer ile derleme zamanı
-			bileşeni olarak bağlanır; ReferenceOutputAssembly=false runtime bağımlılığı
-			oluşturmaz. Bu paketi referanslayan her servis slice üretimini ve
-			LINBIK001 deny-by-default analyzer'ını otomatik alır.
+			ProjectReference + OutputItemType=Analyzer sadece BU projenin (Linbik.Slices)
+			derlemesine generator'ı bağlar; NuGet paketine gömülmez ve paketi
+			PackageReference ile tüketen projelere TRANSITIVE akmaz. Generator dll'ini
+			analyzers/dotnet/cs altına elle paketleyerek, PackageReference ile tüketen
+			her projenin LINBIK001 analyzer'ını ve slice source generator'ını otomatik
+			almasını sağlıyoruz (ekstra analyzer ProjectReference/PackageReference
+			eklemeye gerek kalmaz).
 		-->
-		<ProjectReference Include="..\Linbik.Slices.Generators\Linbik.Slices.Generators.csproj"
-						  OutputItemType="Analyzer"
-						  ReferenceOutputAssembly="false" />
+		<None Include="..\Linbik.Slices.Generators\bin\$(Configuration)\netstandard2.0\Linbik.Slices.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 
 </Project>

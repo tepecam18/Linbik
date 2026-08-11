@@ -99,4 +99,11 @@ public sealed class IntegrationServiceOptions
     /// the previously generated client (if any) keeps being used as-is.
     /// </summary>
     public string? DocumentPath { get; set; } = "/openapi/apps.json";
+
+
+    /// <summary>
+    /// Optional: Class name for the generated client. If left empty, NSwag will generate a default class name based on the document title.
+    /// When specified, the generated client will be named accordingly, allowing for more control over the
+    /// </summary>
+    public string? DocumentName { get; set; }
 }

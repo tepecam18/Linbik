@@ -39,9 +39,10 @@ public sealed class ApplicationClientGenerationHostedService(
 
         foreach (var (packageName, serviceConfig) in servicesToGenerate)
         {
+            var documentName = serviceConfig.DocumentName ?? packageName;
             try
             {
-                await RegenerateClientAsync(packageName, serviceConfig, yarpOptions, cancellationToken);
+                await RegenerateClientAsync(documentName, serviceConfig, yarpOptions, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -57,7 +58,7 @@ public sealed class ApplicationClientGenerationHostedService(
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private async Task RegenerateClientAsync(
-        string packageName,
+        string documentName,
         IntegrationServiceOptions serviceConfig,
         YARPOptions yarpOptions,
         CancellationToken cancellationToken)
@@ -76,8 +77,8 @@ public sealed class ApplicationClientGenerationHostedService(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogInformation(
-                    "OpenAPI document for {PackageName} not reachable ({StatusCode}) at {Url}; keeping existing generated Application client",
-                    packageName, (int)response.StatusCode, documentUrl);
+                    "OpenAPI document for {DocumentName} not reachable ({StatusCode}) at {Url}; keeping existing generated Application client",
+                    documentName, (int)response.StatusCode, documentUrl);
                 return;
             }
 
@@ -87,15 +88,15 @@ public sealed class ApplicationClientGenerationHostedService(
         {
             // Either our own probe timeout, or the underlying HttpClient.Timeout, fired — both mean unreachable.
             logger.LogInformation(
-                "OpenAPI document probe timed out for {PackageName} at {Url}; keeping existing generated Application client",
-                packageName, documentUrl);
+                "OpenAPI document probe timed out for {DocumentName} at {Url}; keeping existing generated Application client",
+                documentName, documentUrl);
             return;
         }
         catch (HttpRequestException ex)
         {
             logger.LogInformation(ex,
-                "OpenAPI document unreachable for {PackageName} at {Url}; keeping existing generated Application client",
-                packageName, documentUrl);
+                "OpenAPI document unreachable for {DocumentName} at {Url}; keeping existing generated Application client",
+                documentName, documentUrl);
             return;
         }
 
@@ -107,12 +108,12 @@ public sealed class ApplicationClientGenerationHostedService(
         catch (Exception ex)
         {
             logger.LogWarning(ex,
-                "OpenAPI document for {PackageName} at {Url} could not be parsed; keeping existing generated Application client",
-                packageName, documentUrl);
+                "OpenAPI document for {DocumentName} at {Url} could not be parsed; keeping existing generated Application client",
+                documentName, documentUrl);
             return;
         }
 
-        var className = $"{ToPascalCase(packageName)}ApplicationClient";
+        var className = $"{ToPascalCase(documentName)}ApplicationClient";
         var settings = new CSharpClientGeneratorSettings
         {
             ClassName = className,
@@ -136,13 +137,13 @@ public sealed class ApplicationClientGenerationHostedService(
         if (File.Exists(outputPath) &&
             string.Equals(await File.ReadAllTextAsync(outputPath, cancellationToken), generatedCode, StringComparison.Ordinal))
         {
-            logger.LogDebug("Application client for {PackageName} already up to date at {Path}", packageName, outputPath);
+            logger.LogDebug("Application client for {DocumentName} already up to date at {Path}", documentName, outputPath);
             return;
         }
 
         await File.WriteAllTextAsync(outputPath, generatedCode, Encoding.UTF8, cancellationToken);
-        logger.LogInformation("Regenerated Application client {ClassName} for {PackageName} at {Path}",
-            className, packageName, outputPath);
+        logger.LogInformation("Regenerated Application client {ClassName} for {DocumentName} at {Path}",
+            className, documentName, outputPath);
     }
 
     /// <summary>
@@ -151,9 +152,9 @@ public sealed class ApplicationClientGenerationHostedService(
     /// <see cref="Extensions.LinbikYarpExtensions"/>, which needs the exact same name to locate
     /// the generated type via reflection for DI registration.
     /// </summary>
-    internal static string ToPascalCase(string packageName)
+    internal static string ToPascalCase(string documentName)
     {
-        var parts = packageName.Split(['-', '_', '.', ' '], StringSplitOptions.RemoveEmptyEntries);
+        var parts = documentName.Split(['-', '_', '.', ' '], StringSplitOptions.RemoveEmptyEntries);
         var builder = new StringBuilder();
         foreach (var part in parts)
         {
@@ -162,6 +163,6 @@ public sealed class ApplicationClientGenerationHostedService(
                 builder.Append(part[1..]);
         }
 
-        return builder.Length > 0 ? builder.ToString() : packageName;
+        return builder.Length > 0 ? builder.ToString() : documentName;
     }
 }

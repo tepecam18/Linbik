@@ -115,7 +115,7 @@ public static class LinbikYarpExtensions
     /// (1) a probe <see cref="HttpClient"/> used to check OpenAPI document reachability, and
     /// (2) one named, PASETO-authenticated <see cref="HttpClient"/> per integration service that
     /// has a <see cref="IntegrationServiceOptions.DocumentPath"/> configured — for use by the
-    /// generated <c>{PackageName}ApplicationClient</c> class (named "{PackageName}ApplicationClient").
+    /// generated <c>{DocumentName}ApplicationClient</c> class (named "{DocumentName}ApplicationClient").
     /// No-op when no integration service configures a DocumentPath.
     /// </summary>
     private static IServiceCollection AddApplicationClientGeneration(this IServiceCollection services, YARPOptions yarpOptions)
@@ -138,7 +138,8 @@ public static class LinbikYarpExtensions
 
         foreach (var (packageName, serviceConfig) in servicesWithDocument)
         {
-            var httpClientName = $"{packageName}ApplicationClient";
+            var documentName = serviceConfig.DocumentName ?? packageName;
+            var httpClientName = $"{documentName}ApplicationClient";
 
             services.AddHttpClient(httpClientName, client =>
                 {
@@ -147,19 +148,19 @@ public static class LinbikYarpExtensions
                 })
                 .AddHttpMessageHandler(sp =>
                     new ApplicationPasetoAuthHandler(
-                        packageName,
+                        packageName, // The integration service package name is used to obtain the correct S2S token
                         sp.GetRequiredService<IApplicationTokenProvider>(),
                         sp.GetRequiredService<ILogger<ApplicationPasetoAuthHandler>>()));
 
-            services.TryRegisterGeneratedApplicationClient(packageName, httpClientName);
+            services.TryRegisterGeneratedApplicationClient(documentName, httpClientName);
         }
 
         return services;
     }
 
     /// <summary>
-    /// Attempts to register the NSwag-generated <c>I{PackageName}ApplicationClient</c> /
-    /// <c>{PackageName}ApplicationClient</c> pair (namespace <c>Linbik.YARP.Generated</c>, see
+    /// Attempts to register the NSwag-generated <c>I{DocumentName}ApplicationClient</c> /
+    /// <c>{DocumentName}ApplicationClient</c> pair (namespace <c>Linbik.YARP.Generated</c>, see
     /// <see cref="ApplicationClientGenerationHostedService"/>) as a typed client bound to the
     /// PASETO-authenticated, named <see cref="HttpClient"/> already registered for this
     /// integration service. This is what makes the generated client both DI-resolvable and
@@ -174,10 +175,10 @@ public static class LinbikYarpExtensions
     /// </summary>
     private static void TryRegisterGeneratedApplicationClient(
         this IServiceCollection services,
-        string packageName,
+        string documentName,
         string httpClientName)
     {
-        var className = $"{ApplicationClientGenerationHostedService.ToPascalCase(packageName)}ApplicationClient";
+        var className = $"{ApplicationClientGenerationHostedService.ToPascalCase(documentName)}ApplicationClient";
         var classTypeName = $"Linbik.YARP.Generated.{className}";
         var interfaceTypeName = $"Linbik.YARP.Generated.I{className}";
 
