@@ -15,12 +15,13 @@ namespace Linbik.Slices;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class LFlowAttribute : Attribute
 {
-    /// <summary>İzin verilen akışlar (örn. <c>LinbikDefaults.Flows.Self</c>).</summary>
+    /// <summary>İzin verilen akışlar.</summary>
     public string[] Flows { get; }
 
-    /// <param name="flows">İzin verilen akışlar. Boş bırakılırsa "authenticated".</param>
-    public LFlowAttribute(params string[] flows)
+    /// <param name="flows">İzin verilen akışlar (ör. <c>LinbikFlow.Self</c>). Boş bırakılırsa "authenticated".</param>
+    public LFlowAttribute(params LinbikFlow[] flows)
     {
-        Flows = flows ?? [];
+        Flows = flows is null ? [] : Array.ConvertAll(flows, static f => f.ToString());
     }
 }
+

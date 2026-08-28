@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application>
+        <activity
+            android:name=".LinbikAuthActivity"
+            android:exported="false"
+            android:launchMode="singleTask" />
+
+        <!-- Custom Tabs'ten dönen "{applicationId}://oauth/callback?code=..." yönlendirmesini
+             yakalar ve LinbikAuthActivity'ye iletir. Host uygulamanın Linbik.App'te kayıtlı
+             Client'ının RedirectUri'si tam olarak bu şemaya eşleşmelidir. -->
+        <activity
+            android:name=".LinbikRedirectActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="${applicationId}"
+                    android:host="oauth"
+                    android:path="/callback" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

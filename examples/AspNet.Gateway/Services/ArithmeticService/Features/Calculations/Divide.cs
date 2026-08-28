@@ -1,4 +1,3 @@
-using Linbik.Core;
 using Linbik.Slices;
 using Linbik.Slices.Results;
 
@@ -7,7 +6,7 @@ namespace ArithmeticService.Features.Calculations;
 // divide: Self + Application. Validator bölen sıfır olamaz kuralını uygular;
 // geçersizse handler hiç çağrılmaz, 400 + LBaseResponse FriendlyMessage döner.
 [LinbikSlice("/api/arithmetic/divide", Tag = "Arithmetic")]
-[LFlow(LinbikDefaults.Flows.Self, LinbikDefaults.Flows.Application)]
+[LFlow(LinbikFlow.Self, LinbikFlow.Application)]
 public static partial class Divide
 {
     public sealed record Request(double A, double B) : ILinbikRequest<Response>;

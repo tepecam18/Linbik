@@ -122,8 +122,8 @@ spike (P1)** otomasyon yazılmadan önce yapılmalı; spike olumsuzsa K2 (minima
 namespace ArithmeticService.Features.Calculations;
 
 [LinbikSlice]                                  // source-gen: endpoint + DI üretir
-[LFlow(LinbikDefaults.Flows.Self,              // analyzer: deny-by-default zorlar
-       LinbikDefaults.Flows.Application)]
+[LFlow(LinbikFlow.Self,                        // analyzer: deny-by-default zorlar
+       LinbikFlow.Application)]
 public static partial class Divide
 {
     public sealed record Request(double A, double B) : ILinbikRequest<Response>;
@@ -237,7 +237,8 @@ zorlanmalı:
 
 - **Analyzer kuralı `LINBIK001` (Error):** `[LinbikSlice]` taşıyan bir tip `[LFlow(...)]`
   (en az bir flow **veya** açık `Public`) deklare etmiyorsa derleme **kırılır**.
-- Public bilinçli olmalı: `[LFlow(LinbikDefaults.Flows.Public)]` (veya `[LFlowPublic]`).
+- `[LFlow]` parametreleri `string` değil `LinbikFlow` enum'ıdır (`Self`/`Delegated`/`Application`) —
+  yazım hatasına kapalı ve IDE'de otomatik tamamlanır. Public bilinçli olmalı: `[LFlowPublic]`.
 - Böylece "attribute koymayı unuttum → kazara public" sınıfı hata imkânsızlaşır.
 
 ---

@@ -38,6 +38,19 @@ kontrolünü kendi yapar:
 - `[LFlowAuthorize(Flows.Self)]` → yalnız `Linbik-Flow: Self`.
 - `[LFlowAuthorize(Flows.Self, Flows.Delegated)]` → bu ikisinden biri.
 
+> **Önemli kısıt:** `[LFlowAuthorize]` / `[LFlow]`'un "servis kendi kontrolünü
+> yapar" iddiası yalnız header'ın **formatını** doğrular, header'ın **gerçekten**
+> Gateway tarafından authenticate edilmiş bir istekten geldiğini değil. Servis,
+> Gateway olmadan doğrudan erişilebilirse (network izolasyonu yoksa) herhangi
+> bir istemci `Linbik-Flow: Application` header'ı göndererek bu kontrolü
+> tamamen atlatabilir. Bu kontrol yalnız (a) Gateway'in istemciden gelen
+> `Linbik-*` header'larını sildiği ve (b) servisin ağ seviyesinde yalnız
+> Gateway'den erişilebilir olduğu varsayımı altında güvenlidir. Gateway
+> olmayan mimariler (servisin doğrudan erişilebilir olduğu durumlar) için
+> `Linbik.Slices`'taki `[LAuthorizeFlow(...)]` kullanılmalı — bu, header'a
+> güvenmek yerine gerçek authentication scheme'ini (`RequireAuthorization`)
+> doğrular (bkz. `Linbik.Slices/README.md`).
+
 Hardening kuralları (`Linbik.Core/Attributes/LFlowAuthorizeAttribute.cs`):
 
 - `Linbik-Flow` header'ı **0 veya 1** değer içermelidir; `Count > 1` → 401.

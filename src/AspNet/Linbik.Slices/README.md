@@ -103,12 +103,11 @@ public static partial class Add
 **Slice with validation (restricted to specific flows):**
 
 ```csharp
-using Linbik.Core;
 using Linbik.Slices;
 using Linbik.Slices.Results;
 
 [LinbikSlice("/api/arithmetic/divide", Tag = "Arithmetic")]
-[LFlow(LinbikDefaults.Flows.Self, LinbikDefaults.Flows.Application)]
+[LFlow(LinbikFlow.Self, LinbikFlow.Application)]
 public static partial class Divide
 {
     public sealed record Request(double A, double B) : ILinbikRequest<Response>;
@@ -261,19 +260,37 @@ Marks the endpoint as publicly accessible — no Linbik-Flow header required.
 public static partial class HealthCheck { ... }
 ```
 
-### `[LFlow(params string[] flows)]`
+### `[LFlow(params LinbikFlow[] flows)]`
 
-Restricts the endpoint to one or more named authorization flows. The source generator embeds this as `LFlowAuthorizeAttribute` endpoint metadata, which `LinbikFlowEndpointFilter` enforces at runtime.
+Restricts the endpoint to one or more named authorization flows. `LinbikFlow` (`Self`, `Delegated`, `Application`) lives right in the `Linbik.Slices` namespace you already import — no extra `using` or magic strings, and your IDE autocompletes the valid choices. The source generator embeds this as `LFlowAuthorizeAttribute` endpoint metadata, which `LinbikFlowEndpointFilter` enforces at runtime.
 
 ```csharp
 [LinbikSlice("/api/admin/users")]
-[LFlow(LinbikDefaults.Flows.Self)]   // only the "self" flow may call this
+[LFlow(LinbikFlow.Self)]   // only the "self" flow may call this
 public static partial class GetUsers { ... }
 ```
 
 Parametreless `[LFlow]` = any authenticated flow is accepted.
 
-> **LINBIK001 (compile-time error):** Every `[LinbikSlice]` type **must** declare either `[LFlowPublic]` or `[LFlow(...)]`. Omitting both is a deny-by-default enforcement and produces a compiler error.
+> ⚠️ **`[LFlow]` requires an API Gateway.** It trusts the `Linbik-Flow` header — a value that is only safe to trust because a Gateway strips any client-supplied `Linbik-*` headers and re-writes it from the route's authenticated claims (see `ARCHITECTURE.md`). If your service is reachable directly (no Gateway in front, e.g. a monolith or a service you call without YARP), that header is either missing (every request gets 401) or, worse, spoofable by any caller. Use `[LAuthorizeFlow(...)]` instead for those architectures.
+
+### `[LAuthorizeFlow(params LinbikFlow[] flows)]`
+
+For services that are **not** behind an API Gateway (or that want defense-in-depth regardless). Instead of trusting a header, `LinbikAuthorizeFlowEndpointFilter` tries each allowed flow's actual PASETO/JWT scheme (`LinbikDefaults.ClientScheme` / `DelegatedScheme` / `ApplicationScheme` — registered by `Linbik.JwtAuthManager`/`Linbik.PasetoAuthManager`/`Linbik.Server`) in order and stops at the first one that authenticates — a request is only ever valid for one flow, so there's no need to keep checking once one succeeds. Schemes that aren't registered on the service (e.g. you only added `Linbik.JwtAuthManager` for Self but not `Linbik.Server` for Delegated/Application) are skipped gracefully instead of throwing, and the `401` response tells you exactly what happened:
+
+```json
+{ "isSuccess": false, "friendlyMessage": { "title": "unauthorized", "message": "Identity could not be verified for flow(s): Self. Flow(s) Delegated, Application are not configured on this service (missing authentication scheme registration)." } }
+```
+
+```csharp
+[LinbikSlice("/api/admin/users")]
+[LAuthorizeFlow(LinbikFlow.Self)]   // only requests authenticated via ClientScheme (cookie) pass
+public static partial class GetUsers { ... }
+```
+
+Parametresiz `[LAuthorizeFlow]` = any of the three schemes is accepted. A slice may declare **only one** of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]` — combining them is a compile error (`LINBIK004`).
+
+> **LINBIK001 (compile-time error):** Every `[LinbikSlice]` type **must** declare exactly one of `[LFlowPublic]`, `[LFlow(...)]` or `[LAuthorizeFlow(...)]`. Omitting all three is a deny-by-default enforcement and produces a compiler error.
 
 ---
 

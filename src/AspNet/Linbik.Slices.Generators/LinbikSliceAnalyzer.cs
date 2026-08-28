@@ -14,7 +14,7 @@ public sealed class LinbikSliceAnalyzer : DiagnosticAnalyzer
 {
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(LinbikSliceConstants.MissingFlow);
+        ImmutableArray.Create(LinbikSliceConstants.MissingFlow, LinbikSliceConstants.ConflictingFlowDeclaration);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -33,16 +33,27 @@ public sealed class LinbikSliceAnalyzer : DiagnosticAnalyzer
         if (!hasSlice)
             return;
 
-        var hasFlow = attributes.Any(a =>
-            MatchesAttribute(a, LinbikSliceConstants.FlowAttribute) ||
-            MatchesAttribute(a, LinbikSliceConstants.FlowPublicAttribute));
-
-        if (hasFlow)
-            return;
-
         var location = type.Locations.FirstOrDefault() ?? Location.None;
-        context.ReportDiagnostic(Diagnostic.Create(
-            LinbikSliceConstants.MissingFlow, location, type.Name));
+
+        var flowAttributeCount = new[]
+        {
+            LinbikSliceConstants.FlowAttribute,
+            LinbikSliceConstants.FlowPublicAttribute,
+            LinbikSliceConstants.AuthorizeFlowAttribute,
+        }.Count(name => attributes.Any(a => MatchesAttribute(a, name)));
+
+        if (flowAttributeCount == 0)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                LinbikSliceConstants.MissingFlow, location, type.Name));
+            return;
+        }
+
+        if (flowAttributeCount > 1)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                LinbikSliceConstants.ConflictingFlowDeclaration, location, type.Name));
+        }
     }
 
     private static bool MatchesAttribute(AttributeData attribute, string metadataName)

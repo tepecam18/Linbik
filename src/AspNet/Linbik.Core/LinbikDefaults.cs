@@ -113,4 +113,16 @@ public static class LinbikDefaults
         /// </summary>
         public const string Public = "*";
     }
+
+    /// <summary>
+    /// <see cref="Flows"/> adını, o akışı doğrulayan authentication scheme'ine çevirir.
+    /// Bilinmeyen bir flow adı için <c>null</c> döner.
+    /// </summary>
+    public static string? SchemeForFlow(string flow) => flow switch
+    {
+        Flows.Self => ClientScheme,
+        Flows.Delegated => DelegatedScheme,
+        Flows.Application => ApplicationScheme,
+        _ => null,
+    };
 }

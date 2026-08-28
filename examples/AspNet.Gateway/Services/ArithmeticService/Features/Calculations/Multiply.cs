@@ -1,4 +1,3 @@
-using Linbik.Core;
 using Linbik.Slices;
 using Linbik.Slices.Results;
 
@@ -6,7 +5,7 @@ namespace ArithmeticService.Features.Calculations;
 
 // multiply: Self + Delegated.
 [LinbikSlice("/api/arithmetic/multiply", Tag = "Arithmetic")]
-[LFlow(LinbikDefaults.Flows.Self, LinbikDefaults.Flows.Delegated)]
+[LFlow(LinbikFlow.Self, LinbikFlow.Delegated)]
 public static partial class Multiply
 {
     public sealed record Request(double A, double B) : ILinbikRequest<Response>;
