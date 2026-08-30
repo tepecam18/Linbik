@@ -35,7 +35,7 @@ import java.net.URLEncoder
  * 4. `code` ile backend'in callback endpoint'ine (yine kendi OkHttp istemcimizle) istek atılır;
  *    dönen JSON (`LoginCallbackResponse`) ayrıştırılıp sonuç uygulamaya döndürülür.
  * 5. Backend'in Set-Cookie ile yazdığı oturum çerezleri (PKCE `code_verifier` dahil) 1. ve 4.
- *    adımlar arasında `CookieManager` üzerinden kalıcıdır — bkz. [LinbikWebViewCookieJar].
+ *    adımlar arasında `CookieManager` üzerinden kalıcıdır — bkz. [LinbikSharedCookieJar].
  */
 internal class LinbikAuthActivity : ComponentActivity() {
 
@@ -43,7 +43,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
     private val scope = CoroutineScope(Dispatchers.Main + job)
     private val httpClient by lazy {
         OkHttpClient.Builder()
-            .cookieJar(LinbikWebViewCookieJar())
+            .cookieJar(LinbikSharedCookieJar())
             .build()
     }
 
@@ -156,12 +156,27 @@ internal class LinbikAuthActivity : ComponentActivity() {
     }
 
     private fun getJson(url: String): JSONObject {
-        httpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
-            val bodyText = response.body?.string().orEmpty()
-            if (bodyText.isBlank()) {
-                throw IllegalStateException("Sunucu hatası (${response.code}).")
-            }
-            return JSONObject(bodyText)
+        val response = httpClient.newCall(Request.Builder().url(url).build()).execute()
+        val bodyText = response.body?.string().orEmpty()
+
+        if (!response.isSuccessful) {
+            val errorMsg = try {
+                JSONObject(bodyText).optJSONObject("friendlyMessage")?.optString("message")
+            } catch (e: Exception) {
+                null
+            } ?: "Sunucu hatası (${response.code})."
+            throw IllegalStateException(errorMsg)
+        }
+
+        if (bodyText.isBlank()) {
+            throw IllegalStateException("Sunucudan boş yanıt döndü.")
+        }
+
+        return try {
+            JSONObject(bodyText)
+        } catch (e: Exception) {
+            Log.e(TAG, "Invalid JSON from $url: $bodyText", e)
+            throw IllegalStateException("Sunucu geçersiz bir yanıt döndü (JSON bekleniyordu).")
         }
     }
 

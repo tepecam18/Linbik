@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.signInButton.setOnClickListener { startSignIn() }
         binding.signOutButton.setOnClickListener { signOut() }
+        binding.refreshButton.setOnClickListener { refreshToken() }
     }
 
     private fun startSignIn() {
@@ -64,6 +65,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 binding.signOutButton.visibility = android.view.View.VISIBLE
+                binding.refreshButton.visibility = android.view.View.VISIBLE
             }
             is LinbikAuthResult.Error -> {
                 binding.statusText.text = "❌ Hata: ${result.message}"
@@ -80,6 +82,20 @@ class MainActivity : AppCompatActivity() {
             val success = authClient.signOut(options)
             binding.statusText.text = if (success) "Çıkış yapıldı." else "Çıkış sırasında bir sorun oluştu."
             binding.signOutButton.visibility = android.view.View.GONE
+            binding.refreshButton.visibility = android.view.View.GONE
+        }
+    }
+
+    private fun refreshToken() {
+        val options = lastOptions ?: return
+        lifecycleScope.launch {
+            binding.statusText.text = "Oturum yenileniyor…"
+            val success = authClient.refreshToken(options)
+            binding.statusText.text = if (success) {
+                "✅ Oturum başarıyla yenilendi (Çerezler güncellendi)."
+            } else {
+                "❌ Oturum yenilenemedi. Süreniz dolmuş olabilir."
+            }
         }
     }
 }

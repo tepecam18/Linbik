@@ -1,0 +1,2 @@
+install:
+  - cd src/Android/Linbik.PasetoAuthManager.Android && ./gradlew :linbikauth:publishReleasePublicationToMavenLocal

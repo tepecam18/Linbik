@@ -57,8 +57,22 @@ class LinbikPasetoAuthClient {
      */
     suspend fun signOut(options: LinbikPasetoAuthOptions): Boolean = withContext(Dispatchers.IO) {
         try {
-            val client = OkHttpClient.Builder().cookieJar(LinbikWebViewCookieJar()).build()
+            val client = OkHttpClient.Builder().cookieJar(LinbikSharedCookieJar()).build()
             val url = options.backendBaseUrl.trimEnd('/') + options.logoutPath
+            client.newCall(Request.Builder().url(url).build()).execute().use { it.isSuccessful }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Mevcut oturumun (cookie) geçerliliğini korumak için backend'in refresh endpoint'ine
+     * istek atar. Genellikle uygulama açılışında veya 401 hatası alındığında çağrılır.
+     */
+    suspend fun refreshToken(options: LinbikPasetoAuthOptions): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val client = OkHttpClient.Builder().cookieJar(LinbikSharedCookieJar()).build()
+            val url = options.backendBaseUrl.trimEnd('/') + options.refreshPath
             client.newCall(Request.Builder().url(url).build()).execute().use { it.isSuccessful }
         } catch (e: Exception) {
             false
@@ -77,6 +91,6 @@ class LinbikPasetoAuthClient {
 
     companion object {
         /** Uygulamanızın kendi OkHttp istemcisinin Linbik oturum çerezlerini paylaşması için. */
-        fun cookieJar(): okhttp3.CookieJar = LinbikWebViewCookieJar()
+        fun cookieJar(): okhttp3.CookieJar = LinbikSharedCookieJar()
     }
 }

@@ -6,21 +6,21 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 
 /**
- * [LinbikAuthActivity] içindeki WebView'ın oturum çerezlerini (authToken, linbik_refresh vb.)
- * uygulamanızın kendi OkHttp istemcisiyle paylaşır. Böylece giriş WebView'da tamamlandıktan
- * sonra, backend'inize yapacağınız normal API çağrıları da aynı oturumu kullanır:
+ * Giriş akışında ve sonrasındaki API çağrılarında kullanılan oturum çerezlerini (authToken,
+ * linbik_refresh vb.) Android'in sistem düzeyindeki `CookieManager`'ı ile senkronize eder.
+ *
+ * Bu sayede:
+ * 1. Giriş sırasında OkHttp ile alınan çerezler kalıcı (persistent) hale gelir.
+ * 2. Uygulama içinde açılacak bir WebView, bu çerezleri otomatik olarak kullanır.
+ * 3. Uygulamanızın kendi OkHttp istemcisi de bu çerezleri paylaşabilir:
  *
  * ```kotlin
  * val client = OkHttpClient.Builder()
- *     .cookieJar(LinbikWebViewCookieJar())
+ *     .cookieJar(LinbikSharedCookieJar())
  *     .build()
  * ```
- *
- * Not: `HttpOnly` çerezler JavaScript'ten gizlenir ama Android'in `CookieManager` API'sinden
- * (native kod) gizlenmez — bu yüzden bu köprü `authToken`/`linbik_refresh` gibi HttpOnly
- * çerezleri de doğru şekilde okuyabilir.
  */
-class LinbikWebViewCookieJar : CookieJar {
+class LinbikSharedCookieJar : CookieJar {
     private val cookieManager get() = CookieManager.getInstance()
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
