@@ -108,96 +108,64 @@ doğrulaması normal şekilde çalışır. Custom Tabs'ın kendi çerezleri (Lin
 
 ## Kurulum
 
+### 1. JitPack ile Ekleme
+
+Projenizin `settings.gradle.kts` dosyasına JitPack repository'sini ekleyin:
+
 ```kotlin
-// settings.gradle.kts
-includeBuild("../path/to/Linbik.PasetoAuthManager.Android") // veya modülü doğrudan kopyalayın
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
 ```
 
-Şimdilik Maven Central'da yayınlanmıyor; `linbikauth/` modülünü kendi projenize
-`include(":linbikauth")` ile dahil edin veya bir composite build ile bağlayın.
+Ardından uygulamanızın `build.gradle.kts` dosyasına bağımlılığı ekleyin:
+
+```kotlin
+dependencies {
+    implementation("com.github.tepecam18.Linbik:linbikauth:1.0.0")
+}
+```
 
 ## Kullanım
 
-> ÖNEMLİ: `registerLauncher`, [`ActivityResultLauncher`](https://developer.android.com/training/basics/intents/result)
-> API'sinin gereği olarak Activity/Fragment henüz **STARTED durumuna geçmeden** (yani
-> `onCreate` içinde) çağrılmalıdır. Buton tıklaması gibi daha sonraki bir olayda
-> çağrılırsa `IllegalStateException: ... attempting to register while current state is
-> RESUMED` alırsınız. Bu yüzden `LinbikPasetoAuthClient` seçenekleri (`LinbikPasetoAuthOptions`)
-> kayıt anında değil, `launch(options)` çağrısında alır.
+Aşağıdaki örnekte temel giriş akışı gösterilmektedir. Daha detaylı teknik bilgi ve ileri seviye kullanım (Refresh Token, Cookie yönetimi vb.) için [linbikauth/README.md](linbikauth/README.md) dosyasını inceleyin.
 
 ```kotlin
 class MyActivity : ComponentActivity() {
-    private val linbikAuth = LinbikPasetoAuthClient()
+    private val authClient = LinbikPasetoAuthClient()
     private lateinit var launcher: ActivityResultLauncher<LinbikPasetoAuthOptions>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // onCreate içinde, henüz Activity STARTED olmadan kaydedin:
-        launcher = linbikAuth.registerLauncher(this) { result ->
+        
+        // 1. Launcher'ı Kaydedin (onCreate içinde olmalı!)
+        launcher = authClient.registerLauncher(this) { result ->
             when (result) {
                 is LinbikAuthResult.Success -> {
-                    // result.userId, result.userName, result.displayName, result.integrations
+                    // Kullanıcı başarıyla giriş yaptı: result.displayName, result.userId vb.
                 }
-                is LinbikAuthResult.Error -> { /* result.message */ }
-                LinbikAuthResult.Cancelled -> { /* kullanıcı geri tuşuyla iptal etti */ }
+                is LinbikAuthResult.Error -> { /* Hata mesajı: result.message */ }
+                LinbikAuthResult.Cancelled -> { /* Kullanıcı iptal etti */ }
             }
         }
 
         signInButton.setOnClickListener {
+            // 2. Akışı Başlatın
             launcher.launch(
                 LinbikPasetoAuthOptions(
-                    backendBaseUrl = "https://10.0.2.2:7020", // emülatörde "localhost" DEĞİL, "10.0.2.2"
-                    clientName = "Mobile", // appsettings.json'daki Client.Name ile birebir aynı olmalı
-                ),
+                    backendBaseUrl = "https://your-backend.com",
+                    clientName = "Mobile"
+                )
             )
         }
     }
 }
 ```
 
-Giriş tamamlandıktan sonra, backend'inize yapacağınız normal API çağrılarının aynı
-oturumu (cookie) kullanması için kendi OkHttp istemcinize aynı cookie jar'ı ekleyin:
+## Teknik Detaylar ve Geliştirme
 
-```kotlin
-val apiClient = OkHttpClient.Builder()
-    .cookieJar(LinbikPasetoAuthClient.cookieJar())
-    .build()
-```
-
-Çıkış yapmak için (aynı `LinbikPasetoAuthOptions`'ı — en azından `backendBaseUrl`'i — verin):
-
-```kotlin
-lifecycleScope.launch { linbikAuth.signOut(options) }
-```
-
-## Örnek uygulamayı çalıştırma
-
-1. Backend olarak `Linbik/examples/AspNet/AspNet` projesini (veya kendi
-   `Linbik.PasetoAuthManager` tabanlı backend'inizi) çalıştırın; yukarıdaki gibi bir
-   `Mobile`/`Json` client eklemeyi unutmayın.
-2. `sample` modülünü bir emülatörde çalıştırın, backend adresini girin (emülatörde host
-   makineye erişim için `10.0.2.2` kullanılır), "Linbik ile Giriş Yap"a dokunun.
-
-## Cleartext (HTTP) backend ile test
-
-Android, varsayılan olarak `http://` (cleartext) trafiğe izin vermez — LAN IP'nizdeki
-(`http://192.168.x.x:...`) bir backend'e karşı test ederken WebView/OkHttp
-`CLEARTEXT communication ... not permitted` hatası verir. `sample` modülü bunu sadece
-**debug** build'lerde ([`sample/src/debug/AndroidManifest.xml`](sample/src/debug/AndroidManifest.xml))
-`android:usesCleartextTraffic="true"` ile açar; release build'lerde cleartext hâlâ
-engellidir. Kendi uygulamanızda da benzer bir debug-only manifest overlay'i (veya bir
-`network_security_config.xml`) kullanmanızı öneririz — prod'da her zaman HTTPS kullanın.
-
-## Bilinen sınırlar / doğrulanmadı
-
-- Bu proje bu ortamda **derlendi ve doğrulandı** (`gradlew assembleDebug` → BUILD SUCCESSFUL),
-  ancak gerçek bir cihaz/emülatörde **çalışan bir backend'e karşı uçtan uca test edilmedi**
-  (bu ortamda emülatör/Android cihaz veya ayakta bir Linbik backend'i yok). Custom Tabs →
-  deep link → `onNewIntent` zincirinin gerçek cihazda (ve OEM'lerin Custom Tabs
-  implementasyonlarında) beklendiği gibi çalıştığını ilk kullanımda doğrulayın.
-- Yalnızca Android hedefleniyor (iOS için ayrı bir SDK — `ASWebAuthenticationSession` tabanlı —
-  gerekir, bu depoda yok).
-- Şu an sadece giriş (login) + çıkış (logout) akışı var; token yenileme (`/api/Linbik/refresh`)
-  ve entegrasyon token'larının (`integration_{packageName}` cookie'leri) okunması için ayrı
-  yardımcı fonksiyonlar eklenebilir — bkz. `LinbikPasetoAuthClient.cookieJar()` ile kendi
-  OkHttp isteklerinizde bu cookie'lere zaten erişebilirsiniz.
+Kütüphanenin iç yapısı, Custom Tabs entegrasyonu ve katkıda bulunma rehberi için lütfen kütüphane dizinindeki [README](linbikauth/README.md) dosyasına göz atın.

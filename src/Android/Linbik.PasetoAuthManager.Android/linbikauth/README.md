@@ -1,95 +1,36 @@
-# Linbik Paseto Auth Manager for Android
+# Linbik Paseto Auth Library (Internal & Technical)
 
-Bu kütüphane, Linbik.PasetoAuthManager (ASP.NET) kullanan backend'inize karşı Android uygulamanızda "Linbik ile Giriş Yap" akışını kolayca entegre etmenizi sağlar.
+Bu doküman, `linbikauth` kütüphanesinin iç yapısını, teknik tasarım kararlarını ve geliştiriciler için mimari detayları içerir.
 
-## Özellikler
+## Mimari Yapı
 
-- **Custom Tabs Desteği:** Giriş akışı, güvenli ve App Link uyumlu Custom Tabs üzerinden yürütülür.
-- **Persistent Cookie Management:** Giriş sırasında alınan çerezler `CookieManager` üzerinden saklanır ve uygulamanızın diğer kısımlarıyla (WebView/OkHttp) paylaşılabilir.
-- **Activity Result API:** Modern `ActivityResultLauncher` yapısı ile kolay entegrasyon.
-- **Refresh Token Desteği:** Arka planda oturum yenileme özelliği.
+Kütüphane, **RFC 8252 (OAuth 2.0 for Native Apps)** standartlarını temel alır. Temel bileşenler şunlardır:
 
-## Kurulum
+### 1. LinbikAuthActivity
+Giriş akışının kalbidir. Şu adımları yönetir:
+- **Backend Handshake:** `/api/Linbik/login` üzerinden `redirectPath` ve PKCE verilerini alır.
+- **Custom Tabs:** Kullanıcıyı güvenli bir şekilde tarayıcıya yönlendirir.
+- **Callback Handling:** Deep link (`onNewIntent`) üzerinden gelen `code` değerini yakalar ve backend'e onay için gönderir.
 
-### 1. Bağımlılığı Ekleme
+### 2. LinbikSharedCookieJar
+Android'in sistem düzeyindeki `CookieManager`'ı ile OkHttp arasında bir köprü görevi görür.
+- **Persistence:** Oturum çerezleri uygulama kapatılsa bile korunur.
+- **Sharing:** OkHttp ile alınan çerezler, uygulama içindeki WebView'larda da otomatik olarak geçerli olur.
 
-Kütüphaneyi yayınladığınız yönteme göre (JitPack veya Maven Central) `build.gradle.kts` dosyanıza ekleyin:
+### 3. Activity Result API Entegrasyonu
+`SignInContract` sınıfı, modern Android `ActivityResultContract` yapısını kullanarak, giriş sonucunun (Success/Error/Cancelled) güvenli ve tip güvenli (type-safe) bir şekilde dönmesini sağlar.
 
-```kotlin
-dependencies {
-    implementation("com.linbik:paseto-auth:1.0.0")
-}
-```
+## Geliştirici Rehberi
 
-### 2. AndroidManifest Yapılandırması
+### Yeni Bir Özellik Ekleme
+1. **API Katmanı:** Eğer yeni bir endpoint (örn. profil bilgisi çekme) eklenecekse, `LinbikPasetoAuthClient` içine yeni bir `suspend` metod eklenmelidir.
+2. **Hata Yönetimi:** Ağ istekleri için `LinbikAuthActivity.getJson` metodu kullanılmalı veya benzer bir hata yakalama mekanizması kurulmalıdır.
+3. **ProGuard:** Eğer yeni bir veri modeli (`data class`) eklerseniz, `consumer-rules.pro` dosyasına gerekli `-keep` kuralını eklemeyi unutmayın.
 
-Kütüphane, giriş sonrası uygulamanıza geri dönebilmek için bir URI şeması kullanır. Bu şema varsayılan olarak `applicationId` değerinizdir. Linbik Dashboard üzerinden Redirect URI olarak `{applicationId}://oauth/callback` adresini kaydettiğinizden emin olun.
+### Yerel Test (Local Development)
+Kütüphane üzerinde değişiklik yaparken `sample` modülünü kullanarak test edebilirsiniz. `sample` modülü kütüphaneye doğrudan proje referansı ile bağlıdır.
 
-## Kullanım
-
-### Giriş Akışını Başlatma
-
-`onCreate` içinde launcher'ı kaydedin ve ardından akışı başlatın:
-
-```kotlin
-class MainActivity : AppCompatActivity() {
-    private val authClient = LinbikPasetoAuthClient()
-    private lateinit var launcher: ActivityResultLauncher<LinbikPasetoAuthOptions>
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // 1. Launcher'ı kaydet
-        launcher = authClient.registerLauncher(this) { result ->
-            when (result) {
-                is LinbikAuthResult.Success -> {
-                    // Kullanıcı başarıyla giriş yaptı
-                    println("Hoş geldin, ${result.displayName}")
-                }
-                is LinbikAuthResult.Error -> {
-                    // Bir hata oluştu
-                    println("Hata: ${result.message}")
-                }
-                LinbikAuthResult.Cancelled -> {
-                    // Kullanıcı iptal etti
-                }
-            }
-        }
-
-        // 2. Akışı başlat
-        signInButton.setOnClickListener {
-            val options = LinbikPasetoAuthOptions(
-                backendBaseUrl = "https://your-backend.com",
-                clientName = "MobileApp"
-            )
-            launcher.launch(options)
-        }
-    }
-}
-```
-
-### OkHttp ile Oturumu Paylaşma
-
-Uygulamanızın kendi API isteklerinde Linbik oturumunu kullanması için `LinbikSharedCookieJar`'ı ekleyin:
-
-```kotlin
-val okHttpClient = OkHttpClient.Builder()
-    .cookieJar(LinbikSharedCookieJar()) // VEYA LinbikPasetoAuthClient.cookieJar()
-    .build()
-```
-
-### Çıkış Yapma ve Refresh
-
-```kotlin
-lifecycleScope.launch {
-    // Çıkış yap
-    authClient.signOut(options)
-    
-    // Oturumu yenile
-    val success = authClient.refreshToken(options)
-}
-```
-
-## Backend Yapılandırması
-
-Bu kütüphanenin çalışması için backend tarafında `Linbik.PasetoAuthManager` kurulu olmalı ve mobil client için `ActionResultType = "Json"` olarak ayarlanmalıdır.
+## Backend Gereksinimleri
+- `Linbik.PasetoAuthManager` (ASP.NET)
+- `ActionResultType: "Json"` ayarlı bir Client tanımı.
+- PKCE desteği aktif olmalıdır.
