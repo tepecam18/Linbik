@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.browser.customtabs.CustomTabsIntent
@@ -54,11 +56,56 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        options = intent.toOptions()
+        val redirectUri = intent.data
 
-        if (savedInstanceState == null) {
-            startLoginRequest()
+        // Öncelik sırası:
+        // 1) savedInstanceState — Activity süreç sonlandırılıp aynı örnek olarak yeniden oluşturuldu.
+        // 2) redirectUri varsa kalıcı depoda (SharedPreferences) tutulan son options — bazı
+        //    Android sürümlerinde/OEM'lerde, LinbikRedirectActivity'nin CLEAR_TOP+SINGLE_TOP ile
+        //    yaptığı yönlendirme mevcut örneğe onNewIntent() ile DEĞİL, bu Activity'nin TAMAMEN
+        //    YENİ bir örneğini oluşturarak (onCreate, savedInstanceState=null) teslim ediliyor —
+        //    gözlemlenen, tekrarlanabilir bir durum. Bu durumda intent yalnızca `data` (redirect
+        //    URI) taşır, options extra'larını taşımaz; onSaveInstanceState tabanlı geri yükleme de
+        //    devreye giremez çünkü ortada "geri yüklenecek" bir örnek yoktur. launchCustomTab()
+        //    içinde diske yazılan son options burada geri okunur.
+        // 3) intent extra'ları — normal ilk başlatma (launcher.launch(...) → createIntent(...)).
+        val resolvedOptions = savedInstanceState?.toOptionsOrNull()
+            ?: (if (redirectUri != null) loadPersistedOptions() else null)
+            ?: intent.toOptionsOrNull()
+
+        if (resolvedOptions == null) {
+            // Hiçbir kaynaktan options çözülemedi: örn. bu Activity, launcher.launch(...) hiç
+            // çağrılmadan doğrudan callback URI'siyle (adb / eski bir bildirim vb.) başlatıldı.
+            // Çökmek yerine düzgün bir hata sonucuyla kapanıyoruz.
+            setResult(Activity.RESULT_OK, Intent().apply {
+                putExtra(EXTRA_RESULT_TYPE, RESULT_TYPE_ERROR)
+                putExtra(EXTRA_ERROR_MESSAGE, "Giriş oturumu bulunamadı. Lütfen tekrar giriş yapmayı deneyin.")
+            })
+            finish()
+            return
         }
+        options = resolvedOptions
+
+        when {
+            redirectUri != null -> {
+                authInFlight = false
+                handleRedirectUri(redirectUri)
+            }
+            savedInstanceState != null -> {
+                authInFlight = savedInstanceState.getBoolean(STATE_AUTH_IN_FLIGHT)
+            }
+            else -> startLoginRequest()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(EXTRA_BACKEND_BASE_URL, options.backendBaseUrl)
+        outState.putString(EXTRA_CLIENT_NAME, options.clientName)
+        outState.putString(EXTRA_RETURN_PATH, options.returnPath)
+        outState.putString(EXTRA_LOGIN_PATH, options.loginPath)
+        outState.putString(EXTRA_CALLBACK_PATH, options.loginCallbackPath)
+        outState.putBoolean(STATE_AUTH_IN_FLIGHT, authInFlight)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -77,8 +124,17 @@ internal class LinbikAuthActivity : ComponentActivity() {
         super.onResume()
         // Custom Tabs açıldıktan sonra bir tamamlama intent'i almadan buraya tekrar
         // gelindiyse (geri tuşu / sekme kapatıldı) kullanıcı akışı iptal etmiştir.
+        //
+        // ÖNEMLİ: Bazı Android sürümlerinde/OEM'lerde, LinbikRedirectActivity'nin ilettiği
+        // gerçek bir tamamlama intent'i teslim edilirken onResume() çağrısı onNewIntent()'ten
+        // ÖNCE tetiklenebiliyor (dokümante edilen "onNewIntent önce, onResume sonra" sırası
+        // garanti değil). Bu durumda authInFlight henüz false'a çekilmemiş olur ve geçerli bir
+        // giriş burada yanlışlıkla iptal edilmiş sayılır. Kontrolü ana thread kuyruğunun sonuna
+        // ertelemek, aynı anda işlenmekte olan bir onNewIntent()'e öncelik tanır.
         if (authInFlight) {
-            finishCancelled()
+            Handler(Looper.getMainLooper()).post {
+                if (authInFlight) finishCancelled()
+            }
         }
     }
 
@@ -93,7 +149,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
                 handleLoginResponse(json)
             } catch (e: Exception) {
                 Log.w(TAG, "Login request failed for $loginUrl", e)
-                finishError(e.message ?: "Ağ hatası oluştu.")
+                finishError(mapThrowableToMessage(e))
             }
         }
     }
@@ -116,6 +172,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
     private fun launchCustomTab(url: String) {
         authInFlight = true
+        persistOptions()
         try {
             CustomTabsIntent.Builder().build().launchUrl(this, Uri.parse(url))
         } catch (e: Exception) {
@@ -128,6 +185,40 @@ internal class LinbikAuthActivity : ComponentActivity() {
             }
         }
     }
+
+    /**
+     * `authInFlight = true` olduğu andan itibaren (Custom Tabs açılmadan hemen önce) [options]'ı
+     * kalıcı depoya yazar. Bu, [onCreate]'in redirect teslimatı sırasında Activity'nin tamamen
+     * yeni bir örneği olarak (extra'sız, savedInstanceState=null) çağrılması durumunda son bilinen
+     * options'ı geri okuyabilmesi içindir — bkz. [onCreate] içindeki açıklama.
+     */
+    private fun persistOptions() {
+        prefs.edit()
+            .putString(EXTRA_BACKEND_BASE_URL, options.backendBaseUrl)
+            .putString(EXTRA_CLIENT_NAME, options.clientName)
+            .putString(EXTRA_RETURN_PATH, options.returnPath)
+            .putString(EXTRA_LOGIN_PATH, options.loginPath)
+            .putString(EXTRA_CALLBACK_PATH, options.loginCallbackPath)
+            .apply()
+    }
+
+    private fun loadPersistedOptions(): LinbikPasetoAuthOptions? {
+        val backendBaseUrl = prefs.getString(EXTRA_BACKEND_BASE_URL, null) ?: return null
+        return LinbikPasetoAuthOptions(
+            backendBaseUrl = backendBaseUrl,
+            clientName = prefs.getString(EXTRA_CLIENT_NAME, null),
+            returnPath = prefs.getString(EXTRA_RETURN_PATH, null),
+            loginPath = prefs.getString(EXTRA_LOGIN_PATH, null) ?: "/api/Linbik/login",
+            loginCallbackPath = prefs.getString(EXTRA_CALLBACK_PATH, null) ?: "/api/Linbik/callback",
+        )
+    }
+
+    private fun clearPersistedOptions() {
+        prefs.edit().clear().apply()
+    }
+
+    private val prefs: android.content.SharedPreferences
+        get() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun handleRedirectUri(uri: Uri) {
         val error = uri.getQueryParameter("error")
@@ -150,7 +241,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
                 handleCallbackResponse(json)
             } catch (e: Exception) {
                 Log.w(TAG, "Callback request failed for $callbackUrl", e)
-                finishError(e.message ?: "Ağ hatası oluştu.")
+                finishError(mapThrowableToMessage(e))
             }
         }
     }
@@ -170,6 +261,15 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
         if (bodyText.isBlank()) {
             throw IllegalStateException("Sunucudan boş yanıt döndü.")
+        }
+
+        // HTML tespiti: ActionResultType='Json' yapılmadığında backend HTML döner.
+        val trimmedBody = bodyText.trim()
+        if (trimmedBody.startsWith("<!DOCTYPE", ignoreCase = true) || trimmedBody.startsWith("<html", ignoreCase = true)) {
+            throw IllegalStateException(
+                "Sunucu JSON yerine HTML döndü. Backend'de bu client için " +
+                    "ActionResultType='Json' olarak ayarlandığından emin olun.",
+            )
         }
 
         return try {
@@ -207,7 +307,21 @@ internal class LinbikAuthActivity : ComponentActivity() {
     private fun friendlyMessage(json: JSONObject): String? =
         json.optJSONObject("friendlyMessage")?.optString("message")?.takeIf { it.isNotBlank() }
 
+    private fun mapThrowableToMessage(e: Throwable): String = when (e) {
+        is java.net.UnknownHostException ->
+            "Sunucu adresi bulunamadı. İnternet bağlantınızı veya backend adresini kontrol edin."
+        is java.net.ConnectException ->
+            "Sunucuya bağlanılamadı. Backend'in çalıştığından ve adresin (URL) doğru olduğundan emin olun."
+        is java.net.SocketTimeoutException ->
+            "Sunucu yanıt vermiyor (Zaman aşımı)."
+        is IllegalStateException ->
+            e.message ?: "Beklenmeyen bir sunucu hatası oluştu."
+        else ->
+            e.message ?: "Bir ağ hatası oluştu."
+    }
+
     private fun finishSuccess(userId: String, userName: String, displayName: String, integrations: List<String>) {
+        clearPersistedOptions()
         val result = Intent().apply {
             putExtra(EXTRA_RESULT_TYPE, RESULT_TYPE_SUCCESS)
             putExtra(EXTRA_USER_ID, userId)
@@ -220,6 +334,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
     }
 
     private fun finishError(message: String) {
+        clearPersistedOptions()
         val result = Intent().apply {
             putExtra(EXTRA_RESULT_TYPE, RESULT_TYPE_ERROR)
             putExtra(EXTRA_ERROR_MESSAGE, message)
@@ -229,6 +344,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
     }
 
     private fun finishCancelled() {
+        clearPersistedOptions()
         setResult(Activity.RESULT_CANCELED)
         finish()
     }
@@ -240,6 +356,8 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "LinbikAuth"
+        private const val STATE_AUTH_IN_FLIGHT = "linbik.authInFlight"
+        private const val PREFS_NAME = "linbik_pasetoauth_state"
 
         private const val EXTRA_BACKEND_BASE_URL = "linbik.backendBaseUrl"
         private const val EXTRA_CLIENT_NAME = "linbik.clientName"
@@ -265,13 +383,27 @@ internal class LinbikAuthActivity : ComponentActivity() {
                 putExtra(EXTRA_CALLBACK_PATH, options.loginCallbackPath)
             }
 
-        private fun Intent.toOptions(): LinbikPasetoAuthOptions = LinbikPasetoAuthOptions(
-            backendBaseUrl = getStringExtra(EXTRA_BACKEND_BASE_URL) ?: error("backendBaseUrl is required"),
-            clientName = getStringExtra(EXTRA_CLIENT_NAME),
-            returnPath = getStringExtra(EXTRA_RETURN_PATH),
-            loginPath = getStringExtra(EXTRA_LOGIN_PATH) ?: "/api/Linbik/login",
-            loginCallbackPath = getStringExtra(EXTRA_CALLBACK_PATH) ?: "/api/Linbik/callback",
-        )
+        private fun Intent.toOptionsOrNull(): LinbikPasetoAuthOptions? {
+            val backendBaseUrl = getStringExtra(EXTRA_BACKEND_BASE_URL) ?: return null
+            return LinbikPasetoAuthOptions(
+                backendBaseUrl = backendBaseUrl,
+                clientName = getStringExtra(EXTRA_CLIENT_NAME),
+                returnPath = getStringExtra(EXTRA_RETURN_PATH),
+                loginPath = getStringExtra(EXTRA_LOGIN_PATH) ?: "/api/Linbik/login",
+                loginCallbackPath = getStringExtra(EXTRA_CALLBACK_PATH) ?: "/api/Linbik/callback",
+            )
+        }
+
+        private fun Bundle.toOptionsOrNull(): LinbikPasetoAuthOptions? {
+            val backendBaseUrl = getString(EXTRA_BACKEND_BASE_URL) ?: return null
+            return LinbikPasetoAuthOptions(
+                backendBaseUrl = backendBaseUrl,
+                clientName = getString(EXTRA_CLIENT_NAME),
+                returnPath = getString(EXTRA_RETURN_PATH),
+                loginPath = getString(EXTRA_LOGIN_PATH) ?: "/api/Linbik/login",
+                loginCallbackPath = getString(EXTRA_CALLBACK_PATH) ?: "/api/Linbik/callback",
+            )
+        }
 
         fun parseResult(intent: Intent): LinbikAuthResult = when (intent.getStringExtra(EXTRA_RESULT_TYPE)) {
             RESULT_TYPE_SUCCESS -> LinbikAuthResult.Success(

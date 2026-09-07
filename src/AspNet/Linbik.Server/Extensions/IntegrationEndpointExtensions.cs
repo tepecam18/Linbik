@@ -1,4 +1,6 @@
 ﻿using Linbik.Core;
+using Linbik.Core.Attributes;
+using Linbik.Core.Responses;
 using Linbik.Server.Interfaces;
 using Linbik.Server.Models;
 using Linbik.Server.Services;
@@ -79,31 +81,22 @@ public static class IntegrationEndpointExtensions
     }
 
     /// <summary>
-    /// Maps the Linbik integration webhook endpoints.
-    /// These endpoints are called by Linbik.App when integration lifecycle events occur.
-    /// 
+    /// Maps the Linbik integration webhook route group and its endpoints, without applying
+    /// any authorization. Used by both <see cref="MapLinbikIntegrationEndpoints"/> (which adds
+    /// the platform-role policy) and <see cref="MapLinbikIntegrationEndpointsAnonymous"/> (which adds none).
+    ///
     /// Endpoints mapped (using <see cref="LinbikIntegrationEndpoints"/>):
     /// - POST   {basePath}/              → Integration created
     /// - DELETE {basePath}/{id}          → Integration removed
     /// - PUT    {basePath}/{id}/status   → Integration toggled (enabled/disabled)
     /// - PUT    {basePath}/{id}/admin    → Admin profile changed
-    /// 
-    /// All endpoints require LinbikApplication authentication by default.
     /// </summary>
-    /// <param name="endpoints">The endpoint route builder</param>
-    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
-    /// <returns>A route group builder for further configuration</returns>
-    public static RouteGroupBuilder MapLinbikIntegrationEndpoints(
+    private static RouteGroupBuilder MapLinbikIntegrationRoutes(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/Linbik/")
+        string basePath)
     {
         var group = endpoints.MapGroup(basePath)
-            .WithTags("Linbik System")
-            .RequireAuthorization(policy =>
-            {
-                policy.AuthenticationSchemes = [LinbikDefaults.ApplicationScheme];
-                policy.RequireAuthenticatedUser();
-            });
+            .WithTags("Linbik System");
 
         // POST {basePath}/ — Integration created
         group.MapPost(LinbikIntegrationEndpoints.Create, async (IntegrationEvent integrationEvent, ILinbikIntegrationHandler handler, ILogger<LinbikIntegrationHandler> logger) =>
@@ -212,15 +205,133 @@ public static class IntegrationEndpointExtensions
     }
 
     /// <summary>
-    /// Maps integration endpoints without authentication requirement.
+    /// Maps the Linbik integration webhook endpoints and applies the platform-role authorization policy.
+    /// These endpoints are called by Linbik.App when integration lifecycle events occur.
+    /// All endpoints require LinbikApplication authentication with the "Linbik" role claim by default.
+    /// </summary>
+    /// <param name="endpoints">The endpoint route builder</param>
+    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
+    /// <returns>A route group builder for further configuration</returns>
+    public static RouteGroupBuilder MapLinbikIntegrationEndpoints(
+        this IEndpointRouteBuilder endpoints,
+        string basePath = "/api/Linbik/")
+    {
+        var group = endpoints.MapLinbikIntegrationRoutes(basePath);
+
+        group.RequireAuthorization(policy =>
+        {
+            policy.AuthenticationSchemes = [LinbikDefaults.ApplicationScheme];
+            policy.RequireAuthenticatedUser();
+            // Not: "role" claim'i ham claim tipiyle (ClaimTypes.Role değil) geldiğinden
+            // RequireRole/Roles= yerine RequireClaim kullanılmalı — bkz. PasetoBearerHandler.
+            policy.RequireClaim("role", "Linbik");
+        });
+
+        return group;
+    }
+
+    /// <summary>
+    /// Gateway'in, authenticate olmuş isteğin "role" claim'ini downstream servise ilettiği
+    /// header adı (bkz. <c>LinbikClaimsHeaderTransform</c>: <c>Linbik-{ClaimType}</c>).
+    /// </summary>
+    private const string HeaderRole = "Linbik-role";
+
+    /// <summary>
+    /// Linbik platformunun kendi S2S/webhook çağrılarını tanımlayan role claim/header değeri.
+    /// </summary>
+    private const string PlatformRole = "Linbik";
+
+    /// <summary>
+    /// Maps the Linbik integration webhook endpoints for services that sit behind the API Gateway
+    /// and cannot re-validate a bearer token locally (anahtar materyali yalnızca Gateway'de bulunur).
+    /// Default yetkilendirme, Gateway'in authenticate ettikten sonra ilettiği header'ları kontrol eder:
+    /// <c>Linbik-Flow: Application</c> + <c>Linbik-role: Linbik</c> (bkz. <c>LinbikClaimsHeaderTransform</c>,
+    /// <c>LinbikHeaderSanitizationMiddleware</c> — bu header'lar yalnızca Gateway authenticate ettikten
+    /// sonra yazılır, client tarafından spoof edilemez).
+    ///
+    /// Farklı bir yetkilendirme istiyorsanız <paramref name="configureAuthorization"/> ile
+    /// override edebilirsiniz, ör. eski token-tabanlı doğrulamayı geri getirmek için:
+    /// <code>
+    /// app.MapLinbikIntegrationEndpointsGateway(configureAuthorization: group =>
+    ///     group.RequireAuthorization(policy =>
+    ///     {
+    ///         policy.AuthenticationSchemes = [LinbikDefaults.ApplicationScheme];
+    ///         policy.RequireAuthenticatedUser();
+    ///         policy.RequireClaim("role", "Linbik");
+    ///     }));
+    /// </code>
+    /// </summary>
+    /// <param name="endpoints">The endpoint route builder</param>
+    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
+    /// <param name="configureAuthorization">
+    /// Verilirse default header kontrolü (Linbik-Flow + Linbik-role) uygulanmaz; bunun yerine
+    /// bu delegate route group üzerinde çağrılarak yetkilendirmeyi tamamen override eder.
+    /// </param>
+    /// <returns>A route group builder for further configuration</returns>
+    public static RouteGroupBuilder MapLinbikIntegrationEndpointsGateway(
+        this IEndpointRouteBuilder endpoints,
+        string basePath = "/api/Linbik/",
+        Action<RouteGroupBuilder>? configureAuthorization = null)
+    {
+        var group = endpoints.MapLinbikIntegrationRoutes(basePath);
+
+        if (configureAuthorization is not null)
+        {
+            configureAuthorization(group);
+        }
+        else
+        {
+            group.AddEndpointFilter(RequireLinbikPlatformHeaders);
+        }
+
+        return group;
+    }
+
+    /// <summary>
+    /// Default yetkilendirme filtresi: <c>Linbik-Flow: Application</c> ve <c>Linbik-role: Linbik</c>
+    /// header'larını zorunlu kılar. Her ikisi de Gateway tarafından, isteği authenticate ettikten
+    /// sonra yazılır ve <c>LinbikHeaderSanitizationMiddleware</c> tarafından client girdisinden
+    /// önceden temizlenmiş olur — bkz. <c>LinbikClaimsHeaderTransform</c>.
+    /// </summary>
+    private static async ValueTask<object?> RequireLinbikPlatformHeaders(
+        EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var request = context.HttpContext.Request;
+
+        var flowDecision = LFlowGate.Evaluate(
+            request.Headers[LinbikDefaults.HeaderFlow],
+            [LinbikDefaults.Flows.Application]);
+
+        if (!flowDecision.Allowed)
+        {
+            return Results.Json(
+                new LBaseResponse<object>(title: flowDecision.Title, message: flowDecision.Message, isSuccess: false),
+                statusCode: flowDecision.StatusCode);
+        }
+
+        var roleValues = request.Headers[HeaderRole];
+        if (roleValues.Count != 1 ||
+            !string.Equals(roleValues.ToString().Trim(), PlatformRole, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Json(
+                new LBaseResponse<object>(
+                    title: "forbidden_role",
+                    message: $"Header '{HeaderRole}' must equal '{PlatformRole}'.",
+                    isSuccess: false),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        return await next(context);
+    }
+
+    /// <summary>
+    /// Maps integration endpoints without any authorization policy.
     /// Use this only for development/testing purposes.
     /// </summary>
     public static RouteGroupBuilder MapLinbikIntegrationEndpointsAnonymous(
         this IEndpointRouteBuilder endpoints,
         string basePath = "/api/Linbik")
     {
-        var group = MapLinbikIntegrationEndpoints(endpoints, basePath);
-        group.AllowAnonymous();
-        return group;
+        return endpoints.MapLinbikIntegrationRoutes(basePath);
     }
 }

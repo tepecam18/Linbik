@@ -51,8 +51,8 @@ public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSend
                 var validation = await validator.ValidateAsync(typedRequest, cancellationToken);
                 if (!validation.IsValid)
                 {
-                    return Result<TResponse>.Fail(
-                        LError.Validation("One or more validation errors occurred.", validation.Errors));
+                    var message = string.Join(" ", validation.Errors.Select(e => e.Message));
+                    return Result<TResponse>.Fail(LError.Validation(message, validation.Errors));
                 }
             }
 

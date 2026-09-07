@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 namespace ApiGateway.Docs;
 
 /// <summary>
@@ -33,20 +35,69 @@ public sealed class LinbikGatewayOptions
 /// <summary>
 /// Doc erişim auth modeli. Varsayılan:
 /// <list type="bullet">
-/// <item><b>Development</b>: tüm doc endpoint'leri (JSON + UI) anonim erişilebilir.</item>
-/// <item><b>Production</b>: <c>self.json</c> → <c>LinbikAuthorize</c> (cookie);
-/// <c>delegated.json</c> → Delegated veya Application bearer;
-/// <c>apps.json</c> → Application bearer; <c>/docs/*</c> UI sayfaları cookie ile.</item>
+/// <item><b>Development</b>: <c>delegated.json</c>/<c>apps.json</c> (+ ilgili UI'ler)
+/// anonim erişilebilir. <c>self.json</c>/<c>/docs/self</c> <see cref="SelfAccess"/>
+/// tarafından yönetilir (bu örnekte <c>appsettings.Development.json</c> "anonim" olarak override eder).</item>
+/// <item><b>Production</b>: <c>delegated.json</c> → Delegated veya Application bearer;
+/// <c>apps.json</c> → Application bearer; <c>/docs/*</c> UI sayfaları cookie ile.
+/// <c>self.json</c>/<c>/docs/self</c> yine <see cref="SelfAccess"/> tarafından yönetilir
+/// (varsayılan: kapalı).</item>
 /// </list>
 /// </summary>
 public sealed class LinbikDocsAuthOptions
 {
     /// <summary>
-    /// <c>true</c> ise Development ortamında da doc endpoint'leri auth ister
-    /// (Prod davranışı). Varsayılan <c>false</c> — Dev'de geliştirici deneyimi
-    /// için tüm doc'lar anonim erişilebilir.
+    /// <c>true</c> ise Development ortamında da <b>delegated</b>/<b>apps</b> doc
+    /// endpoint'leri auth ister (Prod davranışı). Varsayılan <c>false</c> — Dev'de
+    /// geliştirici deneyimi için bu doc'lar anonim erişilebilir. <c>self.json</c>/
+    /// <c>/docs/self</c> bu flag'den etkilenmez, bkz. <see cref="SelfAccess"/>.
     /// </summary>
     public bool RequireAuthInDevelopment { get; set; } = false;
+
+    /// <summary>
+    /// <c>self.json</c> / <c>/docs/self</c> için erişim kuralı. Desteklenen değerler:
+    /// <list type="bullet">
+    /// <item>boş / <c>null</c> (varsayılan) — <b>kapalı</b>, kimse erişemez.</item>
+    /// <item><c>"anonim"</c> — herkese açık, oturum gerekmez.</item>
+    /// <item><c>"*"</c> — oturum açmış (cookie ile authenticate olmuş) herhangi bir kullanıcı.</item>
+    /// <item>virgülle ayrılmış kullanıcı adı listesi (örn. <c>"ali,veli,mehmet"</c>) —
+    /// yalnızca bu kullanıcı adlarına sahip oturumlar erişebilir.</item>
+    /// </list>
+    /// Kullanıcı adı karşılaştırması <see cref="IsSelfAccessAllowed"/> tarafından yapılır.
+    /// </summary>
+    public string? SelfAccess { get; set; }
+
+    /// <summary>
+    /// <see cref="SelfAccess"/> kuralını verilen <paramref name="user"/> için değerlendirir.
+    /// Karşılaştırmalar <see cref="StringComparison.OrdinalIgnoreCase"/> ile yapılır
+    /// (Türkçe "I/İ" culture sorunlarından kaçınmak için).
+    /// </summary>
+    public static bool IsSelfAccessAllowed(string? rule, ClaimsPrincipal user)
+    {
+        rule = rule?.Trim();
+        if (string.IsNullOrEmpty(rule))
+            return false; // kapalı
+
+        if (rule.Equals("anonim", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (user.Identity is not { IsAuthenticated: true })
+            return false;
+
+        if (rule == "*")
+            return true;
+
+        var userName = user.FindFirst("preferred_username")?.Value
+            ?? user.Identity.Name
+            ?? user.FindFirst("sub")?.Value;
+
+        if (userName is null)
+            return false;
+
+        return rule
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(allowed => string.Equals(allowed, userName, StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 /// <summary>

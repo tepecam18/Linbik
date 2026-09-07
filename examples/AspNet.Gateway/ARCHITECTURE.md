@@ -120,23 +120,47 @@ her `Upsert`'te invalidate edilir.
 
 Endpoint'ler (`LinbikGatewayExtensions.cs`):
 
-| Endpoint                    | Dev davranışı (varsayılan)  | Prod davranışı                                          |
-| --------------------------- | --------------------------- | ------------------------------------------------------- |
-| `/openapi/self.json`        | anonim                      | `LinbikAuthorize` (cookie)                              |
-| `/openapi/delegated.json`   | anonim                      | `LinbikSelfOrApplicationAuthorize` (cookie **veya** Application bearer) |
-| `/openapi/apps.json`        | anonim                      | `LinbikSelfOrApplicationAuthorize` (cookie **veya** Application bearer) |
-| `/docs/self`                | anonim                      | `LinbikAuthorize` (cookie) — UI sayfası                 |
-| `/docs/delegated`           | anonim                      | `LinbikAuthorize` (cookie) — UI sayfası                 |
-| `/docs/apps`                | anonim                      | `LinbikAuthorize` (cookie) — UI sayfası                 |
+| Endpoint                    | Self erişimi                                 | Dev davranışı (delegated/apps) | Prod davranışı (delegated/apps)                          |
+| --------------------------- | --------------------------------------------- | -------------------------------- | ------------------------------------------------------- |
+| `/openapi/self.json`        | `Docs:SelfAccess` kuralına göre (bkz. aşağı)  | —                                 | —                                                         |
+| `/openapi/delegated.json`   | —                                              | anonim                           | `LinbikSelfOrApplicationAuthorize` (cookie **veya** Application bearer) |
+| `/openapi/apps.json`        | —                                              | anonim                           | `LinbikSelfOrApplicationAuthorize` (cookie **veya** Application bearer) |
+| `/docs/self`                | `Docs:SelfAccess` kuralına göre (bkz. aşağı)  | —                                 | —                                                         |
+| `/docs/delegated`           | —                                              | anonim                           | `LinbikAuthorize` (cookie) — UI sayfası                  |
+| `/docs/apps`                | —                                              | anonim                           | `LinbikAuthorize` (cookie) — UI sayfası                  |
 
-> Dev'de doc erişimini kısıtlamak için `LinbikGateway:Docs:RequireAuthInDevelopment=true`
-> verin — tüm doc endpoint'leri Prod davranışına geçer.
+`/openapi/self.json` ve `/docs/self`, `LinbikGateway:Docs:SelfAccess` (string)
+konfigürasyonuyla yönetilir — ortamdan (Dev/Prod) bağımsız, tek bir kuraldır
+(`LinbikDocsAuthOptions.IsSelfAccessAllowed`, karşılaştırmalar
+`OrdinalIgnoreCase`):
+
+| `SelfAccess` değeri         | Anlamı                                                          |
+| ----------------------------- | ------------------------------------------------------------------ |
+| boş / yok (**varsayılan**)   | **kapalı** — kimse erişemez                                      |
+| `"anonim"`                   | herkese açık, oturum gerekmez                                    |
+| `"*"`                         | oturum açmış (cookie ile authenticate) herhangi bir kullanıcı    |
+| `"ali,veli,mehmet"`          | virgülle ayrılmış kullanıcı adı allow-list'i (yalnız bunlar)     |
+
+Kullanıcı adı, JWT'deki `preferred_username` claim'inden okunur (fallback:
+`Identity.Name` → `sub` claim). Bu repo'da `appsettings.json` varsayılanı boş
+(kapalı, Prod-safe); `appsettings.Development.json` bunu `"anonim"` ile
+override ederek eski Dev deneyimini korur.
+
+> `LinbikGateway:Docs:RequireAuthInDevelopment=true` yalnızca **delegated/apps**
+> doc endpoint'lerini etkiler — Dev'de de Prod davranışına geçirir. `self.json`/
+> `/docs/self` bu flag'den etkilenmez, yalnızca `SelfAccess` tarafından yönetilir.
 
 Karar mantığı: **JSON endpoint'leri programmatic consumer'lar (curl, codegen, CI) için
 standart Authorization bearer ister** — `Linbik.YARP` token transform pattern'iyle birebir.
 UI sayfaları browser tabanlı olduğu için cookie ile açılır; yetkisiz ziyaretçi
 `/api/linbik/login`'e yönlendirilir. UI'ın alttaki JSON'u çağırması için kullanıcı,
 Scalar'ın "Authentication" panelinden bearer token girer. (Cookie + bearer hibriti.)
+
+Self için de aynı cookie scheme'i (`ClientScheme`) tetiklenir: authenticate
+olmayan ziyaretçi login'e yönlendirilir (challenge), authenticate olmuş ama
+kural reddedeni (allow-list'te değil veya mod "kapalı") 403 alır (forbid).
+"Kapalı" modda anonim ziyaretçi de bu yüzden önce login'e yönlendirilip sonra
+403 alır — bilinçli bir tasarım kararı, özel bir "erken 403" kısayolu yoktur.
 
 Audit: doc isteklerinde `Information` seviyesinde `flow`, `user` (Name /
 `sub` claim / `(anon)`), `ip`, `path` loglanır.
@@ -237,7 +261,7 @@ filtreleme hem JSON cevabını hem de doc şemasını korur.
 | `linbik-flows` yokluğu                        | Fail-closed: operation drop. Bilinçsizce expose etmek imkansız.                                                            |
 | Bayat / poison ETag                             | `EtagMaxAgeSeconds` (600 sn) sonrası full fetch.                                                                           |
 | Downstream OpenAPI anonim                       | Network segmentasyonu varsayımı: downstream'ler **yalnızca gateway'den** erişilebilir olmalı. Production'da firewall/VPC.  |
-| Doc UI üzerinden bilgi sızıntısı                | `delegated`/`apps` doc + UI **cookie auth zorunlu**. Self dev-only.                                                        |
+| Doc UI üzerinden bilgi sızıntısı                | `delegated`/`apps` doc + UI **cookie auth zorunlu**. Self varsayılan **kapalı**, `Docs:SelfAccess` ile açılır.             |
 | Convention dışı path drop'larının görünmezliği  | Şimdilik sessizce drop; ileride `Debug` log eklenebilir (TODO).                                                            |
 | `Microsoft.OpenApi` namespace kırılması (2.x)   | Yalnız `using Microsoft.OpenApi;` kullanılır (`Microsoft.OpenApi.Models` namespace'i 2.x'te yok).                          |
 

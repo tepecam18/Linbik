@@ -15,7 +15,7 @@ namespace Linbik.PasetoAuthManager.Extensions;
 
 /// <summary>
 /// Extension methods for adding Linbik PASETO v4.public authentication services.
-/// PASETO equivalent of <c>AddLinbikJwtAuth</c>; uses Ed25519 asymmetric signing.
+/// PASETO equivalent of <c>AddLinbikPasetoAuth</c>; uses Ed25519 asymmetric signing.
 /// </summary>
 public static class LinbikPasetoAuthExtensions
 {

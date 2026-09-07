@@ -57,11 +57,14 @@ public static class LinbikGatewayExtensions
     /// <summary>
     /// Üç filtrelenmiş OpenAPI JSON endpoint'i:
     /// <list type="bullet">
-    /// <item><c>/openapi/self.json</c> — Dev anonim; Prod <c>LinbikAuthorize</c> (cookie).</item>
+    /// <item><c>/openapi/self.json</c> — erişim <c>Docs:SelfAccess</c> kuralına göre
+    /// (kapalı / anonim / herhangi bir kullanıcı / kullanıcı adı allow-list'i); bkz.
+    /// <see cref="LinbikGatewayAuthExtensions.SelfDocPolicy"/>.</item>
     /// <item><c>/openapi/delegated.json</c> — Dev anonim; Prod <c>LinbikSelfOrApplicationAuthorize</c> (cookie veya Application bearer).</item>
     /// <item><c>/openapi/apps.json</c> — Dev anonim; Prod <c>LinbikSelfOrApplicationAuthorize</c> (cookie veya Application bearer).</item>
     /// </list>
-    /// <c>Docs:RequireAuthInDevelopment=true</c> ile Dev'de de Prod davranışına geçilir.
+    /// <c>Docs:RequireAuthInDevelopment=true</c> ile Dev'de <b>delegated/apps</b> için de
+    /// Prod davranışına geçilir (self bu flag'den etkilenmez, <c>Docs:SelfAccess</c> kullanır).
     /// </summary>
     public static IEndpointRouteBuilder MapLinbikGatewayDocs(this IEndpointRouteBuilder endpoints, IWebHostEnvironment env)
     {
@@ -70,8 +73,7 @@ public static class LinbikGatewayExtensions
 
         var selfJson = endpoints.MapGet("/openapi/self.json", (HttpContext ctx) =>
             ServeAsync(ctx, FilteredDocumentBuilder.FlowSelf));
-        if (requireAuth)
-            selfJson.RequireAuthorization(LinbikGatewayAuthExtensions.SelfPolicy);
+        selfJson.RequireAuthorization(LinbikGatewayAuthExtensions.SelfDocPolicy);
 
         var delegatedJson = endpoints.MapGet("/openapi/delegated.json", (HttpContext ctx) =>
             ServeAsync(ctx, FilteredDocumentBuilder.FlowDelegated));
@@ -89,8 +91,11 @@ public static class LinbikGatewayExtensions
     /// <summary>
     /// Üç Scalar referans sayfası: <c>/docs/self</c>, <c>/docs/delegated</c>, <c>/docs/apps</c>.
     /// <para>
-    /// Dev'de hepsi anonim. Prod'da (veya <c>Docs:RequireAuthInDevelopment=true</c>) <b>cookie</b>
-    /// (<c>LinbikAuthorize</c>) ile açılır: anonim ziyaretçi <c>/api/linbik/login</c>'e yönlendirilir.
+    /// <c>/docs/self</c> erişimi <c>Docs:SelfAccess</c> kuralına göre belirlenir (bkz.
+    /// <see cref="LinbikGatewayAuthExtensions.SelfDocPolicy"/>) — kapalı / anonim / herhangi
+    /// bir kullanıcı / kullanıcı adı allow-list'i. Diğerleri: Dev'de anonim; Prod'da (veya
+    /// <c>Docs:RequireAuthInDevelopment=true</c>) <b>cookie</b> (<c>LinbikAuthorize</c>) ile
+    /// açılır: anonim ziyaretçi <c>/api/linbik/login</c>'e yönlendirilir.
     /// Alttaki JSON endpoint'i ayrıca kendi auth'unu uygular (delegated/apps için bearer);
     /// kullanıcı Scalar'ın "Authentication" panelinden bearer token girer.
     /// </para>
@@ -105,8 +110,7 @@ public static class LinbikGatewayExtensions
             o.WithTitle("Linbik Gateway — Self")
              .WithOpenApiRoutePattern("/openapi/self.json");
         });
-        if (requireAuth)
-            selfUi.RequireAuthorization(LinbikGatewayAuthExtensions.SelfPolicy);
+        selfUi.RequireAuthorization(LinbikGatewayAuthExtensions.SelfDocPolicy);
 
         var delegatedUi = endpoints.MapScalarApiReference("/docs/delegated", o =>
         {
