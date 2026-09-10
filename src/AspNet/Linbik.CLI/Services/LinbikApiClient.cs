@@ -38,49 +38,49 @@ internal sealed class LinbikApiClient : IDisposable
     {
         try
         {
-        var request = new
-        {
-            appName,
-            appUrl,
-            callbackPath,
-            platform = "aspnet"
-        };
+            var request = new
+            {
+                appName,
+                appUrl,
+                callbackPath,
+                platform = "aspnet"
+            };
 
-        var response = await _client.PostAsJsonAsync("/api/dev/provision", request, JsonOptions, ct);
+            using var response = await _client.PostAsJsonAsync("/api/dev/provision", request, JsonOptions, ct);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(ct);
-            ConsoleUI.Error(Messages.ProvisionFailed(response.StatusCode.ToString(), error));
-            return null;
-        }
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(ct);
+                ConsoleUI.Error(Messages.ProvisionFailed(response.StatusCode.ToString(), error));
+                return null;
+            }
 
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
-        {
-            ConsoleUI.Error(Messages.ServerInvalidResponse);
-            return null;
-        }
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
+            {
+                ConsoleUI.Error(Messages.ServerInvalidResponse);
+                return null;
+            }
 
-        var result = JsonSerializer.Deserialize<ApiResponse<ProvisionResponse>>(body, JsonOptions);
-        return result?.Data;
+            var result = JsonSerializer.Deserialize<ApiResponse<ProvisionResponse>>(body, JsonOptions);
+            return result?.Data;
         }
         catch (HttpRequestException ex)
         {
             ConsoleUI.Error(Messages.HttpRequestError(ex.Message));
             return null;
         }
-         catch (JsonException ex)
+        catch (JsonException ex)
         {
             ConsoleUI.Error(Messages.JsonProcessingError(ex.Message));
             return null;
         }
-         catch (OperationCanceledException)
+        catch (OperationCanceledException)
         {
             ConsoleUI.Error(Messages.RequestTimeout);
             return null;
         }
-         catch (Exception ex)
+        catch (Exception ex)
         {
             ConsoleUI.Error(Messages.UnexpectedError(ex.Message));
             return null;
@@ -92,12 +92,12 @@ internal sealed class LinbikApiClient : IDisposable
     /// </summary>
     public async Task<TokenResponse?> ExchangeCodeAsync(string code, string serviceId, string apiKey, CancellationToken ct = default)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/oauth/token");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/oauth/token");
         request.Headers.Add("Code", code);
         request.Headers.Add("ApiKey", apiKey);
         request.Content = JsonContent.Create(new { serviceId }, options: JsonOptions);
 
-        var response = await _client.SendAsync(request, ct);
+        using var response = await _client.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -115,10 +115,10 @@ internal sealed class LinbikApiClient : IDisposable
     /// </summary>
     public async Task<ServiceStatusResponse?> GetServiceStatusAsync(string serviceId, string apiKey, CancellationToken ct = default)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/services/{serviceId}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/services/{serviceId}");
         request.Headers.Add("ApiKey", apiKey);
 
-        var response = await _client.SendAsync(request, ct);
+        using var response = await _client.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)
         {

@@ -36,6 +36,9 @@ public sealed class LinbikAuthService(
     private readonly ILinbikAuthClient _authClient = authClient ?? throw new ArgumentNullException(nameof(authClient));
     private readonly LinbikOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<LinbikAuthService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly LinbikAuthCookieManager _cookieManager = new(
+        logger ?? throw new ArgumentNullException(nameof(logger)),
+        options?.Value ?? throw new ArgumentNullException(nameof(options)));
 
     // Cookie names from LinbikDefaults
     private const string AuthTokenCookie = LinbikDefaults.AuthTokenCookie;
@@ -180,7 +183,8 @@ public sealed class LinbikAuthService(
         {
             Path = "/",
             Secure = true,
-            SameSite = SameSiteMode.None
+            SameSite = _options.SameSite,
+            Domain = !string.IsNullOrEmpty(_options.CookieDomain) ? _options.CookieDomain : context.Request.Host.Host
         };
 
         // Clear auth cookies
@@ -189,7 +193,7 @@ public sealed class LinbikAuthService(
         context.Response.Cookies.Delete(ReturnUrlCookie, deleteCookieOptions);
 
         // Clear integration cookies
-        ClearIntegrationCookies(context);
+        _cookieManager.ClearIntegrationCookies(context);
 
         _logger.LogInformation("User logged out - all cookies cleared");
         return Task.CompletedTask;
@@ -201,83 +205,8 @@ public sealed class LinbikAuthService(
     /// </summary>
     public void StoreTokensInCookies(HttpContext context, LinbikTokenResponse response)
     {
-        var secureCookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Path = "/"
-        };
-
-        // Store refresh token if available
-        if (!string.IsNullOrEmpty(response.RefreshToken))
-        {
-            var refreshExpiry = (response.RefreshTokenExpiresAt ?? 0) > 0
-                ? DateTimeOffset.FromUnixTimeSeconds(response.RefreshTokenExpiresAt!.Value).UtcDateTime
-                : DateTime.UtcNow.AddDays(14);
-
-            context.Response.Cookies.Append(RefreshTokenCookie, response.RefreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Path = "/",
-                Expires = refreshExpiry
-            });
-        }
-
-        // Store integration tokens in cookies for YARP proxy
-        if (response.Integrations?.Count > 0)
-        {
-            StoreIntegrationCookies(context, response.Integrations);
-        }
-
-        _logger.LogInformation("Tokens stored in cookies for user {UserId}", response.UserId);
+        _cookieManager.StoreTokens(context, response);
     }
-
-    #region Private Methods
-
-    private void StoreIntegrationCookies(HttpContext context, List<LinbikIntegrationToken> integrations)
-    {
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddHours(1)
-        };
-
-        foreach (var integration in integrations)
-        {
-            var cookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-            context.Response.Cookies.Append(cookieName, integration.Token, cookieOptions);
-            _logger.LogDebug("Stored integration cookie for {PackageName}", integration.PackageName);
-        }
-    }
-
-    private void ClearIntegrationCookies(HttpContext context)
-    {
-        var deleteCookieOptions = new CookieOptions
-        {
-            Path = "/",
-            Secure = true,
-            SameSite = SameSiteMode.None
-        };
-
-        // Get all cookies that start with integration_
-        var integrationCookies = context.Request.Cookies.Keys
-            .Where(k => k.StartsWith(IntegrationTokenPrefix))
-            .ToList();
-
-        foreach (var cookieName in integrationCookies)
-        {
-            context.Response.Cookies.Delete(cookieName, deleteCookieOptions);
-            _logger.LogDebug("Cleared integration cookie {CookieName}", cookieName);
-        }
-    }
-
-    #endregion
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 

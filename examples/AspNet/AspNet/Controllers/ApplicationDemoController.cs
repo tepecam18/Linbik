@@ -1,4 +1,4 @@
-﻿using Linbik.Core.Responses;
+using Linbik.Core.Responses;
 using Linbik.YARP.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,8 +7,8 @@ namespace AspNet.Controllers;
 /// <summary>
 /// Demo controller for Application-to-Application communication using IApplicationServiceClient.
 /// This controller demonstrates how to call other Linbik integration services
-/// using the S2S client with automatic token injection and LBaseResponse enforcement.
-/// 
+/// using the application client with automatic token injection and LBaseResponse enforcement.
+///
 /// Usage in real services:
 /// - Inject IApplicationServiceClient in your controllers/services
 /// - Use PostAsync/GetAsync with package name for config-based targets
@@ -20,12 +20,12 @@ public sealed class ApplicationDemoController(
     IApplicationServiceClient applicationClient,
     ILogger<ApplicationDemoController> logger) : ControllerBase
 {
-    #region Config-Based S2S Calls (Package Name)
+    #region Config-Based Application Calls (Package Name)
 
     /// <summary>
     /// Demo: Call another integration service by package name
     /// Uses config-based target service (must be defined in appsettings.json)
-    /// 
+    ///
     /// Example config:
     /// "YARP": {
     ///   "IntegrationServices": {
@@ -38,10 +38,10 @@ public sealed class ApplicationDemoController(
     {
         logger.LogInformation("Application demo: Calling service {PackageName}", packageName);
 
-        // Call the target service's S2S health endpoint
+        // Call the target service's Application health endpoint
         var result = await applicationClient.GetAsync<ApplicationHealthResponse>(
             packageName,
-            "/api/integration/s2s/health"
+            "/api/integration/application/health"
         );
 
         return Ok(new
@@ -59,7 +59,7 @@ public sealed class ApplicationDemoController(
     }
 
     /// <summary>
-    /// Demo: Send data to another service using S2S
+    /// Demo: Send data to another service using the application flow
     /// Demonstrates POST request with typed request/response
     /// </summary>
     [HttpPost("sync-to/{packageName}")]
@@ -67,11 +67,11 @@ public sealed class ApplicationDemoController(
     {
         logger.LogInformation("Application demo: Syncing data to {PackageName}", packageName);
 
-        // Call the target service's S2S sync endpoint
-        var result = await applicationClient.PostAsync<S2SSyncPayload, S2SSyncResponse>(
+        // Call the target service's Application sync endpoint
+        var result = await applicationClient.PostAsync<ApplicationSyncPayload, ApplicationSyncResponse>(
             packageName,
-            "/api/integration/s2s/sync",
-            new S2SSyncPayload
+            "/api/integration/application/sync",
+            new ApplicationSyncPayload
             {
                 EntityType = request.EntityType ?? "demo",
                 EntityId = request.EntityId ?? Guid.NewGuid().ToString(),
@@ -82,7 +82,7 @@ public sealed class ApplicationDemoController(
 
         return Ok(new
         {
-            demo = "S2S sync via POST",
+            demo = "Application sync via POST",
             targetPackageName = packageName,
             result = new
             {
@@ -105,7 +105,7 @@ public sealed class ApplicationDemoController(
 
         var result = await applicationClient.PostAsync<WebhookPayload, WebhookResponse>(
             packageName,
-            $"/api/integration/s2s/webhook/{eventType}",
+            $"/api/integration/application/webhook/{eventType}",
             new WebhookPayload
             {
                 EventId = Guid.NewGuid().ToString("N")[..12],
@@ -118,7 +118,7 @@ public sealed class ApplicationDemoController(
 
         return Ok(new
         {
-            demo = "S2S webhook notification",
+            demo = "Application webhook notification",
             targetPackageName = packageName,
             eventType,
             result = new
@@ -133,12 +133,12 @@ public sealed class ApplicationDemoController(
 
     #endregion
 
-    #region Dynamic S2S Calls (Service ID) - For Callbacks/Webhooks
+    #region Dynamic Application Calls (Service ID) - For Callbacks/Webhooks
 
     /// <summary>
     /// Demo: Call a service dynamically by its service ID
     /// Does NOT require the target service to be in config
-    /// 
+    ///
     /// Use case: Payment Gateway calling back to merchant service
     /// The merchant service ID is stored in the order/transaction record
     /// </summary>
@@ -151,7 +151,7 @@ public sealed class ApplicationDemoController(
         // Linbik will provide the ServiceUrl in the token response
         var result = await applicationClient.GetByIdAsync<ApplicationHealthResponse>(
             serviceId,
-            "/api/integration/s2s/health"
+            "/api/integration/application/health"
         );
 
         return Ok(new
@@ -181,7 +181,7 @@ public sealed class ApplicationDemoController(
         // This is how Payment Gateway would notify the merchant
         var result = await applicationClient.PostByIdAsync<PaymentCallbackPayload, PaymentCallbackResponse>(
             serviceId,
-            "/api/integration/s2s/webhook/payment-completed",
+            "/api/integration/application/webhook/payment-completed",
             new PaymentCallbackPayload
             {
                 EventId = Guid.NewGuid().ToString("N")[..12],
@@ -199,7 +199,7 @@ public sealed class ApplicationDemoController(
 
         return Ok(new
         {
-            demo = "Dynamic S2S callback (Payment Gateway -> Merchant scenario)",
+            demo = "Dynamic application callback (Payment Gateway -> Merchant scenario)",
             targetServiceId = serviceId,
             result = new
             {
@@ -234,7 +234,7 @@ public sealed class ApplicationDemoController(
         // LBaseResponse provides structured error handling
         return Ok(new
         {
-            demo = "S2S error handling",
+            demo = "Application error handling",
             targetPackageName = packageName,
             result = new
             {
@@ -242,7 +242,7 @@ public sealed class ApplicationDemoController(
                 result.FriendlyMessage,
                 hasData = result.Data != null
             },
-            note = "LBaseResponse ensures consistent error format across all S2S calls",
+            note = "LBaseResponse ensures consistent error format across all application calls",
             timestamp = DateTime.UtcNow
         });
     }
@@ -260,7 +260,7 @@ public sealed class ApplicationHealthResponse
     public object? TargetService { get; set; }
 }
 
-public sealed class S2SSyncResponse
+public sealed class ApplicationSyncResponse
 {
     public bool Success { get; set; }
     public string? Message { get; set; }
@@ -290,7 +290,7 @@ public sealed class SyncDataRequest
     public Dictionary<string, object>? Data { get; set; }
 }
 
-public sealed class S2SSyncPayload
+public sealed class ApplicationSyncPayload
 {
     public string? EntityType { get; set; }
     public string? EntityId { get; set; }

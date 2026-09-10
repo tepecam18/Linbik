@@ -9,11 +9,10 @@ namespace Linbik.Core.Services.Interfaces;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This service handles the OAuth 2.1 + PKCE flow:
-/// 1. <see cref="RedirectToLinbikAsync"/> - Initiates authorization
-/// 2. <see cref="ExchangeCodeForTokensAsync"/> - Exchanges code for tokens
-/// 3. <see cref="RefreshTokensAsync"/> - Refreshes expired tokens
-/// 4. <see cref="LogoutAsync"/> - Clears authentication state
+/// This service handles the OAuth 2.1 + PKCE flow after redirect back from Linbik:
+/// 1. <see cref="ExchangeCodeForTokensAsync"/> - Exchanges code for tokens
+/// 2. <see cref="RefreshTokensAsync"/> - Refreshes expired tokens
+/// 3. <see cref="LogoutAsync"/> - Clears authentication state
 /// </para>
 /// <para>
 /// All async methods support <see cref="CancellationToken"/> for graceful cancellation.

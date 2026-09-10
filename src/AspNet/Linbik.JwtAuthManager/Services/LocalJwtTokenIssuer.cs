@@ -9,7 +9,7 @@ namespace Linbik.JwtAuthManager.Services;
 
 /// <summary>
 /// Cookie tabanlı kimlik doğrulama için HS256 JWT access token üretir.
-/// Servisler arası (S2S) token üretiminde kullanılmaz; yalnızca <c>authToken</c> cookie'si içindir.
+/// Servisler arası (Application) token üretiminde kullanılmaz; yalnızca <c>authToken</c> cookie'si içindir.
 /// </summary>
 internal static class LocalJwtTokenIssuer
 {

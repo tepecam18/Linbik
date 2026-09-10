@@ -1,3 +1,4 @@
+using Linbik.Core.Extensions;
 using Linbik.Core.Responses;
 using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using static Linbik.Core.Services.LinbikAuthEndpointHelpers;
 
 namespace Linbik.PasetoAuthManager.Extensions;
 
@@ -24,13 +26,6 @@ public static class PasetoAuthManagerExtensions
     private const string UserNameCookie = Core.LinbikDefaults.UserNameCookie;
     private const string IntegrationTokenPrefix = Core.LinbikDefaults.IntegrationTokenPrefix;
 
-    private static DateTime CalculateExpiry(long? unixTimestamp, DateTime defaultExpiry)
-    {
-        return unixTimestamp.HasValue && unixTimestamp.Value > 0
-            ? DateTimeOffset.FromUnixTimeSeconds(unixTimestamp.Value).UtcDateTime
-            : defaultExpiry;
-    }
-
     private static Task<string?> CreateLocalAccessTokenAsync(
         PasetoAuthOptions options,
         Core.Models.LinbikTokenResponse tokenResponse,
@@ -38,110 +33,6 @@ public static class PasetoAuthManagerExtensions
         IPasetoHelper pasetoHelper,
         ILogger logger)
         => LocalPasetoTokenIssuer.CreateAsync(options, tokenResponse, accessTokenExpiry, pasetoHelper, logger);
-
-    private static void SetAuthCookies(
-        HttpContext context,
-        Core.Models.LinbikTokenResponse tokenResponse,
-        string accessToken,
-        DateTime accessTokenExpiry,
-        DateTime refreshTokenExpiry,
-        string cookieDomain)
-    {
-        if (!string.IsNullOrEmpty(tokenResponse.RefreshToken))
-        {
-            context.Response.Cookies.Append(LinbikRefreshTokenCookie, tokenResponse.RefreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = refreshTokenExpiry,
-                Path = "/"
-            });
-        }
-
-        if (tokenResponse.Integrations?.Count > 0)
-        {
-            foreach (var integration in tokenResponse.Integrations)
-            {
-                var cookieName = $"{IntegrationTokenPrefix}{integration.PackageName}";
-                context.Response.Cookies.Append(cookieName, integration.Token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = accessTokenExpiry,
-                    Path = "/"
-                });
-            }
-        }
-
-        context.Response.Cookies.Append(AuthTokenCookie, accessToken, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = accessTokenExpiry,
-            Path = "/"
-        });
-
-        context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, new CookieOptions
-        {
-            HttpOnly = false,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = refreshTokenExpiry,
-            Path = "/",
-            Domain = cookieDomain
-        });
-    }
-
-    private static bool IsMobileClient(Core.Configuration.LinbikClientConfig? clientConfig)
-        => clientConfig?.ActionResultType == Core.Configuration.ActionResultType.Json;
-
-    private static Core.Configuration.LinbikClientConfig? GetClientConfig(Core.Configuration.LinbikOptions linbikOptions, string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-            return null;
-        return linbikOptions.Clients.FirstOrDefault(c => c.Name == name);
-    }
-
-    private static string AppendMessageToUrl(string baseUrl, string message, bool isError = false)
-    {
-        var separator = baseUrl.Contains('?') ? "&" : "?";
-        var paramName = isError ? "error" : "message";
-        return $"{baseUrl}{separator}{paramName}={Uri.EscapeDataString(message)}";
-    }
-
-    private static IResult ReturnAuthError(
-        HttpContext context,
-        Core.Configuration.LinbikClientConfig? clientConfig,
-        string? redirectPath,
-        string errorMessage,
-        int statusCode = 400)
-    {
-        if (IsMobileClient(clientConfig))
-        {
-            return statusCode switch
-            {
-                401 => Results.Unauthorized(),
-                403 => Results.Forbid(),
-                _ => Results.BadRequest(new LBaseResponse<object>(errorMessage))
-            };
-        }
-
-        if (!string.IsNullOrEmpty(redirectPath))
-        {
-            var redirectUrl = AppendMessageToUrl(redirectPath, errorMessage, isError: true);
-            return Results.Redirect(redirectUrl);
-        }
-
-        return statusCode switch
-        {
-            401 => Results.Unauthorized(),
-            403 => Results.Forbid(),
-            _ => Results.BadRequest(new LBaseResponse<object>(errorMessage))
-        };
-    }
 
     private static IResult ReturnAuthSuccess(
         HttpContext context,
@@ -187,7 +78,7 @@ public static class PasetoAuthManagerExtensions
                 var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
                 if (provisionClient != null)
                 {
-                    string appUrl = context.Request.Scheme + "://" + context.Request.Host.Value;
+                    string appUrl = context.GetExternalScheme() + "://" + context.Request.Host.Value;
                     await provisionClient.EnsureProvisionedAsync(appUrl, options.LoginCallbackPath, name, context.RequestAborted);
                 }
             }
@@ -243,7 +134,7 @@ public static class PasetoAuthManagerExtensions
             }
 
             return Results.Redirect(initiateResponse.Data.RedirectUrl);
-        }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
+        }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting(LinbikRateLimitingExtensions.LinbikAuthPolicy);
 
         // Login callback
         endpoints.MapGet(options.LoginCallbackPath, async (HttpContext context,
@@ -265,7 +156,7 @@ public static class PasetoAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Authorization code is required", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                    return ReturnAuthError(context, clientConfig, redirectPath, "Authorization code is required");
+                    return ReturnAuthError(clientConfig, redirectPath, "Authorization code is required");
                 }
 
                 if (linbikOptions.KeylessMode && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
@@ -273,7 +164,7 @@ public static class PasetoAuthManagerExtensions
                     logger.LogWarning("Login callback received before Keyless Mode provisioning completed.");
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Keyless Mode provisioning not complete", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                    return ReturnAuthError(context, clientConfig, redirectPath, "Service is still initializing. Please try again in a moment.");
+                    return ReturnAuthError(clientConfig, redirectPath, "Service is still initializing. Please try again in a moment.");
                 }
 
                 var tokenResponse = await linbikClient.ExchangeCodeAsync(code);
@@ -281,7 +172,7 @@ public static class PasetoAuthManagerExtensions
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Token exchange failed", false);
                     metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                    return ReturnAuthError(context, clientConfig, redirectPath, "Token exchange failed");
+                    return ReturnAuthError(clientConfig, redirectPath, "Token exchange failed");
                 }
 
                 userId = tokenResponse.UserId.ToString();
@@ -310,7 +201,7 @@ public static class PasetoAuthManagerExtensions
                     redirectPath = clientConfig.RedirectUrl;
                 }
 
-                if(string.IsNullOrEmpty(redirectPath))
+                if (string.IsNullOrEmpty(redirectPath))
                     redirectPath = "/";
 
                 if (options.PkceEnabled)
@@ -320,7 +211,7 @@ public static class PasetoAuthManagerExtensions
                         logger.LogWarning("PKCE enabled but CodeChallenge missing in token response for user {UserId}", tokenResponse.UserId);
                         await auditLogger.LogAsync(AuditEventType.PkceValidationFailed, userId, "CodeChallenge missing in token response", false);
                         metrics.RecordLoginFailure("pkce_failed");
-                        return ReturnAuthError(context, clientConfig, redirectPath, "PKCE verification failed");
+                        return ReturnAuthError(clientConfig, redirectPath, "PKCE verification failed");
                     }
 
                     var verifier = PkceService.GetVerifier(context.Request);
@@ -331,7 +222,7 @@ public static class PasetoAuthManagerExtensions
                             logger.LogWarning("PKCE verification failed for user {UserId}", tokenResponse.UserId);
                             await auditLogger.LogAsync(AuditEventType.PkceValidationFailed, userId, "PKCE verification failed", false);
                             metrics.RecordLoginFailure("pkce_failed");
-                            return ReturnAuthError(context, clientConfig, redirectPath, "PKCE verification failed");
+                            return ReturnAuthError(clientConfig, redirectPath, "PKCE verification failed");
                         }
                         PkceService.DeleteVerifier(context.Response);
                     }
@@ -348,11 +239,14 @@ public static class PasetoAuthManagerExtensions
                 var accessToken = await CreateLocalAccessTokenAsync(options, tokenResponse, accessTokenExpiry, pasetoHelper, logger);
                 if (accessToken is null)
                 {
-                    return ReturnAuthError(context, clientConfig, redirectPath, "Authentication is not properly configured");
+                    return ReturnAuthError(clientConfig, redirectPath, "Authentication is not properly configured");
                 }
 
+                await context.RequestServices.GetRequiredService<LinbikRefreshTokenManager>().EnsureAsync(tokenResponse, refreshTokenExpiry, context.RequestAborted);
+
                 SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry,
-                    !string.IsNullOrEmpty(options.CookieDomain) ? options.CookieDomain : context.Request.Host.Host);
+                    !string.IsNullOrEmpty(linbikOptions.CookieDomain) ? linbikOptions.CookieDomain : context.Request.Host.Host,
+                    linbikOptions.SameSite);
 
                 timer.Stop();
                 await auditLogger.LogTokenExchangeAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);
@@ -373,7 +267,7 @@ public static class PasetoAuthManagerExtensions
                 logger.LogError(ex, "Login callback failed");
                 await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, userId, ex.Message, false);
                 metrics.RecordTokenExchange(false, timer.ElapsedSeconds);
-                return ReturnAuthError(context, clientConfig, redirectPath, "Login failed. Please try again.");
+                return ReturnAuthError(clientConfig, redirectPath, "Login failed. Please try again.");
             }
         }).WithTags("Linbik").AllowAnonymous().RequireRateLimiting("LinbikStrict");
 
@@ -382,10 +276,11 @@ public static class PasetoAuthManagerExtensions
             [FromServices] ILocalPasetoTokenReader localTokenReader,
             [FromServices] IAuditLogger auditLogger) =>
         {
-            var deleteCookieOptions = new CookieOptions { Path = "/", Domain = linbikOptions.CookieDomain };
+            await context.RequestServices.GetRequiredService<LinbikRefreshTokenManager>().RevokeAsync(context.Request.Cookies[LinbikRefreshTokenCookie], context.RequestAborted);
+            var deleteCookieOptions = new CookieOptions { Path = "/", Domain = linbikOptions.CookieDomain, SameSite = linbikOptions.SameSite };
 
             // Get user ID from PASETO cookie (no signature validation — best-effort for audit).
-            // Uses the mode-aware local reader; never mixes with Linbik API S2S tokens.
+            // Uses the mode-aware local reader; never mixes with Linbik API application tokens.
             var authToken = context.Request.Cookies[AuthTokenCookie];
             string? userId = null;
             if (!string.IsNullOrEmpty(authToken))
@@ -408,7 +303,7 @@ public static class PasetoAuthManagerExtensions
 
             await auditLogger.LogAsync(AuditEventType.LogoutSuccess, userId, "User logged out successfully");
             return Results.Ok(new LBaseResponse<object>(isSuccess: true));
-        }).WithTags("Linbik").RequireRateLimiting(RateLimitExtensions.LinbikAuthPolicy);
+        }).WithTags("Linbik").RequireRateLimiting(LinbikRateLimitingExtensions.LinbikAuthPolicy);
 
         // Refresh
         endpoints.MapPost(options.RefreshPath, async (HttpContext context,
@@ -431,7 +326,7 @@ public static class PasetoAuthManagerExtensions
                     return Results.Unauthorized();
                 }
 
-                var tokenResponse = await linbikClient.RefreshTokensAsync(refreshToken);
+                var tokenResponse = await context.RequestServices.GetRequiredService<LinbikRefreshTokenManager>().RefreshAsync(refreshToken, linbikClient, context.RequestAborted);
                 if (tokenResponse is null)
                 {
                     await auditLogger.LogAsync(AuditEventType.TokenRefreshFailed, null, "Token refresh returned null", false);
@@ -456,7 +351,8 @@ public static class PasetoAuthManagerExtensions
                 }
 
                 SetAuthCookies(context, tokenResponse, accessToken, accessTokenExpiry, refreshTokenExpiry,
-                    !string.IsNullOrEmpty(options.CookieDomain) ? options.CookieDomain : context.Request.Host.Host);
+                    !string.IsNullOrEmpty(linbikOptions.CookieDomain) ? linbikOptions.CookieDomain : context.Request.Host.Host,
+                    linbikOptions.SameSite);
 
                 timer.Stop();
                 await auditLogger.LogTokenRefreshAsync(userId, linbikOptions.ServiceId, true, timer.ElapsedMilliseconds);

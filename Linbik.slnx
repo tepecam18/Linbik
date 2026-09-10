@@ -1,0 +1,15 @@
+<Solution>
+  <Project Path="src/AspNet/Linbik.CLI/Linbik.CLI.csproj" />
+  <Project Path="src/AspNet/Linbik.Core/Linbik.Core.csproj" />
+  <Project Path="src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj" />
+  <Project Path="src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj" />
+  <Project Path="src/AspNet/Linbik.Server/Linbik.Server.csproj" />
+  <Project Path="src/AspNet/Linbik.Slices/Linbik.Slices.csproj" />
+  <Project Path="src/AspNet/Linbik.Slices.Generators/Linbik.Slices.Generators.csproj" />
+  <Project Path="src/AspNet/Linbik.YARP/Linbik.YARP.csproj" />
+  <Project Path="examples/AspNet/AspNet/AspNet.csproj" />
+  <Project Path="examples/AspNet.Gateway/ApiGateway/ApiGateway.csproj" />
+  <Project Path="examples/AspNet.Gateway/Services/AggregationService/AggregationService.csproj" />
+  <Project Path="examples/AspNet.Gateway/Services/ArithmeticService/ArithmeticService.csproj" />
+  <Project Path="tests/Linbik.Tests/Linbik.Tests.csproj" />
+</Solution>

@@ -7,10 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCaller
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 /**
  * Linbik.PasetoAuthManager tabanlı backend'inize karşı "Linbik ile Giriş Yap" akışını
@@ -45,6 +41,8 @@ import okhttp3.Request
  */
 class LinbikPasetoAuthClient {
 
+    private val httpClient by lazy { LinbikAuthHttpClient() }
+
     /** Bir [ComponentActivity]/Fragment yaşam döngüsüne bağlı bir launcher kaydeder (önerilen kullanım). */
     fun registerLauncher(
         caller: ActivityResultCaller,
@@ -55,29 +53,15 @@ class LinbikPasetoAuthClient {
      * Sunucu tarafındaki oturumu (cookie) sonlandırır. WebView tabanlı çıkış için Activity
      * gerekmez — mevcut oturum çerezleriyle backend'in logout endpoint'ine istek atar.
      */
-    suspend fun signOut(options: LinbikPasetoAuthOptions): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val client = OkHttpClient.Builder().cookieJar(LinbikSharedCookieJar()).build()
-            val url = options.backendBaseUrl.trimEnd('/') + options.logoutPath
-            client.newCall(Request.Builder().url(url).build()).execute().use { it.isSuccessful }
-        } catch (e: Exception) {
-            false
-        }
-    }
+    suspend fun signOut(options: LinbikPasetoAuthOptions): Boolean =
+        httpClient.updateSession(options, refresh = false)
 
     /**
      * Mevcut oturumun (cookie) geçerliliğini korumak için backend'in refresh endpoint'ine
      * istek atar. Genellikle uygulama açılışında veya 401 hatası alındığında çağrılır.
      */
-    suspend fun refreshToken(options: LinbikPasetoAuthOptions): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val client = OkHttpClient.Builder().cookieJar(LinbikSharedCookieJar()).build()
-            val url = options.backendBaseUrl.trimEnd('/') + options.refreshPath
-            client.newCall(Request.Builder().url(url).build()).execute().use { it.isSuccessful }
-        } catch (e: Exception) {
-            false
-        }
-    }
+    suspend fun refreshToken(options: LinbikPasetoAuthOptions): Boolean =
+        httpClient.updateSession(options, refresh = true)
 
     private class SignInContract : ActivityResultContract<LinbikPasetoAuthOptions, LinbikAuthResult>() {
         override fun createIntent(context: Context, input: LinbikPasetoAuthOptions): Intent =

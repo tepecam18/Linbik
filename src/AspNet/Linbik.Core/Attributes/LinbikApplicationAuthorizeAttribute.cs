@@ -37,8 +37,8 @@ public sealed class LinbikApplicationAuthorizeAttribute : AuthorizeAttribute
     }
 
     /// <summary>
-    /// Accepts only S2S tokens with the specified role claim.
-    /// Built-in roles: "Linbik" (platform operations), "Service" (regular S2S)
+    /// Accepts only application tokens with the specified role claim.
+    /// Built-in roles: "Linbik" (platform operations), "Service" (regular application)
     /// </summary>
     /// <param name="role">Required role claim value (e.g., "Linbik", "Service")</param>
     public LinbikApplicationAuthorizeAttribute(string role)

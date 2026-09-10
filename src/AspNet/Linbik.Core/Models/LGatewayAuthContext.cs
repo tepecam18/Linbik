@@ -22,7 +22,7 @@ public sealed class LGatewayAuthContext
     /// Anahtar claim type'ın header-friendly hali, değer bir veya birden
     /// fazla claim değerinin koleksiyonudur.
     /// </summary>
-    public Dictionary<string, string[]> Claims { get; set; } = new();
+    public Dictionary<string, string[]> Claims { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gelen HTTP isteğinde gateway tarafından eklenen <c>Linbik-*</c>

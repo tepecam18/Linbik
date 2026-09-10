@@ -1,11 +1,11 @@
-﻿using Linbik.Core.Models;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace Linbik.YARP.Services;
 
@@ -31,154 +31,126 @@ public sealed class ApplicationServiceClient(
     #region Package Name Based (Config-based targets)
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> GetAsync<TResponse>(
+    public Task<LBaseResponse<TResponse>> GetAsync<TResponse>(
         string packageName,
         string endpoint,
         CancellationToken cancellationToken = default) where TResponse : class
-    {
-        return await SendByPackageAsync<object, TResponse>(HttpMethod.Get, packageName, endpoint, null, cancellationToken);
-    }
+        => SendByPackageAsync<object, TResponse>(HttpMethod.Get, packageName, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PostAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PostAsync<TRequest, TResponse>(
         string packageName,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByPackageAsync<TRequest, TResponse>(HttpMethod.Post, packageName, endpoint, request, cancellationToken);
-    }
+        => SendByPackageAsync<TRequest, TResponse>(HttpMethod.Post, packageName, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<object>> PostAsync<TRequest>(
+    public Task<LBaseResponse<object>> PostAsync<TRequest>(
         string packageName,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default) where TRequest : class
-    {
-        return await SendByPackageAsync<TRequest, object>(HttpMethod.Post, packageName, endpoint, request, cancellationToken);
-    }
+        => SendByPackageAsync<TRequest, object>(HttpMethod.Post, packageName, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PutAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PutAsync<TRequest, TResponse>(
         string packageName,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByPackageAsync<TRequest, TResponse>(HttpMethod.Put, packageName, endpoint, request, cancellationToken);
-    }
+        => SendByPackageAsync<TRequest, TResponse>(HttpMethod.Put, packageName, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> DeleteAsync<TResponse>(
+    public Task<LBaseResponse<TResponse>> DeleteAsync<TResponse>(
         string packageName,
         string endpoint,
         CancellationToken cancellationToken = default) where TResponse : class
-    {
-        return await SendByPackageAsync<object, TResponse>(HttpMethod.Delete, packageName, endpoint, null, cancellationToken);
-    }
+        => SendByPackageAsync<object, TResponse>(HttpMethod.Delete, packageName, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<object>> DeleteAsync(
+    public Task<LBaseResponse<object>> DeleteAsync(
         string packageName,
         string endpoint,
         CancellationToken cancellationToken = default)
-    {
-        return await SendByPackageAsync<object, object>(HttpMethod.Delete, packageName, endpoint, null, cancellationToken);
-    }
+        => SendByPackageAsync<object, object>(HttpMethod.Delete, packageName, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PatchAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PatchAsync<TRequest, TResponse>(
         string packageName,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByPackageAsync<TRequest, TResponse>(HttpMethod.Patch, packageName, endpoint, request, cancellationToken);
-    }
+        => SendByPackageAsync<TRequest, TResponse>(HttpMethod.Patch, packageName, endpoint, request, cancellationToken);
 
     #endregion
 
     #region Service ID Based (Dynamic targets)
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> GetByIdAsync<TResponse>(
+    public Task<LBaseResponse<TResponse>> GetByIdAsync<TResponse>(
         Guid targetServiceId,
         string endpoint,
         CancellationToken cancellationToken = default) where TResponse : class
-    {
-        return await SendByIdAsync<object, TResponse>(HttpMethod.Get, targetServiceId, endpoint, null, cancellationToken);
-    }
+        => SendByIdAsync<object, TResponse>(HttpMethod.Get, targetServiceId, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PostByIdAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PostByIdAsync<TRequest, TResponse>(
         Guid targetServiceId,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByIdAsync<TRequest, TResponse>(HttpMethod.Post, targetServiceId, endpoint, request, cancellationToken);
-    }
+        => SendByIdAsync<TRequest, TResponse>(HttpMethod.Post, targetServiceId, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<object>> PostByIdAsync<TRequest>(
+    public Task<LBaseResponse<object>> PostByIdAsync<TRequest>(
         Guid targetServiceId,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default) where TRequest : class
-    {
-        return await SendByIdAsync<TRequest, object>(HttpMethod.Post, targetServiceId, endpoint, request, cancellationToken);
-    }
+        => SendByIdAsync<TRequest, object>(HttpMethod.Post, targetServiceId, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PutByIdAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PutByIdAsync<TRequest, TResponse>(
         Guid targetServiceId,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByIdAsync<TRequest, TResponse>(HttpMethod.Put, targetServiceId, endpoint, request, cancellationToken);
-    }
+        => SendByIdAsync<TRequest, TResponse>(HttpMethod.Put, targetServiceId, endpoint, request, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> DeleteByIdAsync<TResponse>(
+    public Task<LBaseResponse<TResponse>> DeleteByIdAsync<TResponse>(
         Guid targetServiceId,
         string endpoint,
         CancellationToken cancellationToken = default) where TResponse : class
-    {
-        return await SendByIdAsync<object, TResponse>(HttpMethod.Delete, targetServiceId, endpoint, null, cancellationToken);
-    }
+        => SendByIdAsync<object, TResponse>(HttpMethod.Delete, targetServiceId, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<object>> DeleteByIdAsync(
+    public Task<LBaseResponse<object>> DeleteByIdAsync(
         Guid targetServiceId,
         string endpoint,
         CancellationToken cancellationToken = default)
-    {
-        return await SendByIdAsync<object, object>(HttpMethod.Delete, targetServiceId, endpoint, null, cancellationToken);
-    }
+        => SendByIdAsync<object, object>(HttpMethod.Delete, targetServiceId, endpoint, null, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<LBaseResponse<TResponse>> PatchByIdAsync<TRequest, TResponse>(
+    public Task<LBaseResponse<TResponse>> PatchByIdAsync<TRequest, TResponse>(
         Guid targetServiceId,
         string endpoint,
         TRequest request,
         CancellationToken cancellationToken = default)
         where TRequest : class
         where TResponse : class
-    {
-        return await SendByIdAsync<TRequest, TResponse>(HttpMethod.Patch, targetServiceId, endpoint, request, cancellationToken);
-    }
+        => SendByIdAsync<TRequest, TResponse>(HttpMethod.Patch, targetServiceId, endpoint, request, cancellationToken);
 
     #endregion
 
@@ -206,6 +178,10 @@ public sealed class ApplicationServiceClient(
             // Build target URL
             var baseUrl = GetBaseUrlByPackage(packageName, integration.ServiceUrl);
             return await SendCoreAsync<TRequest, TResponse>(method, baseUrl, endpoint, integration, request, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -246,6 +222,10 @@ public sealed class ApplicationServiceClient(
             var baseUrl = integration.ServiceUrl.TrimEnd('/');
             return await SendCoreAsync<TRequest, TResponse>(method, baseUrl, endpoint, integration, request, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             return HandleException<TResponse>(ex, $"serviceId:{targetServiceId}");
@@ -272,7 +252,7 @@ public sealed class ApplicationServiceClient(
         logger.LogDebug("Application {Method} request to {Target}: {Url}", method, targetDescription, targetUrl);
 
         // Create request
-        var httpRequest = new HttpRequestMessage(method, targetUrl);
+        using var httpRequest = new HttpRequestMessage(method, targetUrl);
 
         // Add application token
         httpRequest.Headers.Authorization =
@@ -290,7 +270,7 @@ public sealed class ApplicationServiceClient(
         }
 
         // Send request
-        var response = await httpClient.SendAsync(httpRequest, cancellationToken);
+        using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
 
         // Read response
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -298,7 +278,7 @@ public sealed class ApplicationServiceClient(
         // Handle error responses
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("S2S request to {Target} failed with {StatusCode}: {Content}",
+            logger.LogWarning("Application request to {Target} failed with {StatusCode}: {Content}",
                 targetDescription, response.StatusCode, responseContent);
 
             // Try to parse as LBaseResponse
@@ -324,16 +304,16 @@ public sealed class ApplicationServiceClient(
             var result = JsonSerializer.Deserialize<LBaseResponse<TResponse>>(responseContent, JsonOptions);
             if (result != null)
             {
-                logger.LogDebug("S2S request to {Target} completed successfully", targetDescription);
+                logger.LogDebug("Application request to {Target} completed successfully", targetDescription);
                 return result;
             }
 
-            logger.LogWarning("S2S response from {Target} was null after deserialization", targetDescription);
+            logger.LogWarning("Application response from {Target} was null after deserialization", targetDescription);
             return new LBaseResponse<TResponse>("Application Error", "Response deserialization returned null");
         }
         catch (JsonException ex)
         {
-            logger.LogError(ex, "Failed to deserialize S2S response from {Target}. Content: {Content}",
+            logger.LogError(ex, "Failed to deserialize application response from {Target}. Content: {Content}",
                 targetDescription, responseContent);
             return new LBaseResponse<TResponse>(
                 "Application Error",
@@ -346,14 +326,14 @@ public sealed class ApplicationServiceClient(
         return ex switch
         {
             HttpRequestException httpEx =>
-                LogAndReturn<TResponse>("HTTP request failed for S2S call to {Target}", target, httpEx,
+                LogAndReturn<TResponse>("HTTP request failed for application call to {Target}", target, httpEx,
                     $"Connection failed to {target}: {httpEx.Message}"),
 
             TaskCanceledException { InnerException: TimeoutException } =>
-                LogAndReturn<TResponse>("S2S request to {Target} timed out", target, null,
+                LogAndReturn<TResponse>("Application request to {Target} timed out", target, null,
                     $"Request to {target} timed out"),
 
-            _ => LogAndReturn<TResponse>("Unexpected error during S2S call to {Target}", target, ex,
+            _ => LogAndReturn<TResponse>("Unexpected error during application call to {Target}", target, ex,
                     $"Unexpected error: {ex.Message}")
         };
     }

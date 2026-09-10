@@ -37,7 +37,8 @@ app.EnsureLinbik();
 // Map user-context integration proxy: /{packageName}/{**path}
 app.UseLinbikYarp();
 
-// Map apps proxy endpoints (optional)
+// Map apps proxy endpoints (optional): /{routePrefix}/{packageName}/{**path}
+// routePrefix defaults to "app" (UseLinbikApplication(string routePrefix = "app"))
 app.UseLinbikApplication();
 ```
 
@@ -99,7 +100,7 @@ Cookie: integration_payment-gateway = "eyJhbGci..." (HttpOnly, Secure, 1 hour)
 Cookie: integration_courier-service = "eyJhbGci..." (HttpOnly, Secure, 1 hour)
 ```
 
-## 💻 S2S Communication
+## 💻 Application (Apps / Service-to-Service) Communication
 
 ### ITokenProvider
 
@@ -116,41 +117,49 @@ public interface ITokenProvider
 }
 ```
 
-### IS2STokenProvider
+### IApplicationTokenProvider
+
+Manages PASETO application token caching, automatic refresh, and thread-safe access:
 
 ```csharp
-public interface IS2STokenProvider
+public interface IApplicationTokenProvider
 {
     // Config-based (package name)
-    Task<string?> GetS2STokenAsync(string packageName, CancellationToken ct = default);
-    Task<LinbikS2SIntegration?> GetS2SIntegrationAsync(string packageName, CancellationToken ct = default);
+    Task<string?> GetApplicationTokenAsync(string integrationPackageName, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, string>> GetApplicationTokensAsync(
+        IEnumerable<string> integrationPackageNames, CancellationToken cancellationToken = default);
+    Task<LinbikApplicationIntegration?> GetApplicationIntegrationAsync(
+        string integrationPackageName, CancellationToken cancellationToken = default);
 
-    // Dynamic (service ID) — for callbacks/webhooks
-    Task<LinbikS2SIntegration?> GetS2SIntegrationByIdAsync(Guid targetServiceId, CancellationToken ct = default);
+    // Dynamic (service ID) — for callbacks/webhooks, no config entry required
+    Task<LinbikApplicationIntegration?> GetApplicationIntegrationByIdAsync(
+        Guid targetServiceId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<Guid, LinbikApplicationIntegration>> GetApplicationIntegrationsByIdAsync(
+        IEnumerable<Guid> targetServiceIds, CancellationToken cancellationToken = default);
 
     // Cache management
-    Task RefreshS2STokensAsync(CancellationToken ct = default);
+    Task RefreshApplicationTokensAsync(CancellationToken cancellationToken = default);
     void ClearCache();
     TimeSpan? GetTimeUntilExpiry();
 }
 ```
 
-### IS2SServiceClient
+### IApplicationServiceClient
 
-Typed HTTP client with automatic S2S token injection and `LBaseResponse<T>` format:
+Typed HTTP client with automatic application-token injection and `LBaseResponse<T>` format:
 
 #### Config-Based Targets (Package Name)
 
 ```csharp
 public class MyController : ControllerBase
 {
-    private readonly IS2SServiceClient _s2sClient;
+    private readonly IApplicationServiceClient _applicationClient;
 
     public async Task<IActionResult> SyncWithPayment()
     {
-        var result = await _s2sClient.PostAsync<SyncRequest, SyncResponse>(
+        var result = await _applicationClient.PostAsync<SyncRequest, SyncResponse>(
             "payment-gateway",           // package name from config
-            "/api/integration/s2s/sync",
+            "/api/integration/app/sync",
             new SyncRequest { EntityType = "order", EntityId = "123" }
         );
 
@@ -164,11 +173,11 @@ public class MyController : ControllerBase
 ```csharp
 public class PaymentController : ControllerBase
 {
-    private readonly IS2SServiceClient _s2sClient;
+    private readonly IApplicationServiceClient _applicationClient;
 
     public async Task<IActionResult> NotifyMerchant(Order order)
     {
-        var result = await _s2sClient.PostByIdAsync<PaymentNotification, NotifyResponse>(
+        var result = await _applicationClient.PostByIdAsync<PaymentNotification, NotifyResponse>(
             order.MerchantLinbikServiceId,   // dynamic service ID
             "/api/webhooks/payment",
             new PaymentNotification
@@ -189,14 +198,20 @@ public class PaymentController : ControllerBase
 | Method | Config-Based | Dynamic (by ID) |
 |--------|-------------|-----------------|
 | GET | `GetAsync<TResponse>` | `GetByIdAsync<TResponse>` |
-| POST | `PostAsync<TReq, TRes>` | `PostByIdAsync<TReq, TRes>` |
+| POST | `PostAsync<TReq, TRes>` (+ `PostAsync<TReq>` without response) | `PostByIdAsync<TReq, TRes>` (+ `PostByIdAsync<TReq>` without response) |
 | PUT | `PutAsync<TReq, TRes>` | `PutByIdAsync<TReq, TRes>` |
-| DELETE | `DeleteAsync<TRes>` | `DeleteByIdAsync<TRes>` |
+| DELETE | `DeleteAsync<TRes>` (+ `DeleteAsync` without response) | `DeleteByIdAsync<TRes>` (+ `DeleteByIdAsync` without response) |
 | PATCH | `PatchAsync<TReq, TRes>` | `PatchByIdAsync<TReq, TRes>` |
+
+### Application Proxy Endpoints (UseLinbikApplication)
+
+`UseLinbikApplication(string routePrefix = "app")` maps one route per configured `IntegrationServices` entry: `/{routePrefix}/{packageName}/{**path}` → `{TargetBaseUrl}{TargetPath}/{path}`, injecting the cached application PASETO token as `Authorization: Bearer {token}` (no user context/cookie required). No local cache hit means a `503 service_unavailable` response.
+
+`YARPOptions.ApplicationTimeoutSeconds` configures the `IApplicationServiceClient`'s HTTP timeout.
 
 ### YARP Route Configuration (Advanced)
 
-For fine-grained control with YARP reverse proxy routes:
+For fine-grained control with YARP reverse proxy routes (user-context token injection via `ITokenProvider`):
 
 ```csharp
 // Add Linbik token transform to YARP
@@ -212,7 +227,9 @@ builder.Services.AddReverseProxy()
 - [Examples](../../../examples/AspNet/AspNet)
 - [Linbik.Core](../Linbik.Core/README.md)
 - [Linbik.JwtAuthManager](../Linbik.JwtAuthManager/README.md)
+- [Linbik.PasetoAuthManager](../Linbik.PasetoAuthManager/README.md)
 - [Linbik.Server](../Linbik.Server/README.md)
+- [Linbik.Slices](../Linbik.Slices/README.md)
 
 ## 📄 License
 
@@ -224,4 +241,4 @@ MIT License
 
 **Version**: 1.2.0  
 **Platform**: ASP.NET Core 10.0 (net10.0)  
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 9 Eylül 2026

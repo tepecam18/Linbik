@@ -399,8 +399,10 @@ One file per feature. All related types (request, response, validator, handler) 
 
 | ID | Severity | Trigger | Message |
 |---|---|---|---|
-| `LINBIK001` | Error | `[LinbikSlice]` without `[LFlow]` or `[LFlowPublic]` | Missing flow declaration — deny-by-default |
-| `LINBIK002` | Error | `[LinbikSlice]` without nested `Request`/`Handler` | Missing required inner types |
+| `LINBIK001` | Error | `[LinbikSlice]` without `[LFlow]`, `[LFlowPublic]`, or `[LAuthorizeFlow]` | Deny-by-default: no flow declared — access flows must be explicit (use `[LFlowPublic]` for public endpoints) |
+| `LINBIK002` | Error | `[LinbikSlice]` without a nested `Request` (`ILinbikRequest<>`) and/or `Handler` (`ILinbikHandler<,>`) | Missing required inner types |
+| `LINBIK003` | Warning | A project contains no `[LinbikSlice]`-marked types at all | `AddLinbikSlices`/`MapLinbikSlices` were not generated for this project — add a slice or remove those calls |
+| `LINBIK004` | Error | `[LinbikSlice]` carries more than one of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]` | Conflicting flow declaration — only one of these attributes may be used per slice |
 
 ---
 

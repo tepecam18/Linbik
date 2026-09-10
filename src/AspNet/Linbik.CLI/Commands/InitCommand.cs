@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Diagnostics;
 using Linbik.CLI.Services;
+using Linbik.Core.Services.Interfaces;
 
 namespace Linbik.CLI.Commands;
 
@@ -62,25 +63,25 @@ internal static class InitCommand
                 return;
             }
 
-            CredentialsManager.Delete(basePath);
+            await CredentialsManager.DeleteAsync(basePath);
         }
 
         // Check for existing appsettings.json Linbik configuration
         var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
-        LinbikConfig? existingConfig = null;
+        LinbikAppSettingsSnapshot? existingConfig = null;
         if (appSettingsPath != null)
         {
             existingConfig = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
-            if (existingConfig != null && !string.IsNullOrEmpty(existingConfig.ServiceId))
+            if (existingConfig != null && !string.IsNullOrEmpty(existingConfig.Options.ServiceId))
             {
                 ConsoleUI.Warning(Messages.ExistingAppSettingsConfig);
-                ConsoleUI.Info($"  LinbikUrl:  {existingConfig.LinbikUrl}");
-                ConsoleUI.Info($"  ServiceId:  {existingConfig.ServiceId}");
+                ConsoleUI.Info($"  LinbikUrl:  {existingConfig.Options.LinbikUrl}");
+                ConsoleUI.Info($"  ServiceId:  {existingConfig.Options.ServiceId}");
 
                 if (ConsoleUI.Confirm(Messages.UseExistingConfigConfirm))
                 {
                     // Use existing config values — skip provisioning
-                    linbikUrl = existingConfig.LinbikUrl;
+                    linbikUrl = existingConfig.Options.LinbikUrl;
 
                     // Still ensure Program.cs is configured
                     var existingAuthType = DetectAuthTypeFromConfig(existingConfig) ?? PromptAuthType();
@@ -125,7 +126,7 @@ internal static class InitCommand
         ConsoleUI.Info($"ClientId:  {provision.ClientId}");
 
         // Save credentials
-        var credentials = new CliCredentials
+        var credentials = new LinbikCredentials
         {
             ServiceId = provision.ServiceId.ToString(),
             ClientId = provision.ClientId.ToString(),
@@ -366,7 +367,7 @@ internal static class InitCommand
     /// Infer the configured auth provider from an existing appsettings.json.
     /// Returns null when neither section is present so the caller can prompt.
     /// </summary>
-    private static LinbikAuthType? DetectAuthTypeFromConfig(LinbikConfig config)
+    private static LinbikAuthType? DetectAuthTypeFromConfig(LinbikAppSettingsSnapshot config)
     {
         if (config.HasPasetoAuth && !config.HasJwtAuth) return LinbikAuthType.Paseto;
         if (config.HasJwtAuth && !config.HasPasetoAuth) return LinbikAuthType.Jwt;

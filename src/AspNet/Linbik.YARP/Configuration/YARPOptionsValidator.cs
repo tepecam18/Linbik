@@ -14,10 +14,10 @@ public sealed class YARPOptionsValidator : IValidateOptions<YARPOptions>
 
         List<string> errors = [];
 
-        // S2S timeout validation
-        if (options.S2STimeoutSeconds < 1 || options.S2STimeoutSeconds > 300)
+        // Application timeout validation
+        if (options.ApplicationTimeoutSeconds < 1 || options.ApplicationTimeoutSeconds > 300)
         {
-            errors.Add($"Linbik:YARP:S2STimeoutSeconds must be between 1 and 300. Current value: {options.S2STimeoutSeconds}.");
+            errors.Add($"Linbik:YARP:ApplicationTimeoutSeconds must be between 1 and 300. Current value: {options.ApplicationTimeoutSeconds}.");
         }
 
         // NSwag document reachability probe timeout validation

@@ -121,7 +121,7 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
             var msg = ex.Message;
             Logger.LogWarning(ex, "PASETO token validation threw an exception for scheme {Scheme}", Scheme.Name);
             await ReportSecurityEventAsync(
-                isS2S: Options.RequireApplicationToken,
+                isApplication: Options.RequireApplicationToken,
                 eventType: LinbikSecurityEventType.AuthenticationFailed,
                 message: msg,
                 statusCode: 401,
@@ -133,7 +133,7 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         {
             const string msg = "PASETO token validation failed.";
             await ReportSecurityEventAsync(
-                isS2S: Options.RequireApplicationToken,
+                isApplication: Options.RequireApplicationToken,
                 eventType: LinbikSecurityEventType.AuthenticationFailed,
                 message: msg,
                 statusCode: 401,
@@ -152,8 +152,8 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         {
             const string msg = "Only application tokens (token_type=apps) are accepted by this scheme.";
             await ReportSecurityEventAsync(
-                isS2S: false,
-                eventType: LinbikSecurityEventType.S2sJwtInvalid,
+                isApplication: false,
+                eventType: LinbikSecurityEventType.ApplicationJwtInvalid,
                 message: msg,
                 statusCode: 401,
                 metadata: new { scheme = Scheme.Name });
@@ -164,8 +164,8 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         {
             const string msg = "Application tokens (token_type=apps) are not accepted by this scheme.";
             await ReportSecurityEventAsync(
-                isS2S: true,
-                eventType: LinbikSecurityEventType.S2sJwtInvalid,
+                isApplication: true,
+                eventType: LinbikSecurityEventType.ApplicationJwtInvalid,
                 message: msg,
                 statusCode: 401,
                 metadata: new { scheme = Scheme.Name });
@@ -190,9 +190,9 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         if (properties.GetString(".Error") is null)
         {
             await ReportSecurityEventAsync(
-                isS2S: Options.RequireApplicationToken,
+                isApplication: Options.RequireApplicationToken,
                 eventType: Options.RequireApplicationToken
-                    ? LinbikSecurityEventType.S2sJwtInvalid
+                    ? LinbikSecurityEventType.ApplicationJwtInvalid
                     : LinbikSecurityEventType.AuthenticationFailed,
                 message: "Authentication challenge issued (401). Missing or unreadable token.",
                 statusCode: 401,
@@ -216,7 +216,7 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         }
 
         await ReportSecurityEventAsync(
-            isS2S: Options.RequireApplicationToken,
+            isApplication: Options.RequireApplicationToken,
             eventType: LinbikSecurityEventType.AuthorizationFailed,
             message: "Authenticated principal lacks required role/policy (403).",
             statusCode: 403,
@@ -232,7 +232,7 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
     // ─── Security event reporting ─────────────────────────────────────────────
 
     private async Task ReportSecurityEventAsync(
-        bool? isS2S,
+        bool? isApplication,
         string eventType,
         string message,
         int statusCode,

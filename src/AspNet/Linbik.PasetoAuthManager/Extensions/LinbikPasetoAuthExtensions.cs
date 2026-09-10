@@ -112,6 +112,8 @@ public static class LinbikPasetoAuthExtensions
         // PASETO-specific local cookie token reader (mode-aware)
         services.TryAddSingleton<ILocalPasetoTokenReader, LocalPasetoTokenReader>();
 
+        services.TryAddSingleton<ILinbikRefreshTokenStore, InMemoryLinbikRefreshTokenStore>();
+        services.TryAddScoped<LinbikRefreshTokenManager>();
         services.AddAuthentication();
 
         services.AddOptions<PasetoBearerOptions>(LinbikScheme)

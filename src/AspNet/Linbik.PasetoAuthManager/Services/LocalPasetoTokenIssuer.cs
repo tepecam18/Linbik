@@ -7,7 +7,7 @@ namespace Linbik.PasetoAuthManager.Services;
 
 /// <summary>
 /// Cookie tabanlı kimlik doğrulama için PASETO v4.public (Ed25519) access token üretir.
-/// Servisler arası (S2S) token üretiminde kullanılmaz; yalnızca <c>authToken</c> cookie'si içindir.
+/// Servisler arası (Application) token üretiminde kullanılmaz; yalnızca <c>authToken</c> cookie'si içindir.
 /// </summary>
 internal static class LocalPasetoTokenIssuer
 {

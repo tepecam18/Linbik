@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Linbik.YARP.Services;
 
 /// <summary>
-/// Delegating handler that injects the Application (S2S) PASETO bearer token for a specific
+/// Delegating handler that injects the Application PASETO bearer token for a specific
 /// integration service package into every outgoing request.
 /// Backed by <see cref="IApplicationTokenProvider"/>, which obtains PASETO tokens for the
 /// Application flow via Linbik.Core's <c>ILinbikAuthClient</c> (never the JWT-based, user-context
@@ -28,7 +28,7 @@ public sealed class ApplicationPasetoAuthHandler(
         if (integration is null || string.IsNullOrEmpty(integration.Token))
         {
             logger.LogError(
-                "Refusing to send Application (S2S) request to {PackageName} ({Method} {Url}) — no valid PASETO token available",
+                "Refusing to send Application request to {PackageName} ({Method} {Url}) — no valid PASETO token available",
                 packageName, request.Method, request.RequestUri);
             throw new ApplicationTokenUnavailableException(packageName);
         }

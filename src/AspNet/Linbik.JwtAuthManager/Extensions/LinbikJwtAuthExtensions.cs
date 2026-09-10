@@ -99,6 +99,8 @@ public static class LinbikJwtAuthExtensions
         // JWT-specific local cookie token reader
         services.TryAddSingleton<ILocalJwtTokenReader, LocalJwtTokenReader>();
 
+        services.TryAddSingleton<ILinbikRefreshTokenStore, InMemoryLinbikRefreshTokenStore>();
+        services.TryAddScoped<LinbikRefreshTokenManager>();
         services.AddAuthentication();
 
         services.AddOptions<JwtBearerOptions>(LinbikScheme)

@@ -36,7 +36,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 groupId = "com.linbik"
                 artifactId = "paseto-auth"
-                version = "1.0.0"
+                version = "1.2.4"
 
                 from(components["release"])
             }
@@ -45,6 +45,7 @@ afterEvaluate {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)

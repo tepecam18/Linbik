@@ -15,10 +15,10 @@
 #### 1. Update Package References
 
 ```bash
-dotnet add package Linbik.Core --version 1.2.0-preview.1
-dotnet add package Linbik.JwtAuthManager --version 1.2.0-preview.1
-dotnet add package Linbik.Server --version 1.2.0-preview.1
-dotnet add package Linbik.YARP --version 1.2.0-preview.1
+dotnet add package Linbik.Core --version 1.2.7
+dotnet add package Linbik.JwtAuthManager --version 1.2.7
+dotnet add package Linbik.Server --version 1.2.7
+dotnet add package Linbik.YARP --version 1.2.7
 ```
 
 #### 2. Update Program.cs
@@ -97,12 +97,41 @@ app.UseLinbikYarp();
 
 - **Keyless Mode** — `KeylessMode = true` for zero-config development
 - **Multi-Client** — Web, Mobile, Admin via `Clients` list
-- **S2S Communication** — `IS2SServiceClient` for service-to-service calls
+- **Application Communication** — `IApplicationServiceClient` for service-to-service calls
 - **Integration Handler** — `ILinbikIntegrationHandler` lifecycle events
-- **Rate Limiting** — Built-in `LinbikAuth` and `LinbikAuthStrict` policies
+- **Rate Limiting** — Built-in `LinbikGeneral` and `LinbikStrict` policies
 - **Telemetry** — OpenTelemetry integration via `AddLinbikTelemetry()`
 - **Health Checks** — `AddLinbikHealthChecks()` + `UseLinbikHealthChecks()`
 - **Heartbeat** — SDK health signals to server
+
+### Choosing JWT vs PASETO
+
+`Linbik.JwtAuthManager` (RS256/HS256) and `Linbik.PasetoAuthManager` (PASETO v4.public, Ed25519) expose the same endpoint shape (`/api/Linbik/login`, `/api/Linbik/callback`, `/api/Linbik/logout`, `/api/Linbik/refresh`) and are drop-in alternatives — pick one, not both. PASETO is the newer, actively-maintained reference implementation (e.g. its `ReturnAuthError` is fully implemented, unlike JWT's — see `PROJECT_STATUS.md` Known Issues).
+
+## v1.2.x → v1.2.7 ("S2S" → "Application" terminology rename)
+
+The "S2S" abbreviation has been renamed to "Application" throughout the codebase to match the already-established `IApplicationTokenProvider`/`IApplicationServiceClient`/`LinbikApplication` naming.
+
+### Breaking Changes
+
+1. **`YARPOptions.S2STimeoutSeconds` → `YARPOptions.ApplicationTimeoutSeconds`** — configures the `IApplicationServiceClient`'s HTTP timeout. Update `appsettings.json`'s `Linbik:YARP:S2STimeoutSeconds` key to `Linbik:YARP:ApplicationTimeoutSeconds` (the `IValidateOptions<YARPOptions>` validator will reject the old key as unrecognized/ignore it, so requests will silently fall back to the default of 30s if not renamed).
+2. **`LinbikSecurityEventType.S2sJwtInvalid` → `LinbikSecurityEventType.ApplicationJwtInvalid`** — the constant's string value also changed, from `"s2s_jwt_invalid"` to `"application_jwt_invalid"`. If you have an `ILinbikSecurityEventSink` implementation that matches on this event type (e.g. by name, by logged string, or in a downstream system's `service_event_logs.event_type` column), update it to the new identifier and string value.
+
+### Migration Steps
+
+```diff
+  "Linbik": {
+    "YARP": {
+-     "S2STimeoutSeconds": 30
++     "ApplicationTimeoutSeconds": 30
+    }
+  }
+```
+
+```diff
+- if (eventType == LinbikSecurityEventType.S2sJwtInvalid) { ... }
++ if (eventType == LinbikSecurityEventType.ApplicationJwtInvalid) { ... }
+```
 
 ---
 
@@ -111,10 +140,12 @@ app.UseLinbikYarp();
 - [Main README](README.md)
 - [Linbik.Core](src/AspNet/Linbik.Core/README.md)
 - [Linbik.JwtAuthManager](src/AspNet/Linbik.JwtAuthManager/README.md)
+- [Linbik.PasetoAuthManager](src/AspNet/Linbik.PasetoAuthManager/README.md)
 - [Linbik.Server](src/AspNet/Linbik.Server/README.md)
 - [Linbik.YARP](src/AspNet/Linbik.YARP/README.md)
+- [Linbik.Slices](src/AspNet/Linbik.Slices/README.md)
 
 ---
 
-**Last Updated**: 2 Nisan 2026  
+**Last Updated**: 9 Eylül 2026  
 **Version**: 1.2.0

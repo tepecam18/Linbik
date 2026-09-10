@@ -62,7 +62,7 @@ internal static class ExportConfigCommand
 
         // Read existing config to preserve Linbik URL
         var existingConfig = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
-        var linbikUrl = existingConfig?.LinbikUrl ?? "https://linbik.com";
+        var linbikUrl = existingConfig?.Options.LinbikUrl ?? "https://linbik.com";
 
         await AppSettingsManager.WriteConfigAsync(
             appSettingsPath,
@@ -78,9 +78,9 @@ internal static class ExportConfigCommand
         var config = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
         if (config != null)
         {
-            ConsoleUI.Info($"  LinbikUrl:  {config.LinbikUrl}");
-            ConsoleUI.Info($"  ServiceId:  {config.ServiceId}");
-            ConsoleUI.Info($"  KeylessMode: {config.KeylessMode}");
+            ConsoleUI.Info($"  LinbikUrl:  {config.Options.LinbikUrl}");
+            ConsoleUI.Info($"  ServiceId:  {config.Options.ServiceId}");
+            ConsoleUI.Info($"  KeylessMode: {config.Options.KeylessMode}");
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Linbik.Core.Configuration;
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Linbik.Core.Configuration;
 
 /// <summary>
 /// Configuration for a single Linbik client
@@ -131,6 +133,12 @@ public sealed class LinbikOptions
     /// Logout endpoint'i bu değeri kullanarak cookie'leri doğru domain üzerinden temizler.
     /// </summary>
     public string? CookieDomain { get; set; }
+
+    /// <summary>
+    /// SameSite attribute for auth cookies (linbik_auth, linbik_refresh)
+    /// Default: SameSiteMode.Lax
+    /// </summary>
+    public SameSiteMode SameSite { get; set; } = SameSiteMode.Lax;
 
     #region Apps (Service-to-Service) Configuration
 

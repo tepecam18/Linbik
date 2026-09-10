@@ -1,31 +1,31 @@
 # Linbik.PasetoAuthManager.Android
 
-Backend'i **Linbik.PasetoAuthManager** (ASP.NET) kullanan Android uygulamalarının,
-kullanıcının Linbik hesabıyla oturum açmasını sağlayan native bir kütüphane +
-bu kütüphaneyi kullanan bir örnek uygulama.
+A native library that lets Android apps whose backend uses **Linbik.PasetoAuthManager**
+(ASP.NET) sign users in with their Linbik account, plus a sample app that uses this
+library.
 
 ```
 Linbik.PasetoAuthManager.Android/
-  linbikauth/   # Yayınlanabilir Android kütüphanesi (com.linbik.pasetoauth)
-  sample/       # Kütüphaneyi kullanan minimal örnek uygulama
+  linbikauth/   # Publishable Android library (com.linbik.pasetoauth)
+  sample/       # Minimal example app using the library
 ```
 
-## Bu, "Sign in with Linbik" akışının web/redirect sürümünden FARKLI
+## This is DIFFERENT from the web/redirect version of "Sign in with Linbik"
 
-Bu kütüphane, `Linbik.JwtAuthManager`/`Linbik.PasetoAuthManager`'ın web istemcileri için
-kullandığı **302 redirect** akışını değil, `ActionResultType: "Json"` ile işaretlenmiş
-**mobil client** akışını hedefler. Token değişimi sizin backend'inizde (PASETO cookie
-olarak) tutulur — uygulama, Linbik'in yetkilendirme/onay sayfasını (RFC 8252 uyarınca bir
-WebView değil, **Custom Tabs**) açar; kullanıcı onayladıktan sonra Linbik, uygulamanıza
-özel bir deep link'e (`{applicationId}://oauth/callback?code=...`) yönlendirir. Uygulama bu
-kodu alıp **sizin** backend'inizin `/api/Linbik/callback` endpoint'ine ileterek oturumu tamamlar.
+This library does not target the **302 redirect** flow that `Linbik.JwtAuthManager`/
+`Linbik.PasetoAuthManager` use for web clients — it targets the **mobile client** flow
+marked with `ActionResultType: "Json"`. Token exchange is held on **your** backend (as a
+PASETO cookie) — the app opens Linbik's authorization/consent page in **Custom Tabs**
+(per RFC 8252, not a WebView); once the user approves, Linbik redirects to a deep link
+specific to your app (`{applicationId}://oauth/callback?code=...`). The app takes this
+code and forwards it to **your own** backend's `/api/Linbik/callback` endpoint to
+complete the session.
 
-## Backend Yapılandırması (zorunlu ön koşul)
+## Backend Configuration (required prerequisite)
 
-Backend'inizin `appsettings.json`'ında, `Linbik:Clients` altına `ActionResultType: "Json"`
-ile işaretli, `Name` alanı verilmiş bir client eklemeniz gerekir. `GetClientConfig`
-**sadece `Name` alanına** bakar; `ClientType` diye bir alan **yoktur** (yazsanız da
-yoksayılır):
+Your backend's `appsettings.json` must have a client under `Linbik:Clients` marked with
+`ActionResultType: "Json"` and a `Name` field set. `GetClientConfig` looks **only** at the
+`Name` field — there is **no** `ClientType` field (it is ignored even if present):
 
 ```jsonc
 {
@@ -42,75 +42,79 @@ yoksayılır):
 }
 ```
 
-`ActionResultType: "Redirect"` (varsayılan/web client'ları) ile bu kütüphaneyi
-kullanmayı denemeyin — `/api/Linbik/login` bir HTML/redirect sayfası döner, JSON değil,
-ve kütüphane bunu ayrıştıramaz (anlaşılır bir hata mesajıyla başarısız olur).
+Do not try to use this library with `ActionResultType: "Redirect"` (the default/web
+clients) — `/api/Linbik/login` returns an HTML/redirect page, not JSON, and the library
+cannot parse it (it fails with a clear error message instead).
 
-**KeylessMode kullanıyorsanız** (varsayılan, `.linbik/credentials.json` ile otomatik
-provision edilen tek bir `ClientId`): Linbik sunucusunda ayrıca elle bir "mobil client"
-kaydetmenize **gerek yok**. `Clients` listesindeki her giriş sadece **sizin backend'inizin**
-belirli bir `name` isteği için Json mu Redirect mi döneceğini belirler — Linbik'in kendi
-tarafında farklı bir uygulama/redirect URI kaydı anlamına gelmez. Yani aynı `ClientId`'yi
-hem `"Name": "Default"` (web, Redirect) hem `"Name": "Mobile"` (Json) girişlerinde
-tekrar kullanmanız **tamamen normaldir ve amaçlanan kullanımdır** — dashboard'da ayrı bir
-URL/redirect URI girmeniz istenmez, çünkü henüz bir dashboard kaydı yoktur (provisioning
-backend'in kendi HTTP isteğinden otomatik yapılır).
+**If you're using KeylessMode** (the default — a single `ClientId` auto-provisioned via
+`.linbik/credentials.json`): you do **not** need to separately register a "mobile client"
+on the Linbik server. Each entry in the `Clients` list only determines whether **your own
+backend** returns Json or Redirect for a given `name` request — it does not mean a
+separate app/redirect URI registration on Linbik's side. So reusing the same `ClientId`
+across both a `"Name": "Default"` (web, Redirect) entry and a `"Name": "Mobile"` (Json)
+entry is **completely normal and the intended usage** — you are not asked to enter a
+separate URL/redirect URI in the dashboard, because there is no dashboard registration yet
+(provisioning happens automatically from the backend's own HTTP request).
 
-`clientName` boş bırakılırsa (veya `"Name"` alanı hiç verilmezse, varsayılanı `"Default"`
-dır) backend, KeylessMode'da `Clients` listesindeki **ilk** girişi kullanır — bu ilk giriş
-`ActionResultType: Json` değilse (örn. bir web client'sa) mobil akış çalışmaz. Bu yüzden
-mobil için ayrı, açıkça adlandırılmış (`"Name": "Mobile"` gibi) bir giriş eklemeniz ve
-`LinbikPasetoAuthOptions.clientName` alanına aynı adı vermeniz önerilir.
+If `clientName` is left blank (or the `"Name"` field is omitted entirely, defaulting to
+`"Default"`), the backend uses the **first** entry in the `Clients` list in KeylessMode —
+if that first entry isn't `ActionResultType: Json` (e.g. it's a web client), the mobile
+flow won't work. For this reason it's recommended to add a separate, explicitly named
+entry for mobile (e.g. `"Name": "Mobile"`) and give the same name to
+`LinbikPasetoAuthOptions.clientName`.
 
-**Linbik.App'te (veya Linbik.Api'de) bu uygulama için bir Client oluştururken**, `RedirectUri`
-alanına uygulamanızın `applicationId`'sine dayanan özel URI şemasını yazın:
+**When creating a Client for this app in Linbik.App (or Linbik.Api)**, set the
+`RedirectUri` field to the custom URI scheme based on your app's `applicationId`:
 
 ```
 {applicationId}://oauth/callback
 ```
 
-Örn. `sample` moduü için: `com.linbik.pasetoauth.sample://oauth/callback`. Bu, kod (`code`)
-alındıktan sonra Linbik'in tarayıcıyı yönlendirdiği adrestir — backend'inizin kendi
-callback URL'i **değildir** (bkz. aşağıdaki "Nasıl Çalışır"). Kendi uygulamanızda bu şemayı
-[`linbikauth`'ın manifest'i](linbikauth/src/main/AndroidManifest.xml) `${applicationId}`
-placeholder'ıyla otomatik oluşturur; ekstra bir manifest değişikliği yapmanıza gerek yoktur.
-Oluşturulan Client'ın `clientId`'sini kopyalayıp appsettings.json'daki `"Mobile"` girişinin
-`ClientId` alanına yazın.
+E.g. for the `sample` module: `com.linbik.pasetoauth.sample://oauth/callback`. This is
+the address Linbik redirects the browser to after receiving the code (`code`) — it is
+**not** your backend's own callback URL (see "How It Works" below). In your own app,
+[`linbikauth`'s manifest](linbikauth/src/main/AndroidManifest.xml) generates this scheme
+automatically via the `${applicationId}` placeholder; no extra manifest changes are
+needed. Copy the created Client's `clientId` and paste it into the `ClientId` field of
+the `"Mobile"` entry in `appsettings.json`.
 
-## Nasıl Çalışır
+## How It Works
 
-1. Kütüphane kendi OkHttp istemcisiyle (arka planda, herhangi bir UI olmadan)
-   `{backendBaseUrl}/api/Linbik/login?name=Mobile` adresine istek atar. Backend, PKCE
-   `code_verifier`'ı bir `Set-Cookie` ile döner ve JSON gövdesinde Linbik'in gerçek
-   giriş/onay sayfasının adresini (`redirectPath`) verir.
-2. Bu adres bir **Custom Tabs** sekmesinde açılır (WebView'da DEĞİL — RFC 8252 gereği;
-   ayrıca yalnızca Custom Tabs/harici tarayıcı App Links aracılığıyla yüklřyse
-   Linbik.Mobil uygulamasına doğru yönlendirme yapabilir; WebView bunu desteklemez).
-3. Kullanıcı Linbik'te oturum açar/onaylar. Linbik, tarayıcıyı bu uygulama için Linbik.App'te
-   kayıtlı `RedirectUri`'ye, yani `{applicationId}://oauth/callback?code=...`'a yönlendirir.
-4. Bu özel URI şeması [`LinbikRedirectActivity`](linbikauth/src/main/kotlin/com/linbik/pasetoauth/LinbikRedirectActivity.kt)
-   tarafından yakalanır ve az önce açılmış olan `LinbikAuthActivity`'ye iletilir
-   (`onNewIntent`). `code` sorgu parametresi buradan alınır.
-5. Kütüphane, aynı `code` ile backend'inizin `{backendBaseUrl}/api/Linbik/callback?code=...`
-   endpoint'ine (yine kendi OkHttp istemcisiyle) istek atar. Backend, PKCE doğrulamasını
-   1. adımda yazdığı çerezle yapar, token değişimini tamamlar ve kullanıcı bilgisini
-   (`LoginCallbackResponse`) JSON olarak döner.
-6. Sonuç uygulamanıza döndürülür. Backend'in `Set-Cookie` ile yazdığı oturum çerezleri
-   (`authToken`, `linbik_refresh` gibi `HttpOnly` çerezler dahil) `android.webkit.CookieManager`
-   üzerinde kalıcı olur — bkz. [`LinbikWebViewCookieJar`](linbikauth/src/main/kotlin/com/linbik/pasetoauth/LinbikWebViewCookieJar.kt)
-   (adı tarihi nedenlerle böyle kaldı — artık herhangi bir WebView'a bağlı değildir, sadece
-   başlı başına, kalıcı bir OkHttp `CookieJar` implementasyonudur).
+1. The library uses its own OkHttp client (in the background, with no UI) to request
+   `{backendBaseUrl}/api/Linbik/login?name=Mobile`. The backend returns the PKCE
+   `code_verifier` as a `Set-Cookie` and returns Linbik's actual login/consent page
+   address (`redirectPath`) in the JSON body.
+2. This address is opened in a **Custom Tabs** tab (NOT in a WebView — per RFC 8252;
+   also, only Custom Tabs/an external browser loaded via App Links can redirect properly
+   to the Linbik.Mobil app — a WebView does not support this).
+3. The user signs in/approves on Linbik. Linbik redirects the browser to the
+   `RedirectUri` registered for this app in Linbik.App, i.e.
+   `{applicationId}://oauth/callback?code=...`.
+4. This custom URI scheme is caught by
+   [`LinbikRedirectActivity`](linbikauth/src/main/kotlin/com/linbik/pasetoauth/LinbikRedirectActivity.kt)
+   and forwarded to the already-open `LinbikAuthActivity` (`onNewIntent`). The `code`
+   query parameter is extracted here.
+5. The library requests your backend's `{backendBaseUrl}/api/Linbik/callback?code=...`
+   endpoint (again with its own OkHttp client) using this same `code`. The backend
+   performs PKCE verification using the cookie it wrote in step 1, completes the token
+   exchange, and returns the user info (`LoginCallbackResponse`) as JSON.
+6. The result is returned to your app. The session cookies the backend wrote via
+   `Set-Cookie` (including `HttpOnly` cookies like `authToken`, `linbik_refresh`) are
+   held in [`LinbikSharedCookieJar`](linbikauth/src/main/kotlin/com/linbik/pasetoauth/LinbikSharedCookieJar.kt),
+   a persistent OkHttp `CookieJar` implementation — it is not tied to any WebView, it is
+   shared by the library's own OkHttp client.
 
-1. ve 5. adımlar **aynı** `LinbikWebViewCookieJar` örneğini kullandığı için PKCE
-`code_verifier` çerezi ikisi arasında korunur ve backend'in `PkceService.GetVerifier(...)`
-doğrulaması normal şekilde çalışır. Custom Tabs'ın kendi çerezleri (Linbik'in oturum açma
- sayfasına ait) bunlardan tamamen ayrıdır ve uygulamanız tarafından hiç görülmez/kullanılmaz.
+Because steps 1 and 5 use the **same** `LinbikSharedCookieJar` instance, the PKCE
+`code_verifier` cookie is preserved between them and the backend's
+`PkceService.GetVerifier(...)` verification works normally. Custom Tabs' own cookies
+(belonging to Linbik's login page) are completely separate from these and are never seen
+or used by your app.
 
-## Kurulum
+## Installation
 
-### 1. JitPack ile Ekleme
+### 1. Add via JitPack
 
-Projenizin `settings.gradle.kts` dosyasına JitPack repository'sini ekleyin:
+Add the JitPack repository to your project's `settings.gradle.kts`:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -122,17 +126,19 @@ dependencyResolutionManagement {
 }
 ```
 
-Ardından uygulamanızın `build.gradle.kts` dosyasına bağımlılığı ekleyin:
+Then add the dependency to your app's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.tepecam18.Linbik:linbikauth:1.0.0")
+    implementation("com.github.tepecam18.Linbik:linbikauth:1.2.4")
 }
 ```
 
-## Kullanım
+## Usage
 
-Aşağıdaki örnekte temel giriş akışı gösterilmektedir. Daha detaylı teknik bilgi ve ileri seviye kullanım (Refresh Token, Cookie yönetimi vb.) için [linbikauth/README.md](linbikauth/README.md) dosyasını inceleyin.
+The example below shows the basic sign-in flow. For more detailed technical information
+and advanced usage (refresh token, cookie management, etc.), see
+[linbikauth/README.md](linbikauth/README.md).
 
 ```kotlin
 class MyActivity : ComponentActivity() {
@@ -142,19 +148,19 @@ class MyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 1. Launcher'ı Kaydedin (onCreate içinde olmalı!)
+        // 1. Register the launcher (must be inside onCreate!)
         launcher = authClient.registerLauncher(this) { result ->
             when (result) {
                 is LinbikAuthResult.Success -> {
-                    // Kullanıcı başarıyla giriş yaptı: result.displayName, result.userId vb.
+                    // User signed in successfully: result.displayName, result.userId, etc.
                 }
-                is LinbikAuthResult.Error -> { /* Hata mesajı: result.message */ }
-                LinbikAuthResult.Cancelled -> { /* Kullanıcı iptal etti */ }
+                is LinbikAuthResult.Error -> { /* Error message: result.message */ }
+                LinbikAuthResult.Cancelled -> { /* User cancelled */ }
             }
         }
 
         signInButton.setOnClickListener {
-            // 2. Akışı Başlatın
+            // 2. Start the flow
             launcher.launch(
                 LinbikPasetoAuthOptions(
                     backendBaseUrl = "https://your-backend.com",
@@ -166,6 +172,19 @@ class MyActivity : ComponentActivity() {
 }
 ```
 
-## Teknik Detaylar ve Geliştirme
+## Distribution — Google Play Closed Testing
 
-Kütüphanenin iç yapısı, Custom Tabs entegrasyonu ve katkıda bulunma rehberi için lütfen kütüphane dizinindeki [README](linbikauth/README.md) dosyasına göz atın.
+The sample app is published on Google Play as a closed test. To install it:
+
+1. Join the tester group first: https://groups.google.com/g/linbik
+2. Then install from the Play Store listing: https://play.google.com/store/apps/details?id=com.linbik
+
+> Note: the published Play Store listing's application id is referenced above as
+> `com.linbik`; this has not been independently cross-checked against this repo's sample
+> app applicationId (`com.linbik.pasetoauth.sample`), so treat the Play Store listing as
+> the source of truth for the actual published package.
+
+## Technical Details and Development
+
+For the library's internal structure, Custom Tabs integration, and a contribution guide,
+see the [README](linbikauth/README.md) in the library directory.

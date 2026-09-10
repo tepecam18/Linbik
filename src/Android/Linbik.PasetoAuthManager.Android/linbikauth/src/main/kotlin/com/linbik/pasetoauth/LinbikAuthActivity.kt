@@ -10,13 +10,12 @@ import android.os.Looper
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.browser.customtabs.CustomTabsIntent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
 
@@ -43,11 +42,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Main + job)
-    private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .cookieJar(LinbikSharedCookieJar())
-            .build()
-    }
+    private val httpClient by lazy { LinbikAuthHttpClient() }
 
     private lateinit var options: LinbikPasetoAuthOptions
 
@@ -145,8 +140,10 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
         scope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { getJson(loginUrl) }
+                val json = withContext(Dispatchers.IO) { httpClient.getJson(loginUrl) }
                 handleLoginResponse(json)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Login request failed for $loginUrl", e)
                 finishError(mapThrowableToMessage(e))
@@ -237,46 +234,14 @@ internal class LinbikAuthActivity : ComponentActivity() {
 
         scope.launch {
             try {
-                val json = withContext(Dispatchers.IO) { getJson(callbackUrl) }
+                val json = withContext(Dispatchers.IO) { httpClient.getJson(callbackUrl) }
                 handleCallbackResponse(json)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.w(TAG, "Callback request failed for $callbackUrl", e)
+                Log.w(TAG, "Callback request failed", e)
                 finishError(mapThrowableToMessage(e))
             }
-        }
-    }
-
-    private fun getJson(url: String): JSONObject {
-        val response = httpClient.newCall(Request.Builder().url(url).build()).execute()
-        val bodyText = response.body?.string().orEmpty()
-
-        if (!response.isSuccessful) {
-            val errorMsg = try {
-                JSONObject(bodyText).optJSONObject("friendlyMessage")?.optString("message")
-            } catch (e: Exception) {
-                null
-            } ?: "Sunucu hatası (${response.code})."
-            throw IllegalStateException(errorMsg)
-        }
-
-        if (bodyText.isBlank()) {
-            throw IllegalStateException("Sunucudan boş yanıt döndü.")
-        }
-
-        // HTML tespiti: ActionResultType='Json' yapılmadığında backend HTML döner.
-        val trimmedBody = bodyText.trim()
-        if (trimmedBody.startsWith("<!DOCTYPE", ignoreCase = true) || trimmedBody.startsWith("<html", ignoreCase = true)) {
-            throw IllegalStateException(
-                "Sunucu JSON yerine HTML döndü. Backend'de bu client için " +
-                    "ActionResultType='Json' olarak ayarlandığından emin olun.",
-            )
-        }
-
-        return try {
-            JSONObject(bodyText)
-        } catch (e: Exception) {
-            Log.e(TAG, "Invalid JSON from $url: $bodyText", e)
-            throw IllegalStateException("Sunucu geçersiz bir yanıt döndü (JSON bekleniyordu).")
         }
     }
 

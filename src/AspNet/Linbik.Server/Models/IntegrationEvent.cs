@@ -63,7 +63,8 @@ public enum IntegrationEventType
     /// <summary>
     /// A main service changed the admin profile for this integration
     /// </summary>
-    AdminChanged
+    AdminChanged,
+    ServiceChanged
 }
 
 /// <summary>

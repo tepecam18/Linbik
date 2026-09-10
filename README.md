@@ -51,9 +51,14 @@ User → Authenticate once on Linbik
 |---------|-------------|-------|
 | **Linbik.Core** | Core interfaces, models, configuration and auth client | [![NuGet](https://img.shields.io/nuget/v/Linbik.Core)](https://www.nuget.org/packages/Linbik.Core) |
 | **Linbik.JwtAuthManager** | Cookie-based JWT auth, login/logout endpoints, rate limiting | [![NuGet](https://img.shields.io/nuget/v/Linbik.JwtAuthManager)](https://www.nuget.org/packages/Linbik.JwtAuthManager) |
-| **Linbik.Server** | Integration service JWT validation, S2S auth, telemetry | [![NuGet](https://img.shields.io/nuget/v/Linbik.Server)](https://www.nuget.org/packages/Linbik.Server) |
-| **Linbik.YARP** | YARP reverse proxy token injection, S2S client | [![NuGet](https://img.shields.io/nuget/v/Linbik.YARP)](https://www.nuget.org/packages/Linbik.YARP) |
+| **Linbik.PasetoAuthManager** | Cookie-based PASETO v4.public (Ed25519) auth, same endpoint shape as JwtAuthManager | [![NuGet](https://img.shields.io/nuget/v/Linbik.PasetoAuthManager)](https://www.nuget.org/packages/Linbik.PasetoAuthManager) |
+| **Linbik.Server** | Integration service token validation, Application auth, telemetry | [![NuGet](https://img.shields.io/nuget/v/Linbik.Server)](https://www.nuget.org/packages/Linbik.Server) |
+| **Linbik.YARP** | YARP reverse proxy token injection, Application client | [![NuGet](https://img.shields.io/nuget/v/Linbik.YARP)](https://www.nuget.org/packages/Linbik.YARP) |
+| **Linbik.Slices** | Vertical-slice mediator (source-generated dispatch, `ILinbikValidator`) | [![NuGet](https://img.shields.io/nuget/v/Linbik.Slices)](https://www.nuget.org/packages/Linbik.Slices) |
+| **Linbik.Slices.Generators** | Roslyn incremental source generator + analyzer for Linbik.Slices | [![NuGet](https://img.shields.io/nuget/v/Linbik.Slices.Generators)](https://www.nuget.org/packages/Linbik.Slices.Generators) |
 | **Linbik.Cli** | CLI tool for project setup and service management | [![NuGet](https://img.shields.io/nuget/v/Linbik.Cli)](https://www.nuget.org/packages/Linbik.Cli) |
+
+Also available: a native **Android** client (`src/Android/Linbik.PasetoAuthManager.Android`) for the PASETO mobile-client flow — see its [README](src/Android/Linbik.PasetoAuthManager.Android/README.md).
 
 ---
 
@@ -155,7 +160,7 @@ Register your service at [linbik.com](https://linbik.com) to get your ServiceId,
 │  - Calls integration services with JWTs                     │
 └─────────────────┬───────────────────────────────────────────┘
                   │
-                  │ JWT Authentication / S2S
+                  │ JWT Authentication / Application
                   │
 ┌─────────────────▼───────────────────────────────────────────┐
 │              Integration Services                           │
@@ -222,11 +227,11 @@ Register your service at [linbik.com](https://linbik.com) to get your ServiceId,
 - ✅ **Service relationships** - Main services integrate with specialized services
 - ✅ **Automatic token injection** via YARP integration
 
-### 3. Service-to-Service (S2S) Communication
-- ✅ **IS2STokenProvider** for S2S token management
-- ✅ **IS2SServiceClient** typed HTTP client with automatic token injection
+### 3. Application (Service-to-Service) Communication
+- ✅ **IApplicationTokenProvider** for Application token management
+- ✅ **IApplicationServiceClient** typed HTTP client with automatic token injection
 - ✅ **Config-based** (package name) and **dynamic** (service ID) targets
-- ✅ **Role-based S2S authorization** (`[LinbikS2SAuthorize("Service")]` / `[LinbikS2SAuthorize("Linbik")]`)
+- ✅ **Role-based Application authorization** (`[LinbikApplicationAuthorize("Service")]` / `[LinbikApplicationAuthorize("Linbik")]`)
 
 ### 4. Keyless Mode (Zero-Config Development)
 - ✅ **Auto-provisioning** - SDK creates temporary service on first run
@@ -239,7 +244,7 @@ Register your service at [linbik.com](https://linbik.com) to get your ServiceId,
 - ✅ **IP Whitelisting** (CIDR notation support)
 - ✅ **Rate limiting** with configurable policies
 - ✅ **Hashed API keys** in database
-- ✅ **Cross-scheme injection protection** (user vs S2S tokens)
+- ✅ **Cross-scheme injection protection** (user vs Application tokens)
 - ✅ **HttpOnly secure session cookies**
 
 ---
@@ -250,14 +255,17 @@ Register your service at [linbik.com](https://linbik.com) to get your ServiceId,
 
 - [**Linbik.Core**](src/AspNet/Linbik.Core/README.md) - Core interfaces, models, and configuration
 - [**Linbik.JwtAuthManager**](src/AspNet/Linbik.JwtAuthManager/README.md) - JWT auth, login endpoints, rate limiting
-- [**Linbik.Server**](src/AspNet/Linbik.Server/README.md) - Integration service JWT validation and S2S auth
-- [**Linbik.YARP**](src/AspNet/Linbik.YARP/README.md) - YARP token provider and S2S client
+- [**Linbik.PasetoAuthManager**](src/AspNet/Linbik.PasetoAuthManager/README.md) - PASETO v4.public auth, login endpoints, rate limiting
+- [**Linbik.Server**](src/AspNet/Linbik.Server/README.md) - Integration service token validation and Application auth
+- [**Linbik.YARP**](src/AspNet/Linbik.YARP/README.md) - YARP token provider and Application client
+- [**Linbik.Slices**](src/AspNet/Linbik.Slices/README.md) - Vertical-slice mediator with source-generated dispatch
 - [**Linbik.CLI**](src/AspNet/Linbik.CLI/README.md) - Command-line tool
+- [**Android Client**](src/Android/Linbik.PasetoAuthManager.Android/README.md) - Native Kotlin client for the PASETO mobile flow
 
 ### Examples
 
-- [**AspNet.Examples**](examples/AspNet/AspNet/README.md) - Complete OAuth client + integration service demo
-- [**Nuxt.Examples**](examples/nuxt/README.md) - Nuxt 4 / Node.js frontend integration
+- [**AspNet.Examples**](examples/AspNet/AspNet/README.md) - Complete OAuth client + integration service demo (PASETO-based)
+- [**Nuxt.Examples**](examples/nuxt/README.md) - Nuxt 3 frontend integration (the production client is Nuxt 4 — see roadmap in `PROJECT_STATUS.md`)
 
 ### Guides
 
@@ -284,15 +292,15 @@ await httpClient.PostAsync("https://paymentpro.com/charge", new
     amount = 15000
 }, headers: new { Authorization = $"Bearer {paymentToken}" });
 
-// 4. PaymentPro validates JWT with its public key via [LinbikUserServiceAuthorize]
+// 4. PaymentPro validates the PASETO token with its public key via [LinbikDelegatedAuthorize]
 // 5. Looks up user's saved card by linbik_user_id → Processes payment
 ```
 
-### Scenario 2: S2S Communication (Webhooks/Callbacks)
+### Scenario 2: Application Communication (Webhooks/Callbacks)
 
 ```csharp
 // Service A → Service B (no user context)
-var result = await _s2sClient.PostByIdAsync<PaymentNotification, NotifyResponse>(
+var result = await _applicationClient.PostByIdAsync<PaymentNotification, NotifyResponse>(
     merchantServiceId,             // dynamic target
     "/api/webhooks/payment",
     new PaymentNotification { OrderId = "123", Status = "completed" }
@@ -336,6 +344,9 @@ linbik status
 
 # Export configuration
 linbik export-config
+
+# Diagnose Program.cs/appsettings/credential mismatches (read-only)
+linbik doctor
 ```
 
 ---
@@ -357,4 +368,11 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 9 Eylül 2026
+
+## Development checks
+
+The repository-wide .NET solution is `Linbik.slnx`. Run `dotnet build Linbik.slnx -c Release`
+and `dotnet test tests/Linbik.Tests/Linbik.Tests.csproj -c Release --no-build`.
+See [clean code changes and verification](docs/CLEAN_CODE.md) for the Nuxt and Android checks,
+behavior changes, and validation limits. The quality workflow runs these checks on pull requests.

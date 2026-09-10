@@ -7,17 +7,18 @@ ASP.NET Core MVC uygulaması ile Linbik Authentication Framework entegrasyonu ö
 Bu proje, Linbik kütüphanelerinin tam entegrasyonunu gösteren bir demo uygulamasıdır:
 
 - **Linbik.Core** - OAuth 2.1 Authorization Code Flow client
-- **Linbik.JwtAuthManager** - JWT authentication ve cookie yönetimi
-- **Linbik.Server** - Integration service JWT doğrulama
-- **Linbik.YARP** - Reverse proxy ile otomatik token injection
+- **Linbik.PasetoAuthManager** - PASETO (v4.public) authentication ve cookie yönetimi
+- **Linbik.YARP** - Reverse proxy ile otomatik token injection (user-context + application)
+- **Linbik.Server** - Integration service PASETO doğrulama — bu örnekte `Program.cs`'te **devre dışı** (`.AddLinbikServer()` satırı yorumda), bkz. aşağıdaki "Program.cs Yapılandırması"
 
 ## 📦 Proje Yapısı
 
 ```
 AspNet.Examples/
 ├── Controllers/
-│   ├── TestController.cs        ← Dashboard ve test endpoint'leri
-│   └── IntegrationController.cs ← Integration service demo
+│   ├── TestController.cs             ← Dashboard ve test endpoint'leri
+│   ├── IntegrationController.cs      ← Integration service demo
+│   └── ApplicationDemoController.cs  ← Application client demo (IApplicationServiceClient)
 ├── Models/
 │   └── DashboardViewModel.cs    ← View model
 ├── Views/
@@ -74,11 +75,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // MVC Services
 builder.Services.AddControllersWithViews();
+builder.Services.AddOpenApi();
 
-// ✅ Linbik - Fluent builder pattern for all services
-builder.Services.AddLinbik()
-    .AddLinbikJwtAuth()
-    .AddLinbikServer()
+// ✅ Linbik - Fluent builder pattern for all Linbik services
+builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
+    .AddLinbikPasetoAuth()
+    //.AddLinbikServer(); // şu an devre dışı — bu örnek Linbik.Server entegrasyonunu (dual PASETO
+                           // scheme + delegated/application endpoint doğrulaması) göstermiyor
     .AddLinbikYarp();
 
 // ✅ Linbik Integration Handler
@@ -92,20 +95,31 @@ var app = builder.Build();
 // ✅ Validate all registered Linbik modules at startup
 app.EnsureLinbik();
 
+app.MapOpenApi();
+
 // Middleware pipeline
 app.UseRouting();
 app.UseLinbikRateLimiting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map Linbik OAuth endpoints
-app.UseLinbikJwtAuth();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Test}/{action=Index}/{id?}");
+
+// ✅ Map Linbik OAuth endpoints (PASETO)
+app.UseLinbikPasetoAuth();
+
+// ✅ Map Linbik Integration webhook endpoints
+app.MapLinbikIntegrationEndpoints();
 
 // Map integration proxy endpoints
 app.UseLinbikYarp();
 
 app.Run();
 ```
+
+> **Not**: `.AddLinbikServer()` çağrısı şu an yorum satırı olarak devre dışı bırakılmış. Bu örnek uygulama bu haliyle `Linbik.Server`'ın sunduğu dual-scheme (delegated/application) PASETO doğrulamasını göstermez — `IntegrationController`'daki `[LinbikDelegatedAuthorize]`/`[LinbikApplicationAuthorize]` örnekleri yalnızca referans amaçlıdır. `Linbik.Server` kullanımı için bkz. [Linbik.Server README](../../../src/AspNet/Linbik.Server/README.md).
 
 ## 📚 Endpoint'ler
 
@@ -116,13 +130,14 @@ app.Run();
 | `/Test` | Ana dashboard sayfası |
 | `/Test/Index` | Kullanıcı durumu ve token bilgileri |
 
-### OAuth Endpoints (UseLinbikJwtAuth)
+### OAuth Endpoints (UseLinbikPasetoAuth)
 
 | URL | Method | Açıklama |
 |-----|--------|----------|
-| `/api/linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
-| `/api/linbik/logout` | POST | Cookie'leri temizle ve çıkış yap |
-| `/api/linbik/refresh` | POST | Refresh token ile yeni token'lar al |
+| `/api/Linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
+| `/api/Linbik/callback` | GET | Authorization code'u token ile değiştir |
+| `/api/Linbik/logout` | GET | Cookie'leri temizle ve çıkış yap |
+| `/api/Linbik/refresh` | POST | Refresh token ile yeni token'lar al |
 
 ### Test Endpoints
 
@@ -148,11 +163,24 @@ app.Run();
 | `/api/integration/user-profile` | GET | ✅ User JWT | `[LinbikDelegatedAuthorize]` | Kullanıcı profili |
 | `/api/integration/process` | POST | ✅ User JWT | `[LinbikDelegatedAuthorize]` | İşlem yap |
 | `/api/integration/user-data` | GET | ✅ User JWT | `[LinbikDelegatedAuthorize]` | Kullanıcı verileri |
-| `/api/integration/s2s/sync` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S senkronizasyon |
-| `/api/integration/s2s/health` | GET | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S sağlık |
-| `/api/integration/s2s/webhook/{eventType}` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize("Service")]` | S2S webhook (servis) |
-| `/api/integration/s2s/batch` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize]` | S2S toplu işlem |
-| `/api/integration/s2s/platform-event` | POST | ✅ S2S JWT | `[LinbikApplicationAuthorize("Linbik")]` | Platform olayı |
+| `/api/integration/application/sync` | POST | ✅ Application JWT | `[LinbikApplicationAuthorize]` | Application senkronizasyon |
+| `/api/integration/application/health` | GET | ✅ Application JWT | `[LinbikApplicationAuthorize]` | Application sağlık |
+| `/api/integration/application/webhook/{eventType}` | POST | ✅ Application JWT | `[LinbikApplicationAuthorize("Service")]` | Application webhook (servis) |
+| `/api/integration/application/batch` | POST | ✅ Application JWT | `[LinbikApplicationAuthorize]` | Application toplu işlem |
+| `/api/integration/application/platform-event` | POST | ✅ Application JWT | `[LinbikApplicationAuthorize("Linbik")]` | Platform olayı |
+
+### Application Service Demo (Application Client)
+
+`ApplicationDemoController`, `IApplicationServiceClient` kullanarak başka bir entegrasyon servisine (config-based veya dinamik service ID ile) nasıl istek atılacağını gösterir:
+
+| URL | Method | Açıklama |
+|-----|--------|----------|
+| `/api/application-demo/call-by-package/{packageName}` | GET | Config'deki paket adına göre servise istek at |
+| `/api/application-demo/sync-to/{packageName}` | POST | Servise veri senkronize et |
+| `/api/application-demo/webhook-to/{packageName}/{eventType}` | POST | Servise webhook bildirimi gönder |
+| `/api/application-demo/call-by-id/{serviceId}` | GET | Servis ID'sine göre dinamik istek at (config gerekmez) |
+| `/api/application-demo/callback-to/{serviceId}` | POST | Servis ID'sine göre dinamik callback gönder |
+| `/api/application-demo/error-demo/{packageName}` | GET | `LBaseResponse` hata yönetimi demosu |
 
 ### YARP Proxy Endpoints
 
@@ -187,8 +215,11 @@ Integration service endpoint'lerini (user context ile) korumak için:
 [HttpGet("protected")]
 public IActionResult Protected()
 {
-    var claims = HttpContext.GetLinbikClaims();
-    return Ok(claims);
+    // PasetoBearerHandler ClaimsPrincipal'ı token'ın ham claim anahtarlarıyla
+    // (ClaimTypes.* eşlemesi olmadan) oluşturur — bkz. Linbik.Server README
+    var userId = User.FindFirst("sub")?.Value;
+    var userName = User.FindFirst("preferred_username")?.Value;
+    return Ok(new { userId, userName });
 }
 ```
 
@@ -197,19 +228,19 @@ public IActionResult Protected()
 Service-to-service endpoint'lerini (kullanıcı bağlamı olmadan) korumak için:
 
 ```csharp
-// Herhangi bir S2S token kabul eder
+// Herhangi bir Application token kabul eder
 [LinbikApplicationAuthorize]
-[HttpPost("s2s/sync")]
-public IActionResult S2SSync() { ... }
+[HttpPost("application/sync")]
+public IActionResult ApplicationSync() { ... }
 
-// Sadece servis S2S token'ları (role=Service)
+// Sadece servis Application token'ları (role=Service)
 [LinbikApplicationAuthorize("Service")]
-[HttpPost("s2s/webhook/{eventType}")]
-public IActionResult S2SWebhook(string eventType) { ... }
+[HttpPost("application/webhook/{eventType}")]
+public IActionResult ApplicationWebhook(string eventType) { ... }
 
 // Sadece platform token'ları (role=Linbik)
 [LinbikApplicationAuthorize("Linbik")]
-[HttpPost("s2s/platform-event")]
+[HttpPost("application/platform-event")]
 public IActionResult OnPlatformEvent() { ... }
 ```
 
@@ -334,12 +365,12 @@ curl https://localhost:7020/api/integration/health
 curl https://localhost:7020/api/integration/protected \
   -H "Authorization: Bearer eyJ..."
 
-# S2S endpoint (S2S JWT gerekir, token_type=s2s)
-curl https://localhost:7020/api/integration/s2s/sync \
+# Application endpoint (Application JWT gerekir, token_type=apps)
+curl https://localhost:7020/api/integration/application/sync \
   -H "Authorization: Bearer eyJ..."
 
-# S2S platform event (role=Linbik gerekir)
-curl https://localhost:7020/api/integration/s2s/platform-event \
+# Application platform event (role=Linbik gerekir)
+curl https://localhost:7020/api/integration/application/platform-event \
   -H "Authorization: Bearer eyJ..."
 ```
 
@@ -387,4 +418,4 @@ Bu proje özel bir lisans altında yayınlanmaktadır.
 ---
 
 **Version**: 1.2.0  
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 9 Eylül 2026

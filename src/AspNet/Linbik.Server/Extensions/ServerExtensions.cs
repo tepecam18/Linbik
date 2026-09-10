@@ -16,7 +16,7 @@ namespace Linbik.Server.Extensions;
 
 /// <summary>
 /// Extension methods for configuring Linbik Server (integration service side).
-/// Provides PASETO v4.public validation with Ed25519 keys for both user-service and S2S authentication.
+/// Provides PASETO v4.public validation with Ed25519 keys for both user-service and application authentication.
 /// </summary>
 public static class ServerExtensions
 {
@@ -92,7 +92,7 @@ public static class ServerExtensions
     private static void AddLinbikAuthentication(IServiceCollection services, ServerOptions options)
     {
         services.AddAuthentication()
-            // Kullanıcı istekleri için (sub, name, preferred_username, azp) — s2s token reddeder
+            // Kullanıcı istekleri için (sub, name, preferred_username, azp) — application token reddeder
             .AddLinbikPasetoBearer(LinbikDefaults.DelegatedScheme, opts =>
             {
                 opts.PublicKey = options.PublicKey;
@@ -100,7 +100,7 @@ public static class ServerExtensions
                 opts.ExpectedIssuer = options.JwtIssuer;
                 opts.RequireApplicationToken = false;
             })
-            // Servis-servis istekleri için (token_type=s2s) — kullanıcı tokenını reddeder
+            // Servis-servis istekleri için (token_type=apps) — kullanıcı tokenını reddeder
             .AddLinbikPasetoBearer(LinbikDefaults.ApplicationScheme, opts =>
             {
                 opts.PublicKey = options.PublicKey;

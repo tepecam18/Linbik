@@ -1,12 +1,18 @@
 # Linbik Nuxt.Examples
 
-Nuxt 4 / Node.js / Bun ile Linbik OAuth 2.1 entegrasyonu örneği.
+Nuxt 3 / Node.js / Bun ile Linbik OAuth 2.1 entegrasyonu örneği.
 
 ## 🎯 Genel Bakış
 
 Bu proje, JavaScript/TypeScript tabanlı client uygulamalarının Linbik ile nasıl entegre olacağını göstermektedir. 
 
 > ⚠️ **Not**: Henüz resmi bir JavaScript/TypeScript kütüphanesi bulunmamaktadır. Bu örnek, Linbik OAuth 2.1 API'sini doğrudan kullanarak nasıl entegrasyon yapılacağını gösterir.
+>
+> Bu örnek şu an **Nuxt 3** (`package.json`'da `nuxt: ^3.15.4`) üzerinde çalışıyor —
+> `nuxt.config.ts`'teki `future.compatibilityVersion: 4` bayrağı, Nuxt 4'e geçişi
+> Nuxt 3 içinde kademeli olarak deneyimlemeyi sağlayan bir Nuxt 3 opt-in ayarıdır,
+> gerçek bir Nuxt 4 kurulumu anlamına gelmez. Nuxt 4'e tam geçiş yol haritada
+> (bkz. `PROJECT_STATUS.md`).
 
 **Kullanım Alanları:**
 - 🌐 Nuxt/Vue.js web uygulamaları
@@ -22,10 +28,11 @@ nuxt/
 │   ├── app.vue                 ← Ana layout
 │   └── pages/
 │       ├── index.vue           ← Ana sayfa
-│       ├── login.vue           ← OAuth callback & JWT doğrulama
+│       ├── login.vue           ← Doğrulanmış kullanıcı bilgisinin görünümü
 │       └── [...all].vue        ← Catch-all route
 ├── server/
-│   └── api/                    ← Server API routes (TODO)
+│   ├── middleware/login.ts     ← POST /login callback doğrulaması
+│   └── utils/verify-login-token.mjs ← Sunucu tarafında JWT doğrulama
 ├── composables/                ← Vue composables (TODO)
 │   └── useLinbik.ts            ← Linbik auth composable
 ├── nuxt.config.ts              ← Nuxt yapılandırması
@@ -537,4 +544,11 @@ Bu proje özel bir lisans altında yayınlanmaktadır.
 ---
 
 **Version**: 1.2.0  
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 9 Eylül 2026
+
+## Otomatik kontroller
+
+`npm test` token doğrulama testlerini çalıştırır. `npm run build` ardından
+`npm run test:smoke`, çalışan sunucuda geçerli/geçersiz callback ve istek izolasyonunu
+kontrol eder. Bu örneğin session cookie'si görüntüleme verisidir; korunan servislerde
+imzalı token doğrulamasının yerini almaz.

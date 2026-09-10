@@ -1,11 +1,11 @@
-﻿using Linbik.Core.Configuration;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Linbik.Core.Configuration;
 using Linbik.Core.Models;
 using Linbik.Core.Responses;
 using Linbik.Core.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace Linbik.Core.Services;
 
@@ -47,15 +47,9 @@ public sealed class LinbikAuthClient(
 
         try
         {
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _options.AuthorizationEndpoint.TrimStart('/'))
-            {
-                Content = JsonContent.Create(request, options: JsonOptions)
-            };
+            using var httpRequest = CreateRequest(HttpMethod.Post, _options.AuthorizationEndpoint.TrimStart('/'), request);
 
-            httpRequest.Headers.Add("ApiKey", _options.ApiKey);
-            AddDiagnosticHeaders(httpRequest);
-
-            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -78,6 +72,10 @@ public sealed class LinbikAuthClient(
             _logger.LogError(ex, "JSON deserialization failed during auth initiate");
             return new LBaseResponse<LinbikInitiateResponse>("deserialization_error", $"Invalid response format: {ex.Message}");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during auth initiate");
@@ -96,20 +94,15 @@ public sealed class LinbikAuthClient(
 
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, _options.TokenEndpoint.TrimStart('/'))
+            using var request = CreateRequest(HttpMethod.Post, _options.TokenEndpoint.TrimStart('/'), new LinbikTokenRequest
             {
-                Content = JsonContent.Create(new LinbikTokenRequest
-                {
-                    ServiceId = Guid.Parse(_options.ServiceId)
-                }, options: JsonOptions)
-            };
+                ServiceId = Guid.Parse(_options.ServiceId)
+            });
 
             // Add required headers
             request.Headers.Add("Code", code);
-            request.Headers.Add("ApiKey", _options.ApiKey);
-            AddDiagnosticHeaders(request);
 
-            var responseMessage = await _httpClient.SendAsync(request, cancellationToken);
+            using var responseMessage = await _httpClient.SendAsync(request, cancellationToken);
 
             var responseBody = await responseMessage.Content.ReadAsStringAsync(cancellationToken);
             var response = JsonSerializer.Deserialize<LBaseResponse<LinbikTokenResponse>>(responseBody, JsonOptions);
@@ -144,6 +137,10 @@ public sealed class LinbikAuthClient(
             _logger.LogError(ex, "JSON deserialization failed during token exchange");
             return null;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during token exchange");
@@ -162,20 +159,15 @@ public sealed class LinbikAuthClient(
 
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, _options.RefreshEndpoint.TrimStart('/'))
+            using var request = CreateRequest(HttpMethod.Post, _options.RefreshEndpoint.TrimStart('/'), new LinbikTokenRequest
             {
-                Content = JsonContent.Create(new LinbikTokenRequest
-                {
-                    ServiceId = Guid.Parse(_options.ServiceId)
-                }, options: JsonOptions)
-            };
+                ServiceId = Guid.Parse(_options.ServiceId)
+            });
 
             // Add required headers
             request.Headers.Add("RefreshToken", refreshToken);
-            request.Headers.Add("ApiKey", _options.ApiKey);
-            AddDiagnosticHeaders(request);
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -198,7 +190,13 @@ public sealed class LinbikAuthClient(
                 return null;
             }
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<LinbikTokenResponse>(JsonOptions, cancellationToken);
+            var result = await response.Content.ReadFromJsonAsync<LBaseResponse<LinbikTokenResponse>>(JsonOptions, cancellationToken);
+            if (result?.IsSuccess != true || result.Data is not { } tokenResponse
+                || tokenResponse.UserId == Guid.Empty || string.IsNullOrWhiteSpace(tokenResponse.Username))
+            {
+                _logger.LogWarning("Token refresh returned an unsuccessful or incomplete response");
+                return null;
+            }
             return tokenResponse;
         }
         catch (HttpRequestException ex)
@@ -210,6 +208,10 @@ public sealed class LinbikAuthClient(
         {
             _logger.LogError(ex, "JSON deserialization failed during token refresh");
             return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -241,19 +243,12 @@ public sealed class LinbikAuthClient(
 
         try
         {
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _options.AppsTokenEndpoint.TrimStart('/'))
-            {
-                Content = JsonContent.Create(request, options: JsonOptions)
-            };
-
-            // Add API key header
-            httpRequest.Headers.Add("ApiKey", _options.ApiKey);
-            AddDiagnosticHeaders(httpRequest);
+            using var httpRequest = CreateRequest(HttpMethod.Post, _options.AppsTokenEndpoint.TrimStart('/'), request);
 
             _logger.LogDebug("Requesting apps tokens for {TargetCount} services from {SourceServiceId}",
                 (request.TargetServiceIds?.Count ?? 0) + (request.TargetPackageNames?.Count ?? 0), request.SourceServiceId);
 
-            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -292,6 +287,10 @@ public sealed class LinbikAuthClient(
         {
             _logger.LogError(ex, "JSON deserialization failed during apps token request");
             return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -338,15 +337,9 @@ public sealed class LinbikAuthClient(
         {
             var endpoint = $"api/services/{_options.ServiceId}/clients/by-name";
 
-            var request = new HttpRequestMessage(HttpMethod.Put, endpoint)
-            {
-                Content = JsonContent.Create(new { name = clientName, redirectUri }, options: JsonOptions)
-            };
+            using var request = CreateRequest(HttpMethod.Put, endpoint, new { name = clientName, redirectUri });
 
-            request.Headers.Add("ApiKey", _options.ApiKey);
-            AddDiagnosticHeaders(request);
-
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -365,6 +358,10 @@ public sealed class LinbikAuthClient(
             _logger.LogError(ex, "HTTP request failed during client RedirectUri update for '{ClientName}'", clientName);
             return false;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during client RedirectUri update for '{ClientName}'", clientName);
@@ -375,6 +372,17 @@ public sealed class LinbikAuthClient(
     #endregion
 
     #region Private Helpers
+
+    private HttpRequestMessage CreateRequest<T>(HttpMethod method, string endpoint, T body)
+    {
+        var request = new HttpRequestMessage(method, endpoint)
+        {
+            Content = JsonContent.Create(body, options: JsonOptions)
+        };
+        request.Headers.Add("ApiKey", _options.ApiKey);
+        AddDiagnosticHeaders(request);
+        return request;
+    }
 
     private static void AddDiagnosticHeaders(HttpRequestMessage request)
     {

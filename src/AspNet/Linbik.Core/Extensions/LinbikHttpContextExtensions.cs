@@ -30,4 +30,22 @@ public static class LinbikHttpContextExtensions
 
         return context.Connection.RemoteIpAddress?.ToString();
     }
+
+
+    /// <summary>
+    /// Resolves the externally-visible request scheme, trusting <c>X-Forwarded-Proto</c>
+    /// when present (reverse proxy scenarios) and otherwise defaulting to <c>https</c>
+    /// whenever the scheme cannot be reliably confirmed as secure — never downgrading
+    /// a Keyless Mode-generated URL to <c>http</c>.
+    /// </summary>
+    public static string GetExternalScheme(this HttpContext context)
+    {
+        var forwardedProto = context.Request.Headers["X-Forwarded-Proto"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedProto))
+        {
+            return forwardedProto.Split(',').First().Trim();
+        }
+
+        return "https";
+    }
 }

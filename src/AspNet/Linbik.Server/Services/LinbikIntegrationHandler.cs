@@ -35,6 +35,9 @@ namespace Linbik.Server.Services;
 /// </summary>
 public class LinbikIntegrationHandler(ILogger<LinbikIntegrationHandler>? logger = null) : ILinbikIntegrationHandler
 {
+    public virtual Task<IntegrationEventResult> OnIntegrationServiceChangedAsync(IntegrationEvent integrationEvent)
+        => Task.FromResult(IntegrationEventResult.Success());
+
     protected readonly ILogger<LinbikIntegrationHandler>? Logger = logger;
 
     /// <inheritdoc />

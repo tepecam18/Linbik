@@ -1,4 +1,4 @@
-﻿using Linbik.Core.Attributes;
+using Linbik.Core.Attributes;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -8,7 +8,7 @@ namespace AspNet.Controllers;
 /// Demo Integration Controller for Linbik.Server library.
 /// This controller demonstrates how integration services (Payment Gateway, Survey, etc.)
 /// can implement protected endpoints using Linbik authorization attributes.
-/// 
+///
 /// Usage in real integration services:
 /// - Copy this pattern to your own integration service
 /// - Use [LinbikDelegatedAuthorize] for endpoints that require user context (user-initiated requests)
@@ -270,20 +270,20 @@ public sealed class IntegrationController : ControllerBase
 
     #endregion
 
-    #region S2S Protected Endpoints (Requires LinbikApplicationAuthorize)
+    #region Application Protected Endpoints (Requires LinbikApplicationAuthorize)
 
     /// <summary>
-    /// S2S sync endpoint - requires valid S2S JWT token (no user context)
+    /// Application sync endpoint - requires valid Application JWT token (no user context)
     /// Uses [LinbikApplicationAuthorize] attribute which validates RS256 signed JWT
-    /// 
+    ///
     /// Scenario: Another service calls this endpoint to sync data
     /// Example: Payment Gateway syncing transaction status with this service
     /// </summary>
     [LinbikApplicationAuthorize]
-    [HttpPost("s2s/sync")]
-    public IActionResult S2SSync([FromBody] S2SSyncRequest? request)
+    [HttpPost("application/sync")]
+    public IActionResult ApplicationSync([FromBody] ApplicationSyncRequest? request)
     {
-        // Extract S2S claims (no user information!)
+        // Extract Application claims (no user information!)
         var sourceServiceId = User.FindFirst("source_service_id")?.Value;
         var sourcePackageName = User.FindFirst("source_package_name")?.Value;
         var tokenType = User.FindFirst("token_type")?.Value;
@@ -291,7 +291,7 @@ public sealed class IntegrationController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = "✅ S2S sync endpoint accessed with valid S2S JWT!",
+            message = "✅ Application sync endpoint accessed with valid Application JWT!",
             authScheme = "LinbikApplication (RS256)",
             sourceService = new
             {
@@ -313,14 +313,14 @@ public sealed class IntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// S2S health check endpoint - requires valid S2S JWT token
+    /// Application health check endpoint - requires valid Application JWT token
     /// Used by other services to verify this service is accessible
-    /// 
+    ///
     /// Scenario: Service discovery or health monitoring between services
     /// </summary>
     [LinbikApplicationAuthorize]
-    [HttpGet("s2s/health")]
-    public IActionResult S2SHealth()
+    [HttpGet("application/health")]
+    public IActionResult ApplicationHealth()
     {
         var sourceServiceId = User.FindFirst("source_service_id")?.Value;
         var sourcePackageName = User.FindFirst("source_package_name")?.Value;
@@ -328,7 +328,7 @@ public sealed class IntegrationController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = "✅ S2S health check - service is accessible",
+            message = "✅ Application health check - service is accessible",
             authScheme = "LinbikApplication (RS256)",
             sourceService = new
             {
@@ -346,15 +346,15 @@ public sealed class IntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// S2S webhook endpoint - receives callbacks from other services
+    /// Application webhook endpoint - receives callbacks from other services
     /// Uses [LinbikApplicationAuthorize] to ensure only authenticated services can call
-    /// 
+    ///
     /// Scenario: Payment Gateway notifying about payment completion
-    /// Example: POST /api/integration/s2s/webhook/payment-completed
+    /// Example: POST /api/integration/application/webhook/payment-completed
     /// </summary>
     [LinbikApplicationAuthorize("Service")]
-    [HttpPost("s2s/webhook/{eventType}")]
-    public IActionResult S2SWebhook(string eventType, [FromBody] S2SWebhookPayload? payload)
+    [HttpPost("application/webhook/{eventType}")]
+    public IActionResult ApplicationWebhook(string eventType, [FromBody] ApplicationWebhookPayload? payload)
     {
         var sourceServiceId = User.FindFirst("source_service_id")?.Value;
         var sourcePackageName = User.FindFirst("source_package_name")?.Value;
@@ -365,7 +365,7 @@ public sealed class IntegrationController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = $"✅ S2S webhook received: {eventType}",
+            message = $"✅ Application webhook received: {eventType}",
             webhook = new
             {
                 id = webhookId,
@@ -391,14 +391,14 @@ public sealed class IntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// S2S batch operation endpoint - processes batch data from other services
-    /// 
+    /// Application batch operation endpoint - processes batch data from other services
+    ///
     /// Scenario: Bulk data synchronization between services
     /// Example: Inventory service sending batch stock updates
     /// </summary>
     [LinbikApplicationAuthorize]
-    [HttpPost("s2s/batch")]
-    public IActionResult S2SBatch([FromBody] S2SBatchRequest? request)
+    [HttpPost("application/batch")]
+    public IActionResult ApplicationBatch([FromBody] ApplicationBatchRequest? request)
     {
         var sourceServiceId = User.FindFirst("source_service_id")?.Value;
         var sourcePackageName = User.FindFirst("source_package_name")?.Value;
@@ -409,7 +409,7 @@ public sealed class IntegrationController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = $"✅ S2S batch processed: {itemCount} items",
+            message = $"✅ Application batch processed: {itemCount} items",
             batch = new
             {
                 batchId,
@@ -433,13 +433,13 @@ public sealed class IntegrationController : ControllerBase
     /// Platform-only endpoint - receives Linbik platform lifecycle events
     /// Uses [LinbikApplicationAuthorize("Linbik")] to ONLY accept tokens from the Linbik platform
     /// Regular service-to-service tokens will be rejected (403 Forbidden)
-    /// 
+    ///
     /// Scenario: Linbik platform notifying about key rotation, integration toggle, etc.
-    /// Example: POST /api/integration/s2s/platform-event
+    /// Example: POST /api/integration/application/platform-event
     /// </summary>
     [LinbikApplicationAuthorize("Linbik")]
-    [HttpPost("s2s/platform-event")]
-    public IActionResult S2SPlatformEvent([FromBody] S2SWebhookPayload? payload)
+    [HttpPost("application/platform-event")]
+    public IActionResult ApplicationPlatformEvent([FromBody] ApplicationWebhookPayload? payload)
     {
         var sourcePackageName = User.FindFirst("source_package_name")?.Value;
 
@@ -469,9 +469,9 @@ public sealed class ProcessRequest
 }
 
 /// <summary>
-/// Request model for S2S sync endpoint
+/// Request model for Application sync endpoint
 /// </summary>
-public sealed class S2SSyncRequest
+public sealed class ApplicationSyncRequest
 {
     public string? EntityType { get; set; }
     public string? EntityId { get; set; }
@@ -480,9 +480,9 @@ public sealed class S2SSyncRequest
 }
 
 /// <summary>
-/// Webhook payload model for S2S webhook endpoint
+/// Webhook payload model for Application webhook endpoint
 /// </summary>
-public sealed class S2SWebhookPayload
+public sealed class ApplicationWebhookPayload
 {
     public string? EventId { get; set; }
     public string? EntityType { get; set; }
@@ -492,9 +492,9 @@ public sealed class S2SWebhookPayload
 }
 
 /// <summary>
-/// Batch request model for S2S batch endpoint
+/// Batch request model for Application batch endpoint
 /// </summary>
-public sealed class S2SBatchRequest
+public sealed class ApplicationBatchRequest
 {
     public string? Operation { get; set; }
     public List<Dictionary<string, object>>? Items { get; set; }

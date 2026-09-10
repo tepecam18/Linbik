@@ -1,4 +1,4 @@
-﻿using Linbik.Core;
+using Linbik.Core;
 using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Configuration;
@@ -14,8 +14,6 @@ using Microsoft.Extensions.Options;
 using Yarp.ReverseProxy.Transforms;
 
 namespace Linbik.YARP.Extensions;
-
-// Startup validator is defined as a nested class at the bottom of this file
 
 /// <summary>
 /// Extension methods for Linbik YARP API Gateway
@@ -33,20 +31,8 @@ public static class LinbikYarpExtensions
     {
         builder.Services.Configure(configureOptions);
 
-        // Add token provider for user-context tokens
-        builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
+        builder.Services.AddYarpServices();
 
-        // Add application token provider for application-to-application tokens
-        // Obtains PASETO tokens for the Application (S2S) flow via Linbik.Core's ILinbikAuthClient
-        builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
-
-        // Add validators
-        builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
-        builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-        
-        // Add application service client with HttpClientFactory
-        builder.Services.AddApplicationHttpClient();
-        
         // Materialize options to discover integration services configured for NSwag client generation
         var optionsInstance = new YARPOptions();
         configureOptions(optionsInstance);
@@ -65,19 +51,7 @@ public static class LinbikYarpExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         builder.Services.Configure<YARPOptions>(configuration);
 
-        // Add token provider for user-context tokens
-        builder.Services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
-
-        // Add application token provider for application-to-application tokens
-        // Obtains PASETO tokens for the Application (S2S) flow via Linbik.Core's ILinbikAuthClient
-        builder.Services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
-
-        // Add validators
-        builder.Services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
-        builder.Services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
-        
-        // Add application service client with HttpClientFactory
-        builder.Services.AddApplicationHttpClient();
+        builder.Services.AddYarpServices();
 
         // Materialize options to discover integration services configured for NSwag client generation
         var optionsInstance = configuration.Get<YARPOptions>() ?? new YARPOptions();
@@ -94,6 +68,23 @@ public static class LinbikYarpExtensions
 
 
 
+    private static void AddYarpServices(this IServiceCollection services)
+    {
+        // Add token provider for user-context tokens
+        services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
+
+        // Add application token provider for application-to-application tokens
+        // Obtains PASETO tokens for the Application flow via Linbik.Core's ILinbikAuthClient
+        services.AddSingleton<IApplicationTokenProvider, ApplicationTokenProvider>();
+
+        // Add validators
+        services.AddSingleton<IValidateOptions<YARPOptions>, YARPOptionsValidator>();
+        services.AddSingleton<ILinbikStartupValidator, YarpStartupValidator>();
+
+        // Add application service client with HttpClientFactory
+        services.AddApplicationHttpClient();
+    }
+
     /// <summary>
     /// Add Application HttpClient with resilience configuration
     /// </summary>
@@ -103,7 +94,7 @@ public static class LinbikYarpExtensions
             .ConfigureHttpClient((sp, client) =>
             {
                 var options = sp.GetService<IOptions<YARPOptions>>()?.Value;
-                client.Timeout = TimeSpan.FromSeconds(options?.S2STimeoutSeconds ?? 30);
+                client.Timeout = TimeSpan.FromSeconds(options?.ApplicationTimeoutSeconds ?? 30);
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
             });
 
@@ -148,7 +139,7 @@ public static class LinbikYarpExtensions
                 })
                 .AddHttpMessageHandler(sp =>
                     new ApplicationPasetoAuthHandler(
-                        packageName, // The integration service package name is used to obtain the correct S2S token
+                        packageName, // The integration service package name is used to obtain the correct Application token
                         sp.GetRequiredService<IApplicationTokenProvider>(),
                         sp.GetRequiredService<ILogger<ApplicationPasetoAuthHandler>>()));
 
@@ -340,7 +331,7 @@ public static class LinbikYarpExtensions
 
                 // Build target URL
                 var targetUrl = $"{serviceConfig.TargetBaseUrl}{serviceConfig.TargetPath}";
-                
+
                 if (!string.IsNullOrEmpty(path))
                     targetUrl = $"{targetUrl}/{path}";
 
@@ -441,10 +432,10 @@ public static class LinbikYarpExtensions
     /// <summary>
     /// Map Application proxy routes
     /// Pattern: /app/{packageName}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
-    /// Automatically injects the application's PASETO S2S token from cache (no user context required)
+    /// Automatically injects the application's PASETO Application token from cache (no user context required)
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
-    /// <param name="routePrefix">Route prefix for S2S endpoints (default: "s2s")</param>
+    /// <param name="routePrefix">Route prefix for Application endpoints (default: "app")</param>
     /// <returns>The endpoint route builder for chaining</returns>
     public static IEndpointRouteBuilder UseLinbikApplication(
         this IEndpointRouteBuilder endpoints,
@@ -460,7 +451,7 @@ public static class LinbikYarpExtensions
             var packageName = integration.Key;
             var serviceConfig = integration.Value;
 
-            // Map S2S route: /{routePrefix}/{packageName}/{**path}
+            // Map Application route: /{routePrefix}/{packageName}/{**path}
             endpoints.Map($"/{routePrefix}/{packageName}/{{**path}}", async (HttpContext context) =>
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
@@ -470,7 +461,7 @@ public static class LinbikYarpExtensions
 
                 if (integrationDetails == null)
                 {
-                    logger?.LogWarning("S2S token not available for {PackageName}", packageName);
+                    logger?.LogWarning("Application token not available for {PackageName}", packageName);
                     context.Response.StatusCode = 503;
                     await context.Response.WriteAsJsonAsync(new
                     {
@@ -509,7 +500,7 @@ public static class LinbikYarpExtensions
                         RequestUri = new Uri(targetUrl)
                     };
 
-                    // Add Authorization header with S2S PASETO token
+                    // Add Authorization header with Application PASETO token
                     requestMessage.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", integrationDetails.Token);
 

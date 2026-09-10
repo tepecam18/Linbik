@@ -40,9 +40,9 @@
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
 		<!-- System.IdentityModel.Tokens.Jwt is needed here for LocalJwtTokenIssuer (HS256 cookie auth) -->
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -52,4 +52,5 @@
 	<ItemGroup>
 		<None Include="README.md" Pack="true" PackagePath="" />
 	</ItemGroup>
+<ItemGroup><Compile Include="../AuthManager.Shared/RefreshTokens.cs" Link="Services/RefreshTokens.cs" /></ItemGroup><PropertyGroup><DefineConstants>$(DefineConstants);LINBIK_JWT</DefineConstants></PropertyGroup>
 </Project>

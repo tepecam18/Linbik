@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Linbik.Core.Identity;
 using Linbik.Slices.Results;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,7 +12,6 @@ namespace Linbik.Slices.Pipeline;
 /// </summary>
 public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSender
 {
-    private static readonly ConcurrentDictionary<Type, object> Wrappers = new();
 
     /// <inheritdoc />
     public ValueTask<Result<TResponse>> Send<TResponse>(
@@ -19,20 +19,21 @@ public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSend
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var wrapper = (RequestWrapper<TResponse>)Wrappers.GetOrAdd(
+        var wrapper = RequestWrapper<TResponse>.Cache.GetOrAdd(
             request.GetType(),
-            static (requestType, responseType) =>
+            static requestType =>
             {
-                var wrapperType = typeof(RequestWrapperImpl<,>).MakeGenericType(requestType, responseType);
-                return Activator.CreateInstance(wrapperType)!;
-            },
-            typeof(TResponse));
+                var wrapperType = typeof(RequestWrapperImpl<,>).MakeGenericType(requestType, typeof(TResponse));
+                return (RequestWrapper<TResponse>)Activator.CreateInstance(wrapperType)!;
+            });
 
         return wrapper.Handle(request, serviceProvider, cancellationToken);
     }
 
     private abstract class RequestWrapper<TResponse>
     {
+        internal static readonly ConcurrentDictionary<Type, RequestWrapper<TResponse>> Cache = new();
+
         public abstract ValueTask<Result<TResponse>> Handle(
             object request, IServiceProvider serviceProvider, CancellationToken cancellationToken);
     }
@@ -48,7 +49,8 @@ public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSend
             var validator = serviceProvider.GetService<ILinbikValidator<TRequest>>();
             if (validator is not null)
             {
-                var validation = await validator.ValidateAsync(typedRequest, cancellationToken);
+                var actor = serviceProvider.GetRequiredService<LActor>();
+                var validation = await validator.ValidateAsync(typedRequest, actor, cancellationToken);
                 if (!validation.IsValid)
                 {
                     var message = string.Join(" ", validation.Errors.Select(e => e.Message));

@@ -14,7 +14,7 @@ builder.Services.AddOpenApi();
 // ✅ Linbik - Fluent builder pattern for all Linbik services
 builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
     .AddLinbikPasetoAuth()
-    //.AddLinbikServer(); //hata veriyo
+    .AddLinbikServer(builder.Configuration.GetSection("Linbik:Server"))
     .AddLinbikYarp();
 
 // ✅ Linbik Integration Handler - Handles integration lifecycle events from Linbik platform
@@ -22,7 +22,7 @@ builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
 builder.Services.AddLinbikIntegrationHandler();
 
 // ✅ Linbik Rate Limiting - Protect auth endpoints from abuse
-builder.Services.AddLinbikRateLimiting();//hata veriyor
+builder.Services.AddLinbikRateLimiting();
 
 // Logging for development
 builder.Logging.ClearProviders();

@@ -385,6 +385,8 @@ logs
 .idea
 
 # Local env files
+.linbik/
+playwright/.auth/
 .env
 .env.*
 !.env.example

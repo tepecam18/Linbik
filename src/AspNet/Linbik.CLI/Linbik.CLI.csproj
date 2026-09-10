@@ -33,7 +33,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.CommandLine" Version="2.0.10" />
+		<PackageReference Include="System.CommandLine" Version="2.0.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -38,7 +38,7 @@ builder.Services.AddLinbikGatewayDocs(builder.Configuration);
 
 // Linbik: Self (LinbikScheme, cookie tabanlı) + PasetoAuth endpoint'leri
 //   +  Server: Delegated & Application bearer şemaları (Linbik platformunun
-//   Ed25519 public key'i ile doğrulanan kullanıcı / S2S token'ları).
+//   Ed25519 public key'i ile doğrulanan kullanıcı / application token'ları).
 // Self ve Delegated/Application FARKLI anahtarlar kullanır:
 //   Self                 → Linbik:PasetoAuth (Local SharedKey, cookie reader)
 //   Delegated/Application → Linbik:Server   (Public key, Authorization: Bearer)
@@ -52,6 +52,7 @@ builder.Services
 //   LinbikDelegatedAuthorize       — AddLinbikServer'ın eklediği Delegated şema
 //   LinbikApplicationAuthorize     — AddLinbikServer'ın eklediği Application şema
 builder.Services.AddLinbikGatewayAuth();
+builder.Services.AddLinbikRateLimiting();
 
 // YARP reverse proxy: route + cluster otomatik üretildi (LinbikGateway:Sources)
 // + claim → header transform.
@@ -78,7 +79,7 @@ app.UseHttpsRedirection();
 
 // ⚠️ ÖNCE: gelen istekteki Linbik-* header'larını koşulsuz sil.
 // Bu adım routing/auth'tan önce gerçekleşir; dış istemciler claim spoof edemez.
-//app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();
+app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();
 
 app.UseRouting();
 
@@ -88,6 +89,7 @@ app.UseCors("LinbikAppOrigins");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseLinbikRateLimiting();
 
 // PasetoAuthManager endpoint'leri (login / callback / refresh / logout).
 app.UseLinbikPasetoAuth();

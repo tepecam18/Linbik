@@ -61,7 +61,15 @@ public static class LinbikServiceCollectionExtensions
     /// </summary>
     private static IServiceCollection AddCommonAuthServices(this IServiceCollection services)
     {
+        services.AddCoreOptionsAndValidators();
+        services.AddLinbikAuthHttpClient();
+        services.AddAuthAndProvisioningServices();
 
+        return services;
+    }
+
+    private static IServiceCollection AddCoreOptionsAndValidators(this IServiceCollection services)
+    {
         services.AddSingleton<IValidateOptions<LinbikOptions>, LinbikOptionsValidator>();
         services.AddSingleton<ILinbikStartupValidator, CoreStartupValidator>();
 
@@ -95,6 +103,11 @@ public static class LinbikServiceCollectionExtensions
         // Register metrics
         services.AddSingleton<LinbikMetrics>();
 
+        return services;
+    }
+
+    private static IServiceCollection AddLinbikAuthHttpClient(this IServiceCollection services)
+    {
         // Add typed HttpClient for LinbikAuthClient with resilience
         services.AddHttpClient<ILinbikAuthClient, LinbikAuthClient>(LinbikHttpClientName)
             .ConfigureHttpClient((sp, client) =>
@@ -128,6 +141,11 @@ public static class LinbikServiceCollectionExtensions
                 });
 
                 // Add circuit breaker
+                // ShouldHandle mirrors the retry policy above (exceptions or 5xx only).
+                // 429 (Too Many Requests) is deliberately excluded: it's part of normal
+                // rate-limiting behavior, not a server failure — counting it here would
+                // trip the circuit open for ALL callers just because the auth server is
+                // throttling some of them.
                 if (resilienceOptions.CircuitBreakerEnabled)
                 {
                     builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
@@ -135,7 +153,10 @@ public static class LinbikServiceCollectionExtensions
                         FailureRatio = 0.5,
                         MinimumThroughput = resilienceOptions.CircuitBreakerFailureThreshold,
                         SamplingDuration = TimeSpan.FromSeconds(resilienceOptions.CircuitBreakerSamplingDurationSeconds),
-                        BreakDuration = TimeSpan.FromSeconds(resilienceOptions.CircuitBreakerDurationSeconds)
+                        BreakDuration = TimeSpan.FromSeconds(resilienceOptions.CircuitBreakerDurationSeconds),
+                        ShouldHandle = args => ValueTask.FromResult(
+                            args.Outcome.Exception != null ||
+                            (args.Outcome.Result?.StatusCode >= System.Net.HttpStatusCode.InternalServerError))
                     });
                 }
 
@@ -143,6 +164,11 @@ public static class LinbikServiceCollectionExtensions
                 builder.AddTimeout(TimeSpan.FromSeconds(resilienceOptions.TimeoutSeconds));
             });
 
+        return services;
+    }
+
+    private static IServiceCollection AddAuthAndProvisioningServices(this IServiceCollection services)
+    {
         // Register PASETO helper (stateless, singleton-safe)
         services.TryAddSingleton<IPasetoHelper, PasetoHelperService>();
 

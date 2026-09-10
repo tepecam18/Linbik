@@ -466,7 +466,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
     /// <summary>
     /// In Keyless Mode, <see cref="LinbikOptions.ServiceId"/> is only populated once provisioning
     /// completes. Provisioning normally happens lazily on the app's first OAuth login, which never
-    /// runs for pure S2S/webhook workloads. Calling this before any apps token request guarantees
+    /// runs for pure application/webhook workloads. Calling this before any apps token request guarantees
     /// ServiceId/ApiKey are available even if the app never processes a user login.
     /// Cheap no-op once already provisioned or when not running in Keyless Mode.
     /// </summary>

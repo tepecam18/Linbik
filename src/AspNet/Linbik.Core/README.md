@@ -28,7 +28,7 @@ dotnet add package Linbik.Core
 ```csharp
 // In Program.cs
 builder.Services.AddLinbik()
-    .AddLinbikJwtAuth()      // optional: Linbik.JwtAuthManager
+    .AddLinbikJwtAuth()      // optional: Linbik.JwtAuthManager (or AddLinbikPasetoAuth() from Linbik.PasetoAuthManager)
     .AddLinbikServer()       // optional: Linbik.Server
     .AddLinbikYarp();        // optional: Linbik.YARP
 
@@ -119,33 +119,16 @@ public interface ILinbikAuthClient
     Task<LinbikTokenResponse?> RefreshTokensAsync(
         string refreshToken, CancellationToken cancellationToken = default);
 
-    // S2S (Service-to-Service) Token Operations
-    Task<LinbikS2STokenResponse?> GetS2STokensAsync(
-        LinbikS2STokenRequest request, CancellationToken cancellationToken = default);
+    // Apps (Service-to-Service) Token Operations
+    Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(
+        LinbikApplicationTokenRequest request, CancellationToken cancellationToken = default);
 
-    Task<LinbikS2STokenResponse?> GetS2STokensAsync(
+    Task<LinbikApplicationTokenResponse?> GetApplicationTokensAsync(
         IEnumerable<string> targetPackageNames, CancellationToken cancellationToken = default);
 
     // Client Management
     Task<bool> UpdateClientRedirectUriByNameAsync(
         string clientName, string redirectUri, CancellationToken cancellationToken = default);
-}
-```
-
-### IJwtHelper
-
-JWT token generation and validation helper.
-
-```csharp
-public interface IJwtHelper
-{
-    Task<string> CreateTokenAsync(Claim[] claims, string privateKey,
-        string audience, int expirationMinutes = 60);
-
-    Task<bool> ValidateTokenAsync(string token, string publicKey,
-        string expectedAudience, string expectedIssuer = "Linbik");
-
-    Dictionary<string, string> GetTokenClaims(string token);
 }
 ```
 
@@ -202,51 +185,27 @@ public sealed class UserProfile
 }
 ```
 
-### S2S Models
+### Apps (Service-to-Service) Models
 
 ```csharp
-public sealed class LinbikS2STokenRequest
+public sealed class LinbikApplicationTokenRequest
 {
     public Guid SourceServiceId { get; set; }
-    public List<Guid> TargetServiceIds { get; set; }
+    public List<Guid> TargetServiceIds { get; set; } = [];
+    public List<string> TargetPackageNames { get; set; } = [];
 }
 
-public sealed class LinbikS2STokenResponse
+public sealed class LinbikApplicationTokenResponse
 {
-    public Guid SourceServiceId { get; set; }
-    public string SourcePackageName { get; set; }
-    public List<LinbikS2SIntegration> Integrations { get; set; }
+    public List<LinbikApplicationIntegration> Integrations { get; set; } = [];
     public long AccessTokenExpiresAt { get; set; }
 }
 
-public sealed class LinbikS2SIntegration
+public sealed class LinbikApplicationIntegration
 {
-    public Guid ServiceId { get; set; }
-    public string ServiceName { get; set; }
-    public string PackageName { get; set; }
-    public string ServiceUrl { get; set; }
-    public string Token { get; set; }
-}
-```
-
-## 🛡️ Exception Handling
-
-```csharp
-try
-{
-    var tokens = await authService.ExchangeCodeForTokensAsync(code);
-}
-catch (LinbikAuthenticationException ex) when (ex.ErrorCode == LinbikAuthenticationException.InvalidCodeError)
-{
-    return RedirectToAction("Login");
-}
-catch (LinbikTokenException ex) when (ex.ErrorCode == LinbikTokenException.TokenExpiredError)
-{
-    await authService.RefreshTokensAsync(context);
-}
-catch (LinbikConfigurationException ex)
-{
-    logger.LogError(ex, "Configuration error: {Key}", ex.ConfigurationKey);
+    public string ServiceName { get; set; } = string.Empty;
+    public string PackageName { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty; // PASETO/JWT signed with target service's private key
 }
 ```
 
@@ -255,6 +214,7 @@ catch (LinbikConfigurationException ex)
 - [Full Documentation](https://github.com/tepecam18/Linbik)
 - [Examples](../../../examples/AspNet/AspNet)
 - [Linbik.JwtAuthManager](../Linbik.JwtAuthManager/README.md)
+- [Linbik.PasetoAuthManager](../Linbik.PasetoAuthManager/README.md)
 - [Linbik.Server](../Linbik.Server/README.md)
 - [Linbik.YARP](../Linbik.YARP/README.md)
 
@@ -268,4 +228,4 @@ MIT License
 
 **Version**: 1.2.0  
 **Platform**: ASP.NET Core 10.0 (net10.0)  
-**Last Updated**: 2 Nisan 2026
+**Last Updated**: 9 Eylül 2026

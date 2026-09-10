@@ -8,7 +8,9 @@
     "start": "nuxt start",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "node --test test/*.test.mjs",
+    "test:smoke": "node --test test/smoke/*.test.mjs"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.2",

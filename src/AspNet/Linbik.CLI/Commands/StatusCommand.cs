@@ -1,5 +1,6 @@
 using System.CommandLine;
 using Linbik.CLI.Services;
+using Linbik.Core.Services.Interfaces;
 
 namespace Linbik.CLI.Commands;
 
@@ -35,6 +36,23 @@ internal static class StatusCommand
             return;
         }
 
+        PrintCredentials(credentials);
+
+        // Check appsettings.json
+        var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
+        var config = appSettingsPath is null
+            ? null
+            : await AppSettingsManager.ReadConfigAsync(appSettingsPath);
+        PrintConfiguration(appSettingsPath, config, credentials.ServiceId);
+
+        // Try to check remote status
+        var linbikUrl = config?.Options.LinbikUrl ?? "https://linbik.com";
+
+        await PrintServerStatusAsync(linbikUrl, credentials);
+    }
+
+    private static void PrintCredentials(LinbikCredentials credentials)
+    {
         // Local credentials info
         ConsoleUI.Step(Messages.LocalConfig);
         ConsoleUI.Info($"  ServiceId:   {credentials.ServiceId}");
@@ -52,21 +70,22 @@ internal static class StatusCommand
         }
 
         Console.WriteLine();
+    }
 
-        // Check appsettings.json
-        var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
+    private static void PrintConfiguration(
+        string? appSettingsPath, LinbikAppSettingsSnapshot? config, string serviceId)
+    {
         if (appSettingsPath != null)
         {
-            var config = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
             if (config != null)
             {
                 ConsoleUI.Step("appsettings.json:");
-                ConsoleUI.Info($"  LinbikUrl:   {config.LinbikUrl}");
-                ConsoleUI.Info($"  ServiceId:   {config.ServiceId}");
-                ConsoleUI.Info($"  KeylessMode: {config.KeylessMode}");
+                ConsoleUI.Info($"  LinbikUrl:   {config.Options.LinbikUrl}");
+                ConsoleUI.Info($"  ServiceId:   {config.Options.ServiceId}");
+                ConsoleUI.Info($"  KeylessMode: {config.Options.KeylessMode}");
 
                 // Check if credentials match appsettings
-                if (config.ServiceId != credentials.ServiceId)
+                if (config.Options.ServiceId != serviceId)
                 {
                     ConsoleUI.Warning($"  {Messages.ServiceIdMismatch}");
                 }
@@ -82,16 +101,10 @@ internal static class StatusCommand
         }
 
         Console.WriteLine();
+    }
 
-        // Try to check remote status
-        var linbikUrl = "https://linbik.com";
-        if (appSettingsPath != null)
-        {
-            var config = await AppSettingsManager.ReadConfigAsync(appSettingsPath);
-            if (config?.LinbikUrl != null)
-                linbikUrl = config.LinbikUrl;
-        }
-
+    private static async Task PrintServerStatusAsync(string linbikUrl, LinbikCredentials credentials)
+    {
         ConsoleUI.Step(Messages.ServerStatus);
         try
         {

@@ -52,7 +52,7 @@ internal static class DoctorCommand
         // ── 2) appsettings.json ───────────────────────────────────────
         ConsoleUI.Step(Messages.DoctorAppSettingsSection);
         var appSettingsPath = AppSettingsManager.FindAppSettings(basePath);
-        LinbikConfig? config = null;
+        LinbikAppSettingsSnapshot? config = null;
         if (appSettingsPath == null)
         {
             ConsoleUI.Warning("  " + Messages.AppSettingsNotFoundShort);
@@ -69,18 +69,18 @@ internal static class DoctorCommand
             }
             else
             {
-                ConsoleUI.Info($"  LinbikUrl:  {config.LinbikUrl}");
-                ConsoleUI.Info($"  ServiceId:  {config.ServiceId}");
+                ConsoleUI.Info($"  LinbikUrl:  {config.Options.LinbikUrl}");
+                ConsoleUI.Info($"  ServiceId:  {config.Options.ServiceId}");
                 ConsoleUI.Info($"  JwtAuth:    {(config.HasJwtAuth ? Messages.Yes : Messages.No)}");
                 ConsoleUI.Info($"  PasetoAuth: {(config.HasPasetoAuth ? Messages.Yes : Messages.No)}");
 
-                if (string.IsNullOrEmpty(config.ServiceId))
+                if (string.IsNullOrEmpty(config.Options.ServiceId))
                 {
                     ConsoleUI.Warning("  " + Messages.DoctorMissingServiceId);
                     issues++;
                 }
 
-                if (credentials != null && config.ServiceId != credentials.ServiceId)
+                if (credentials != null && config.Options.ServiceId != credentials.ServiceId)
                 {
                     ConsoleUI.Warning("  " + Messages.ServiceIdMismatch);
                     issues++;

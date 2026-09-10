@@ -2,13 +2,26 @@
 
 Üretildi: /office-hours · Tarih: 2026-05-31
 Repo: tepecam18/Messtick · Branch: master
-Durum: TASLAK
+Durum: **UYGULANDI** — Approach C (source generator + analyzer) bu repoda
+`Linbik.Slices`/`Linbik.Slices.Generators` olarak hayata geçirildi ve
+`examples/AspNet.Gateway/Services/ArithmeticService` bu konvansiyonlara göre
+tamamen dönüştürüldü (`AddLinbikSlices()`, `Linbik.Slices.Generated`,
+`MapLinbikSlices()`) — bkz. güncelleme notu altta.
 Mod: Builder (intrapreneurship / iç platform)
 
 > Bu doküman **taşınabilir** olacak şekilde yazıldı. Bu workspace asıl projenin bir
 > kopyası; `Linbik.*` paketlerinin kaynağı asıl projede. Konvansiyonları ve planı asıl
 > projede uygula. Kod örnekleri **illüstratiftir** (paterni gösterir), birebir API
 > imzaları asıl `Linbik.Core` ile hizalanmalıdır.
+>
+> **Güncelleme (9 Eylül 2026):** Bu doküman altındaki "Hayata Geçirme Planı"
+> (Adım 0–5) artık geçmiş zaman — planlanan altyapı (`Linbik.Slices`,
+> `Linbik.Slices.Generators`, `[LinbikSlice]`/`[LFlow]` kaynak üretimi,
+> `LINBIK001`–`LINBIK004` analyzer kuralları) uygulandı ve `ArithmeticService`
+> referans dönüşümü (P5) tamamlandı; bkz. `Linbik.Slices/README.md`. Bu doküman
+> artık **referans konvansiyon dokümanı** olarak korunuyor; içindeki "planlanan"
+> ifadeler tarihsel bağlamda okunmalı, "Açık Sorular" bölümündeki sorular Adım 0
+> spike'ıyla yanıtlanmış kabul edilir.
 
 ---
 
@@ -28,7 +41,7 @@ Aggregation) var. Servisler şu an **klasik controller + record Request/Response
 |---|---|---|---|
 | **Self** | PASETO, Local SharedKey, **cookie** | Mobil + Web (first-party) | `/openapi/self.json`, `/docs/self` |
 | **Delegated** | Ed25519 public key, **Bearer** (kullanıcı token'ı) | Third-party'nin **kullanıcı adına** eriştiği akışlar | `/openapi/delegated.json` |
-| **Application** (Apps) | Ed25519 public key, **Bearer** (S2S token) | Third-party **entegrasyon yazılımları** (kullanıcı yok) | `/openapi/apps.json` |
+| **Application** (Apps) | Ed25519 public key, **Bearer** (Application token) | Third-party **entegrasyon yazılımları** (kullanıcı yok) | `/openapi/apps.json` |
 
 - Endpoint, hangi katmana açık olduğunu downstream serviste `[LFlowAuthorize(...)]`
   ile işaretler. **Asıl güvenlik kapısı downstream servistir**; gateway sadece OpenAPI
@@ -44,7 +57,7 @@ Aggregation) var. Servisler şu an **klasik controller + record Request/Response
 2. **Delegated = third-party + kullanıcı bağlamı.** Bir kullanıcının verisine üçüncü
    parti uygulama adına erişim. Kullanıcı claim'i her zaman mevcut olmalı; handler
    `Linbik-*` header'larından kullanıcı bağlamını okur.
-3. **Application = third-party + kullanıcı yok (S2S).** Makine-makine. Kullanıcıya özel
+3. **Application = third-party + kullanıcı yok (Application-to-Application).** Makine-makine. Kullanıcıya özel
    veri **dönmemeli**; sadece uygulama düzeyi (tenant/app) bağlamı.
 4. Bir endpoint **birden çok flow'a** açılabilir (örn. `Self + Application`). Açık liste
    ver, "hepsi" demek için bile bilinçli ol.

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace Linbik.PasetoAuthManager.Configuration;
 
 /// <summary>
@@ -88,9 +90,4 @@ public sealed class PasetoAuthOptions
     /// </summary>
     public string RefreshPath { get; set; } = "/api/Linbik/refresh";
 
-    /// <summary>
-    /// Cookie domain for the username cookie (e.g. ".example.com" for cross-subdomain sharing).
-    /// Defaults to null — uses the current request host.
-    /// </summary>
-    public string? CookieDomain { get; set; }
 }

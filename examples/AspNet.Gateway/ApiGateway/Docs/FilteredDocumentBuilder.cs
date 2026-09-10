@@ -28,7 +28,7 @@ public static class FilteredDocumentBuilder
         {
             FlowSelf => "Linbik Gateway — Self (cookie session)",
             FlowDelegated => "Linbik Gateway — Delegated (user-delegated bearer)",
-            FlowApplication => "Linbik Gateway — Application (S2S bearer)",
+            FlowApplication => "Linbik Gateway — Application (application bearer)",
             _ => "Linbik Gateway"
         };
 

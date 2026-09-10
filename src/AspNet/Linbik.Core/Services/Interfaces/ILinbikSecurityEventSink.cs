@@ -41,7 +41,7 @@ public static class LinbikSecurityEventType
     public const string ApiKeyInvalid = "api_key_invalid";
 
     /// <summary>Apps token, beklenenin aksine user-token (cross-scheme injection denemesi).</summary>
-    public const string S2sJwtInvalid = "s2s_jwt_invalid";
+    public const string ApplicationJwtInvalid = "application_jwt_invalid";
 
     /// <summary>Rate limit aşıldı.</summary>
     public const string RateLimitExceeded = "rate_limit_exceeded";
@@ -80,7 +80,7 @@ public sealed class LinbikSecurityEvent
     /// <summary>Olayın ait olduğu hedef servis id'si (token içindeki <c>aud</c> veya <c>target_service_id</c>).</summary>
     public Guid? TargetServiceId { get; init; }
 
-    /// <summary>Source service id'si (S2S call'larda token içindeki <c>source_service_id</c>).</summary>
+    /// <summary>Source service id'si (Application call'larda token içindeki <c>source_service_id</c>).</summary>
     public Guid? SourceServiceId { get; init; }
 
     /// <summary>Ek metadata (ör. failed_claim_name, expected_role, attempted_role). JSON serialize edilebilir.</summary>

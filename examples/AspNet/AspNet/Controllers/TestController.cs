@@ -1,23 +1,23 @@
+using System.Globalization;
 using AspNet.Models;
+using Linbik.Core.Attributes;
 using Linbik.Core.Models;
 using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
-using Linbik.Core.Attributes;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Globalization;
 
 namespace AspNet.Controllers;
 
 public sealed class TestController(
     LinbikMetrics metrics,
-    IAuthService authService,
     IPasetoHelper pasetoHelper,
     IHttpClientFactory httpClientFactory) : Controller
 {
-    private const string AuthTokenCookie = "authToken";
-    private const string RefreshTokenCookie = "linbikRefreshToken";
-    private const string IntegrationTokenPrefix = "integration_";
+    private const string AuthTokenCookie = Linbik.Core.LinbikDefaults.AuthTokenCookie;
+    private const string RefreshTokenCookie = Linbik.Core.LinbikDefaults.RefreshTokenCookie;
+    private const string IntegrationTokenPrefix = Linbik.Core.LinbikDefaults.IntegrationTokenPrefix;
 
     private static DateTime? ParseUnixSeconds(string? value)
     {
@@ -32,17 +32,20 @@ public sealed class TestController(
     /// <summary>
     /// Ana dashboard sayfası - Kullanıcı durumu ve token bilgilerini gösterir
     /// </summary>
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
         UserProfile? profile = null;
         List<LinbikIntegrationToken> tokens = [];
 
-        // User is populated by the authentication middleware when the auth cookie is valid.
-        if (User.Identity?.IsAuthenticated == true)
+        // This page allows anonymous visitors, so authenticate the browser scheme explicitly.
+        // Protected actions select the same scheme through [LinbikAuthorize].
+        var authentication = await HttpContext.AuthenticateAsync(Linbik.Core.LinbikDefaults.ClientScheme);
+        if (authentication.Succeeded && authentication.Principal is { } principal)
         {
-            var userId = User.FindFirst("sub")?.Value;
-            var userName = User.FindFirst("preferred_username")?.Value;
-            var displayName = User.FindFirst("name")?.Value;
+            HttpContext.User = principal;
+            var userId = principal.FindFirst("sub")?.Value;
+            var userName = principal.FindFirst("preferred_username")?.Value;
+            var displayName = principal.FindFirst("name")?.Value;
 
             if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
             {
@@ -135,58 +138,11 @@ public sealed class TestController(
     /// Refresh token test - Attempts to refresh the current session
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> TestRefreshToken()
+    public IActionResult TestRefreshToken()
     {
-        var refreshToken = Request.Cookies[RefreshTokenCookie];
-
-        if (string.IsNullOrEmpty(refreshToken))
-        {
-            return Json(new
-            {
-                success = false,
-                error = "Refresh token bulunamadı",
-                message = "Önce giriş yapmanız gerekiyor. Refresh token cookie'de saklanır.",
-                cookieName = RefreshTokenCookie
-            });
-        }
-
-        try
-        {
-            var result = await authService.RefreshTokensAsync(HttpContext);
-
-            if (result)
-            {
-                return Json(new
-                {
-                    success = true,
-                    message = "✅ Token'lar başarıyla yenilendi!",
-                    newAuthToken = !string.IsNullOrEmpty(Request.Cookies[AuthTokenCookie]),
-                    timestamp = DateTime.UtcNow
-                });
-            }
-            else
-            {
-                return Json(new
-                {
-                    success = false,
-                    error = "Token yenileme başarısız",
-                    message = "Linbik sunucusu refresh isteğini reddetti. Token süresi dolmuş olabilir.",
-                    timestamp = DateTime.UtcNow
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            return Json(new
-            {
-                success = false,
-                error = "Token yenileme hatası",
-                message = ex.Message,
-                timestamp = DateTime.UtcNow
-            });
-        }
+        var options = HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<Linbik.PasetoAuthManager.Configuration.PasetoAuthOptions>>();
+        return RedirectPreserveMethod(options.Value.RefreshPath);
     }
-
     #endregion
 
     #region Rate Limiting Tests
@@ -527,84 +483,21 @@ public sealed class TestController(
     [HttpGet]
     public async Task<IActionResult> RunAllServerTests()
     {
-        List<object> results = [];
-        var httpClient = httpClientFactory.CreateClient();
+        using var httpClient = httpClientFactory.CreateClient();
         httpClient.Timeout = TimeSpan.FromSeconds(10);
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var checks = new (string Name, string Path)[]
+        {
+            ("Public Health", "/api/serverTest/health"),
+            ("Public Info", "/api/serverTest/info"),
+            ("Public Data", "/api/serverTest/public-data"),
+            ("Echo", "/api/serverTest/echo")
+        };
+        var results = new List<ServerCheckResult>();
+        foreach (var (name, path) in checks)
+            results.Add(await RunServerCheckAsync(httpClient, baseUrl, name, path, HttpContext.RequestAborted));
 
-        // Test 1: Public Health Endpoint
-        try
-        {
-            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/health");
-            results.Add(new
-            {
-                test = "Public Health",
-                endpoint = "/api/serverTest/health",
-                passed = response.IsSuccessStatusCode,
-                statusCode = (int)response.StatusCode,
-                expected = 200
-            });
-        }
-        catch (Exception ex)
-        {
-            results.Add(new { test = "Public Health", passed = false, error = ex.Message });
-        }
-
-        // Test 2: Public Info Endpoint
-        try
-        {
-            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/info");
-            results.Add(new
-            {
-                test = "Public Info",
-                endpoint = "/api/serverTest/info",
-                passed = response.IsSuccessStatusCode,
-                statusCode = (int)response.StatusCode,
-                expected = 200
-            });
-        }
-        catch (Exception ex)
-        {
-            results.Add(new { test = "Public Info", passed = false, error = ex.Message });
-        }
-
-        // Test 3: Public Data Endpoint
-        try
-        {
-            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/public-data");
-            results.Add(new
-            {
-                test = "Public Data",
-                endpoint = "/api/serverTest/public-data",
-                passed = response.IsSuccessStatusCode,
-                statusCode = (int)response.StatusCode,
-                expected = 200
-            });
-        }
-        catch (Exception ex)
-        {
-            results.Add(new { test = "Public Data", passed = false, error = ex.Message });
-        }
-
-        // Test 4: Echo Endpoint
-        try
-        {
-            var response = await httpClient.GetAsync($"{baseUrl}/api/serverTest/echo");
-            results.Add(new
-            {
-                test = "Echo",
-                endpoint = "/api/serverTest/echo",
-                passed = response.IsSuccessStatusCode,
-                statusCode = (int)response.StatusCode,
-                expected = 200
-            });
-        }
-        catch (Exception ex)
-        {
-            results.Add(new { test = "Echo", passed = false, error = ex.Message });
-        }
-
-        var passedCount = results.Count(r => ((dynamic)r).passed == true);
+        var passedCount = results.Count(result => result.Passed);
         var totalCount = results.Count;
 
         return Json(new
@@ -620,6 +513,24 @@ public sealed class TestController(
             note = "Protected endpoint tests with auth require user to be logged in with integration access",
             timestamp = DateTime.UtcNow
         });
+    }
+
+    private static async Task<ServerCheckResult> RunServerCheckAsync(
+        HttpClient client, string baseUrl, string name, string endpoint, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await client.GetAsync(baseUrl + endpoint, cancellationToken);
+            return new(name, response.IsSuccessStatusCode, endpoint, (int)response.StatusCode, 200);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new(name, false, Error: ex.Message);
+        }
     }
 
     private static object? TryParseJson(string content)

@@ -428,13 +428,13 @@
                     🔄 Refresh Token Testi
                 </div>
                 <div class="test-buttons">
-                    <button class="btn-test btn-refresh" onclick="testEndpoint('/Test/TestRefreshToken', 'refresh', 'POST')">
+                    <button class="btn-test btn-refresh" onclick="testEndpoint('/api/Linbik/refresh', 'refresh', 'POST')">
                         🔄 Token Yenile
                     </button>
                 </div>
                 <div id="refresh-result" class="result-box"></div>
                 <div class="note-box">
-                    💡 Linbik sunucusuna refresh token gönderir ve yeni auth token alır. 
+                    💡 Oturumu yeniler; token kaynağına göre Linbik veya yerel depolama kullanılır.
                     Giriş yapmış olmanız gerekir.
                 </div>
             </div>
@@ -591,7 +591,7 @@
 
         async function logout() {
             try {
-                const response = await fetch('/linbik/logout', {
+                const response = await fetch('/api/linbik/logout', {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -624,11 +624,12 @@
                     headers: { 'Accept': 'application/json' }
                 });
 
+                const responseText = await response.text();
                 let data;
                 try {
-                    data = await response.json();
+                    data = responseText ? JSON.parse(responseText) : null;
                 } catch {
-                    data = await response.text();
+                    data = responseText;
                 }
 
                 const statusClass = response.ok ? 'success' : 'error';
@@ -674,11 +675,12 @@
                     body: JSON.stringify(bodyData)
                 });
 
+                const responseText = await response.text();
                 let data;
                 try {
-                    data = await response.json();
+                    data = responseText ? JSON.parse(responseText) : null;
                 } catch {
-                    data = await response.text();
+                    data = responseText;
                 }
 
                 const statusClass = response.ok ? 'success' : 'error';
@@ -733,11 +735,12 @@
                     headers: { 'Accept': 'application/json' }
                 });
 
+                const responseText = await response.text();
                 let data;
                 try {
-                    data = await response.json();
+                    data = responseText ? JSON.parse(responseText) : null;
                 } catch {
-                    data = await response.text();
+                    data = responseText;
                 }
 
                 // Format summary

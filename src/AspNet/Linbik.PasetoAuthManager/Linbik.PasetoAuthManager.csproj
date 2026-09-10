@@ -49,4 +49,5 @@
 	<ItemGroup>
 		<None Include="README.md" Pack="true" PackagePath="" Condition="Exists('README.md')" />
 	</ItemGroup>
+<ItemGroup><Compile Include="../AuthManager.Shared/RefreshTokens.cs" Link="Services/RefreshTokens.cs" /></ItemGroup>
 </Project>

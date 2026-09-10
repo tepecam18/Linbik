@@ -30,15 +30,15 @@ public sealed class YARPOptions
 
     /// <summary>
     /// This service's package name (used in Linbik-Source-Package header)
-    /// Identifies the calling service in S2S communication
+    /// Identifies the calling service in Application communication
     /// </summary>
     public string? SourcePackageName { get; set; }
 
     /// <summary>
-    /// Default timeout for S2S HTTP requests in seconds
+    /// Default timeout for Application HTTP requests in seconds
     /// Default: 30
     /// </summary>
-    public int S2STimeoutSeconds { get; set; } = 30;
+    public int ApplicationTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
     /// Relative output directory (from content root) where NSwag-generated Application
@@ -94,7 +94,7 @@ public sealed class IntegrationServiceOptions
     /// <summary>
     /// Path to this integration service's OpenAPI document (e.g., "/openapi/apps.json").
     /// Combined with <see cref="TargetBaseUrl"/> at gateway startup to probe the document and,
-    /// if reachable, regenerate a typed Application (S2S) client with NSwag. When left empty,
+    /// if reachable, regenerate a typed Application client with NSwag. When left empty,
     /// no client generation is attempted for this service. When the document is unreachable,
     /// the previously generated client (if any) keeps being used as-is.
     /// </summary>

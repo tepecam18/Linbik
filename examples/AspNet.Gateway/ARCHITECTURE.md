@@ -21,9 +21,15 @@ YARP rotaları, downstream `Address`'e ulaşmadan önce `PathPattern`
 `/api/{service}/{**catch-all}` transformasyonunu uygular. Yani downstream
 servisler her zaman `/api/...` görür; flow'a göre URL yeniden yazılmaz.
 
-`Linbik-Flow` header'ı: gelen istekten **koşulsuz silinir** (header
+`Linbik-Flow` header'ı normalde gelen istekten **koşulsuz silinir** (header
 sanitization middleware), sonra YARP route metadata'sından gateway tarafından
-yazılır. İstemci spoof'u imkansız.
+yazılır — istemci spoof'u bu tasarımda imkansız olmalıdır.
+
+> ⚠️ **Bilinen kısıt:** `ApiGateway/Program.cs`'te
+> `app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();` satırı şu an
+> **yorum satırı** (devre dışı). Yani bu örnek uygulamada gelen isteğin
+> `Linbik-Flow`/`Linbik-*` header'ları **şu anda silinmiyor** — spoofing
+> koruması aktif değil. Bkz. §9 ve §10.
 
 ## 2. Servis-otorite invariantı
 
@@ -227,9 +233,11 @@ dahil etmek için kullanılır:
     `[LFlowAuthorize]` taşıyan downstream op'lar anonim isteği 401'le reddeder,
     `["*"]` op'lar header eksikliğini sorun yapmadan geçer.
 
-Önce sanitization middleware: `LinbikHeaderSanitizationMiddleware` (routing'den
-önce) gelen istekteki bütün `Linbik-*` ve `Linbik-Flow` header'larını siler.
-Sonra routing → auth → transform sırası gelir.
+Tasarımda önce bir sanitization middleware çalışır: `LinbikHeaderSanitizationMiddleware`
+(routing'den önce) gelen istekteki bütün `Linbik-*` ve `Linbik-Flow` header'larını
+siler, sonra routing → auth → transform sırası gelir. **Bu örnekte şu an devre
+dışı** (`ApiGateway/Program.cs`'te yorum satırı — bkz. §1, §9, §10); yeniden
+etkinleştirilmeden bu adım fiilen atlanır.
 
 ## 8. `[JsonIgnore]` disiplini
 
@@ -256,7 +264,7 @@ filtreleme hem JSON cevabını hem de doc şemasını korur.
 
 | Tehdit                                          | Mitigation                                                                                                                 |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Header spoofing (`Linbik-Flow` enjeksiyon)      | Routing öncesi sanitization + route metadata'sından yazma.                                                                 |
+| Header spoofing (`Linbik-Flow` enjeksiyon)      | Tasarım: routing öncesi sanitization + route metadata'sından yazma. **Bu örnekte şu an mitigasyon devre dışı** — bkz. §10. |
 | Authorization sızıntısı downstream'e            | `LinbikClaimsHeaderTransform` `Authorization` + `Cookie` header'larını siler.                                              |
 | `linbik-flows` yokluğu                        | Fail-closed: operation drop. Bilinçsizce expose etmek imkansız.                                                            |
 | Bayat / poison ETag                             | `EtagMaxAgeSeconds` (600 sn) sonrası full fetch.                                                                           |
@@ -267,6 +275,14 @@ filtreleme hem JSON cevabını hem de doc şemasını korur.
 
 ## 10. Bilinen kısıtlar / yapılacaklar
 
+- **⚠️ Header sanitization middleware şu an devre dışı.**
+  `ApiGateway/Program.cs`'teki `app.UseMiddleware<LinbikHeaderSanitizationMiddleware>();`
+  satırı yorumda. Bu örnek uygulamada gelen isteğin `Linbik-*`/`Linbik-Flow`
+  header'ları **silinmiyor** — §1 ve §9'daki "spoofing imkansız" tasarım hedefi
+  bu haliyle **sağlanmıyor**. Roadmap: bu satırı tekrar aktif edip
+  (a) network izolasyonu olmayan ortamlarda servis-otorite invariantının
+  gerçekten korunduğunu, (b) mevcut testlerin/örneklerin middleware aktifken de
+  çalıştığını doğrulamak.
 - **Downstream OpenAPI endpoint'leri auth'suz.** Production'da bunların
   internet'e açılmaması, ya da downstream üzerinde de PASETO auth'a
   alınması beklenir. Şu an "trusted internal network" varsayımı.

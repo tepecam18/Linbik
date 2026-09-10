@@ -33,6 +33,13 @@ public static class LValidation
             return this;
         }
 
+        /// <summary>
+        /// <paramref name="condition"/> false ise kuralı hiç değerlendirmeden atlar (hata eklemez).
+        /// Aktöre/flow'a bağlı koşullu kurallar için (ör. <c>EnsureWhen(actor is LActor.Anonymous, ...)</c>).
+        /// </summary>
+        public Builder<T> EnsureWhen(bool condition, Func<T, bool> predicate, string field, string message)
+            => condition ? Ensure(predicate, field, message) : this;
+
         /// <summary>Toplanmış hatalardan bir <see cref="LValidationResult"/> üretir.</summary>
         public LValidationResult Build()
             => _errors.Count == 0 ? LValidationResult.Success : LValidationResult.Fail(_errors);

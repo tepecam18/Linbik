@@ -1,16 +1,32 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using Linbik.Core.Configuration;
 
 namespace Linbik.CLI.Services;
 
 /// <summary>
 /// Reads and writes Linbik configuration to/from appsettings.json files.
+/// Binds directly to Linbik.Core's <see cref="LinbikOptions"/> so the CLI can't
+/// silently drift from Core's actual config schema.
 /// </summary>
 internal static class AppSettingsManager
 {
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true
+    };
+
+    private static readonly JsonSerializerOptions ReadOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static readonly JsonDocumentOptions DocumentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
     };
 
     /// <summary>
@@ -48,50 +64,28 @@ internal static class AppSettingsManager
         string? baseUrl = null,
         string? redirectUrl = null)
     {
-        JsonNode root;
+        var root = await ReadRootAsync(filePath) ?? new JsonObject();
 
-        if (File.Exists(filePath))
+        var linbikSection = root["Linbik"]?.DeepClone() as JsonObject ?? new JsonObject();
+        linbikSection["LinbikUrl"] = linbikUrl;
+        linbikSection["Name"] ??= "Web App";
+        linbikSection["ServiceId"] = serviceId;
+        linbikSection["ApiKey"] = apiKey;
+
+        var clients = linbikSection["Clients"] as JsonArray ?? new JsonArray();
+        var clientConfig = clients.OfType<JsonObject>()
+            .FirstOrDefault(client => client["ClientId"]?.GetValue<string>() == clientId);
+        if (clientConfig is null)
         {
-            var existingJson = await File.ReadAllTextAsync(filePath);
-            root = JsonNode.Parse(existingJson, documentOptions: new JsonDocumentOptions
-            {
-                CommentHandling = JsonCommentHandling.Skip,
-                AllowTrailingCommas = true
-            }) ?? new JsonObject();
+            clientConfig = new JsonObject { ["ClientId"] = clientId };
+            clients.Add(clientConfig);
         }
-        else
-        {
-            root = new JsonObject();
-        }
 
-        // Build client config
-        var clientConfig = new JsonObject
-        {
-            ["ClientId"] = clientId,
-            ["BaseUrl"] = baseUrl ?? "https://localhost:5001",
-            ["RedirectUrl"] = redirectUrl ?? "/api/linbik/callback",
-            ["ClientType"] = "Web"
-        };
-
-        // Build Linbik section
-        var linbikSection = new JsonObject
-        {
-            ["LinbikUrl"] = linbikUrl,
-            ["Name"] = "Web App",
-            ["ServiceId"] = serviceId,
-            ["ApiKey"] = apiKey,
-            ["Clients"] = new JsonArray { clientConfig }
-        };
-
-        // Preserve existing auth manager sections (JwtAuth / PasetoAuth) if present
-        if (root["Linbik"] is JsonObject existingLinbik)
-        {
-            if (existingLinbik["JwtAuth"] is JsonNode existingJwtAuth)
-                linbikSection["JwtAuth"] = existingJwtAuth.DeepClone();
-
-            if (existingLinbik["PasetoAuth"] is JsonNode existingPasetoAuth)
-                linbikSection["PasetoAuth"] = existingPasetoAuth.DeepClone();
-        }
+        clientConfig["BaseUrl"] = baseUrl ?? clientConfig["BaseUrl"]?.GetValue<string>() ?? "https://localhost:5001";
+        clientConfig["RedirectUrl"] = redirectUrl ?? clientConfig["RedirectUrl"]?.GetValue<string>() ?? "/api/linbik/callback";
+        clientConfig["ClientType"] ??= "Web";
+        if (linbikSection["Clients"] is not JsonArray)
+            linbikSection["Clients"] = clients;
 
         root["Linbik"] = linbikSection;
 
@@ -100,43 +94,43 @@ internal static class AppSettingsManager
     }
 
     /// <summary>
-    /// Read current Linbik configuration from appsettings.json.
-    /// Returns null if section doesn't exist.
+    /// Read the current Linbik configuration from appsettings.json, bound to Core's
+    /// real <see cref="LinbikOptions"/>. Returns null if the "Linbik" section doesn't exist.
     /// </summary>
-    public static async Task<LinbikConfig?> ReadConfigAsync(string filePath)
+    public static async Task<LinbikAppSettingsSnapshot?> ReadConfigAsync(string filePath)
+    {
+        var root = await ReadRootAsync(filePath);
+        var linbikNode = root?["Linbik"];
+        if (linbikNode == null)
+            return null;
+
+        var options = linbikNode.Deserialize<LinbikOptions>(ReadOptions) ?? new LinbikOptions();
+
+        return new LinbikAppSettingsSnapshot
+        {
+            Options = options,
+            HasJwtAuth = linbikNode["JwtAuth"] is JsonObject,
+            HasPasetoAuth = linbikNode["PasetoAuth"] is JsonObject
+        };
+    }
+
+    private static async Task<JsonNode?> ReadRootAsync(string filePath)
     {
         if (!File.Exists(filePath))
             return null;
 
         var json = await File.ReadAllTextAsync(filePath);
-        var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
-        {
-            CommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true
-        });
-
-        var linbikNode = root?["Linbik"];
-        if (linbikNode == null)
-            return null;
-
-        return new LinbikConfig
-        {
-            LinbikUrl = linbikNode["LinbikUrl"]?.GetValue<string>() ?? "",
-            ServiceId = linbikNode["ServiceId"]?.GetValue<string>() ?? "",
-            ApiKey = linbikNode["ApiKey"]?.GetValue<string>() ?? "",
-            KeylessMode = linbikNode["KeylessMode"]?.GetValue<bool>() ?? false,
-            HasJwtAuth = linbikNode["JwtAuth"] is JsonObject,
-            HasPasetoAuth = linbikNode["PasetoAuth"] is JsonObject
-        };
+        return JsonNode.Parse(json, documentOptions: DocumentOptions);
     }
 }
 
-internal sealed class LinbikConfig
+/// <summary>
+/// Bundles Core's real <see cref="LinbikOptions"/> with two CLI-only derived flags
+/// (whether JwtAuth/PasetoAuth sub-sections are present) that aren't part of Core's schema.
+/// </summary>
+internal sealed class LinbikAppSettingsSnapshot
 {
-    public string LinbikUrl { get; set; } = string.Empty;
-    public string ServiceId { get; set; } = string.Empty;
-    public string ApiKey { get; set; } = string.Empty;
-    public bool KeylessMode { get; set; }
-    public bool HasJwtAuth { get; set; }
-    public bool HasPasetoAuth { get; set; }
+    public required LinbikOptions Options { get; init; }
+    public bool HasJwtAuth { get; init; }
+    public bool HasPasetoAuth { get; init; }
 }

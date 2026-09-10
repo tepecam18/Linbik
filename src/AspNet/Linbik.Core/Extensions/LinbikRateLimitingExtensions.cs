@@ -1,5 +1,4 @@
 using Linbik.Core.Configuration;
-using Linbik.Core.Extensions;
 using Linbik.Core.Services;
 using Linbik.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
@@ -10,24 +9,24 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Threading.RateLimiting;
 
-namespace Linbik.JwtAuthManager.Extensions;
+namespace Linbik.Core.Extensions;
 
 /// <summary>
-/// Extension methods for configuring Rate Limiting for Linbik authentication endpoints
+/// Extension methods for configuring rate limiting for Linbik authentication endpoints.
+/// Shared by <c>Linbik.JwtAuthManager</c> and <c>Linbik.PasetoAuthManager</c>.
 /// </summary>
-public static class RateLimitExtensions
+public static class LinbikRateLimitingExtensions
 {
     /// <summary>
-    /// Rate limit policy name for Linbik authentication endpoints
+    /// Rate limit policy name for Linbik authentication endpoints.
     /// </summary>
     public const string LinbikAuthPolicy = "LinbikAuth";
 
+    private const string UnknownPartitionKey = "unknown";
+
     /// <summary>
-    /// Add rate limiting services configured for Linbik authentication
+    /// Add rate limiting services configured for Linbik authentication.
     /// </summary>
-    /// <param name="services"></param>
-    /// <param name="configureOptions"></param>
-    /// <returns></returns>
     public static IServiceCollection AddLinbikRateLimiting(
         this IServiceCollection services, Action<RateLimitOptions> configureOptions)
     {
@@ -40,13 +39,9 @@ public static class RateLimitExtensions
         return services;
     }
 
-
-
     /// <summary>
-    /// Add rate limiting services from configuration
+    /// Add rate limiting services from configuration.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The application configuration.</param>
     public static IServiceCollection AddLinbikRateLimiting(
         this IServiceCollection services,
         IConfigurationSection configuration)
@@ -58,22 +53,21 @@ public static class RateLimitExtensions
         return services;
     }
 
-
+    /// <summary>
+    /// Add rate limiting services using default <see cref="RateLimitOptions"/>.
+    /// </summary>
     public static IServiceCollection AddLinbikRateLimiting(this IServiceCollection services)
     {
+        var defaultOptions = new RateLimitOptions();
         services.Configure<RateLimitOptions>(_ => { });
+        services.AddCommonLinbikRateLimiting(defaultOptions);
         return services;
     }
 
-    /// <summary>
-    /// Add rate limiting services configured for Linbik authentication
-    /// </summary>
     private static IServiceCollection AddCommonLinbikRateLimiting(this IServiceCollection services, RateLimitOptions rateLimitOptions)
     {
         services.AddRateLimiter(options =>
         {
-
-            // Configure rejection response
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, cancellationToken) =>
             {
@@ -94,7 +88,7 @@ public static class RateLimitExtensions
                     await auditLogger.LogRateLimitExceededAsync(ipAddress, endpoint, userId);
                 }
 
-                metrics?.RecordRateLimitHit(endpoint ?? "unknown");
+                metrics?.RecordRateLimitHit(endpoint ?? UnknownPartitionKey);
 
                 context.HttpContext.Response.ContentType = "application/json";
 
@@ -113,54 +107,59 @@ public static class RateLimitExtensions
                 }, cancellationToken);
             };
 
-            // Add fixed window rate limiter for auth endpoints
             if (rateLimitOptions.UseSlidingWindow)
             {
-                options.AddSlidingWindowLimiter(LinbikAuthPolicy, limiterOptions =>
-                {
-                    limiterOptions.PermitLimit = rateLimitOptions.PermitLimit;
-                    limiterOptions.Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds);
-                    limiterOptions.SegmentsPerWindow = rateLimitOptions.SegmentsPerWindow;
-                    limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                    limiterOptions.QueueLimit = rateLimitOptions.QueueLimit;
-                });
+                options.AddPolicy(LinbikAuthPolicy, context => RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: context.GetClientIpAddress() ?? UnknownPartitionKey,
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        SegmentsPerWindow = rateLimitOptions.SegmentsPerWindow,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
             }
             else
             {
-                options.AddFixedWindowLimiter(LinbikAuthPolicy, limiterOptions =>
-                {
-                    limiterOptions.PermitLimit = rateLimitOptions.PermitLimit;
-                    limiterOptions.Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds);
-                    limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                    limiterOptions.QueueLimit = rateLimitOptions.QueueLimit;
-                });
+                options.AddPolicy(LinbikAuthPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.GetClientIpAddress() ?? UnknownPartitionKey,
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimitOptions.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = rateLimitOptions.QueueLimit
+                    }));
             }
 
-            // Add a more permissive policy for general endpoints
-            options.AddFixedWindowLimiter("LinbikGeneral", limiterOptions =>
-            {
-                limiterOptions.PermitLimit = rateLimitOptions.PermitLimit * rateLimitOptions.GeneralPolicyMultiplier;
-                limiterOptions.Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds);
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = rateLimitOptions.QueueLimit;
-            });
+            options.AddPolicy("LinbikGeneral", context => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.GetClientIpAddress() ?? UnknownPartitionKey,
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = rateLimitOptions.PermitLimit * rateLimitOptions.GeneralPolicyMultiplier,
+                    Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitOptions.QueueLimit
+                }));
 
-            // Add a strict policy for sensitive operations like token exchange
-            options.AddTokenBucketLimiter("LinbikStrict", limiterOptions =>
-            {
-                limiterOptions.TokenLimit = rateLimitOptions.StrictTokenLimit;
-                limiterOptions.ReplenishmentPeriod = TimeSpan.FromSeconds(rateLimitOptions.StrictReplenishmentPeriodSeconds);
-                limiterOptions.TokensPerPeriod = rateLimitOptions.StrictTokensPerPeriod;
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = rateLimitOptions.StrictQueueLimit;
-            });
+            options.AddPolicy("LinbikStrict", context => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: context.GetClientIpAddress() ?? UnknownPartitionKey,
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = rateLimitOptions.StrictTokenLimit,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(rateLimitOptions.StrictReplenishmentPeriodSeconds),
+                    TokensPerPeriod = rateLimitOptions.StrictTokensPerPeriod,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitOptions.StrictQueueLimit
+                }));
         });
 
         return services;
     }
 
     /// <summary>
-    /// Use rate limiting middleware
+    /// Use rate limiting middleware.
     /// </summary>
     public static IApplicationBuilder UseLinbikRateLimiting(this IApplicationBuilder app) =>
         app.UseRateLimiter();

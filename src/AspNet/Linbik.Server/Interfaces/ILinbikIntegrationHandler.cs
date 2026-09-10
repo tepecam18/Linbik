@@ -59,6 +59,8 @@ public interface ILinbikIntegrationHandler
     /// <param name="integrationEvent">Admin profile change event data</param>
     /// <returns>Result indicating success or failure</returns>
     Task<IntegrationEventResult> OnIntegrationAdminChangedAsync(IntegrationEvent integrationEvent);
+    Task<IntegrationEventResult> OnIntegrationServiceChangedAsync(IntegrationEvent integrationEvent)
+        => Task.FromResult(IntegrationEventResult.Success());
 }
 
 /// <summary>
