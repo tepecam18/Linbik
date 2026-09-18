@@ -36,10 +36,10 @@ public sealed class LinbikTokenClaims
     /// <summary>
     /// Username - Only present in delegated tokens
     /// </summary>
-    public string? UserName { get; set; }
+    public string? Username { get; set; }
 
     /// <summary>
-    /// Display name / Nickname - Only present in delegated tokens
+    /// Display name - Only present in delegated tokens
     /// </summary>
     public string? DisplayName { get; set; }
 

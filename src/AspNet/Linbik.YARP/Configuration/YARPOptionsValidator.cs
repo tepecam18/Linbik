@@ -38,6 +38,17 @@ public sealed class YARPOptionsValidator : IValidateOptions<YARPOptions>
             {
                 errors.Add($"Linbik:YARP:IntegrationServices:{key}:SourcePath is required.");
             }
+            else if (service.SourcePath.Trim('/') is "" || service.SourcePath.IndexOfAny(['?', '#', '{', '}', ':']) >= 0)
+            {
+                errors.Add($"Linbik:YARP:IntegrationServices:{key}:SourcePath must be a non-root literal proxy prefix.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(service.DelegatedDocumentPath) &&
+                (!service.DelegatedDocumentPath.StartsWith('/') || service.DelegatedDocumentPath.StartsWith("//")))
+                errors.Add($"Linbik:YARP:IntegrationServices:{key}:DelegatedDocumentPath must be a local absolute path.");
+
+            if (service.TargetPath is null || service.TargetPath.IndexOfAny(['?', '#', '{', '}', ':']) >= 0)
+                errors.Add($"Linbik:YARP:IntegrationServices:{key}:TargetPath must be a literal path prefix or empty.");
 
             if (string.IsNullOrWhiteSpace(service.TargetBaseUrl))
             {

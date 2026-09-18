@@ -18,6 +18,17 @@ public static class FilteredDocumentBuilder
     public const string FlowExtensionKey = "linbik-flows";
 
     /// <summary>
+    /// Bu tag'i taşıyan operasyonlar (örn. AppsService'in Linbik platform lifecycle
+    /// endpoint'leri) gerçek erişimde <c>linbik-flows</c>'daki akışı (örn. Application)
+    /// kullanmaya devam eder — downstream <c>[LFlowAuthorize]</c> değişmez. Ama bu, o
+    /// akışın **public dokümanında** görünmesi gerektiği anlamına gelmez: bu tag'e sahip
+    /// operasyonlar yalnız <see cref="FlowSelf"/> dokümanında listelenir, diğer akış
+    /// dokümanlarından (Delegated/Application) her zaman gizlenir. <c>LinbikGatewaySource.IsGateway</c>'in
+    /// source-level karşılığı — burada operation-level, herhangi bir servis kullanabilir.
+    /// </summary>
+    public const string SystemTagName = "Linbik System";
+
+    /// <summary>
     /// Verilen akış için filtrelenmiş OpenAPI JSON dokümanını üretir. Hiç eşleşen
     /// operation yoksa bile geçerli (boş paths) bir doküman döner.
     /// </summary>
@@ -52,10 +63,6 @@ public static class FilteredDocumentBuilder
         foreach (var snap in sources)
         {
             if (snap.Document is not JsonObject downstream) continue;
-
-            // Tag (servis grubu)
-            var tagName = snap.DisplayName ?? snap.ServicePrefix;
-            tags.Add(new JsonObject { ["name"] = tagName });
 
             // components/schemas'ı kopyala (basit merge — name çakışması üzerine yaz; ileride prefiks eklenebilir)
             if (downstream["components"] is JsonObject comps &&
@@ -108,13 +115,23 @@ public static class FilteredDocumentBuilder
 
                     var clonedOp = (JsonObject)op.DeepClone();
 
-                    // Operation tag'lerini servis adıyla zenginleştir.
-                    var opTags = clonedOp["tags"] as JsonArray ?? new JsonArray();
-                    if (!opTags.Any(t => string.Equals(t?.GetValue<string>(), tagName, StringComparison.Ordinal)))
+                    // Operasyonun kendi tag'lerini (servis tarafında WithTags ile atanan,
+                    // örn. "Reactions", "Comments") global tags listesine unique olarak topla.
+                    // NOT: Servis adını (DisplayName) operasyona AYRICA eklemiyoruz — aksi
+                    // halde her operasyon hem kendi feature grubunda hem de servis-genel
+                    // grubunda (ör. "Comment") tekrar görünür (duplicate grouping).
+                    if (clonedOp["tags"] is JsonArray opTags)
                     {
-                        opTags.Add(tagName);
+                        foreach (var t in opTags)
+                        {
+                            var tv = t?.GetValue<string>();
+                            if (!string.IsNullOrWhiteSpace(tv) &&
+                                !tags.Any(gt => string.Equals(gt?["name"]?.GetValue<string>(), tv, StringComparison.Ordinal)))
+                            {
+                                tags.Add(new JsonObject { ["name"] = tv });
+                            }
+                        }
                     }
-                    clonedOp["tags"] = opTags;
 
                     rewrittenPathItem[verb] = clonedOp;
                 }
@@ -149,10 +166,10 @@ public static class FilteredDocumentBuilder
 
     private static string ResolvePublicPrefix(string flow) => flow switch
     {
-        FlowSelf => string.Empty,            // /{servicePrefix}/...
-        FlowDelegated => "/delegated",
-        FlowApplication => "/apps",
-        _ => string.Empty
+        FlowSelf => "/api",                  // /api/{servicePrefix}/...
+        FlowDelegated => "/api/delegated",
+        FlowApplication => "/api/apps",
+        _ => "/api"
     };
 
     private static bool TryRewritePath(string downstreamPath, string servicePrefix, string publicPrefix, out string publicPath)
@@ -177,6 +194,11 @@ public static class FilteredDocumentBuilder
 
     private static bool OperationAllowedForFlow(JsonObject op, string flow)
     {
+        // Sistem tag'i: gerçek erişim linbik-flows'a göre çalışmaya devam eder (aşağıda),
+        // ama public dokümanda yalnız Self'te gösterilir — bkz. SystemTagName.
+        if (HasSystemTag(op) && !string.Equals(flow, FlowSelf, StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (op[FlowExtensionKey] is not JsonArray flows)
         {
             // linbik-flows yoksa: kaynak transformer çalıştırılmamış demek. Conservative: gizle.
@@ -191,6 +213,17 @@ public static class FilteredDocumentBuilder
             if (string.Equals(value, AnonymousMarker, StringComparison.Ordinal)) return true;
             if (string.Equals(value, AuthenticatedMarker, StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(value, flow, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
+    private static bool HasSystemTag(JsonObject op)
+    {
+        if (op["tags"] is not JsonArray tags) return false;
+        foreach (var t in tags)
+        {
+            if (string.Equals(t?.GetValue<string>(), SystemTagName, StringComparison.Ordinal))
+                return true;
         }
         return false;
     }

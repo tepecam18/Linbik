@@ -108,7 +108,7 @@ AddLinbikPasetoAuth(opt => { });
 [HttpGet]
 public IActionResult Protected()
 {
-    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = User.FindFirst("sub")?.Value;
     return Ok(new { userId });
 }
 ```
@@ -118,10 +118,12 @@ or with minimal APIs:
 ```csharp
 app.MapGet("/protected", [LinbikAuthorize] (ClaimsPrincipal user) =>
 {
-    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = user.FindFirst("sub")?.Value;
     return Results.Ok(new { userId });
 });
 ```
+
+> Note: `PasetoBearerHandler` builds the `ClaimsIdentity` from raw token claims with no type mapping, so use the short claim key `"sub"`.
 
 ### Access Integration Tokens
 

@@ -49,5 +49,6 @@
 
 	<ItemGroup>
 		<None Include="README.md" Pack="true" PackagePath="" />
+		<None Update="OPENAPI.md" Pack="true" PackagePath="" />
 	</ItemGroup>
 </Project>

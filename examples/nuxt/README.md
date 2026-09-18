@@ -114,7 +114,7 @@ JavaScript/TypeScript için kütüphane olmadan OAuth flow:
    Headers: ApiKey, Code
    ↓
 6. Linbik → Token response
-   { userId, userName, integrations[], refreshToken }
+   { userId, username, integrations[], refreshToken }
    ↓
 7. Client → Session oluştur (cookie/localStorage)
 ```
@@ -204,8 +204,8 @@ export default defineEventHandler(async (event: H3Event) => {
   // Set session cookie
   setCookie(event, 'session', JSON.stringify({
     userId: response.user_id,
-    userName: response.user_name,
-    nickName: response.nick_name
+    username: response.user_name,
+    displayName: response.nick_name
   }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -293,8 +293,8 @@ export default defineEventHandler(async (event: H3Event) => {
   
   return {
     userId: user.userId,
-    userName: user.userName,
-    nickName: user.nickName
+    username: user.username,
+    displayName: user.displayName
   }
 })
 ```
@@ -369,7 +369,7 @@ const { logout } = useLinbik()
 
 <template>
   <div class="dashboard">
-    <h1>Hoş geldiniz, {{ profile?.nickName }}!</h1>
+    <h1>Hoş geldiniz, {{ profile?.displayName }}!</h1>
     <p>User ID: {{ profile?.userId }}</p>
     
     <button @click="logout" class="btn-logout">
@@ -445,8 +445,8 @@ export function validateLinbikToken(token: string): LinbikClaims | null {
 
 interface LinbikClaims {
   sub: string       // userId
-  userName: string
-  nickName: string
+  username: string
+  displayName: string
   aud: string       // serviceId
   iss: string       // "Linbik"
   exp: number
@@ -473,7 +473,7 @@ export default defineEventHandler(async (event: H3Event) => {
   return {
     message: 'Protected data',
     userId: claims.sub,
-    userName: claims.userName
+    username: claims.username
   }
 })
 ```

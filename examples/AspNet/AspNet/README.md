@@ -201,7 +201,7 @@ Controller action'larını korumak için:
 [HttpGet]
 public IActionResult Protected()
 {
-    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = User.FindFirst("sub")?.Value;
     return Ok(new { userId });
 }
 ```
@@ -218,8 +218,8 @@ public IActionResult Protected()
     // PasetoBearerHandler ClaimsPrincipal'ı token'ın ham claim anahtarlarıyla
     // (ClaimTypes.* eşlemesi olmadan) oluşturur — bkz. Linbik.Server README
     var userId = User.FindFirst("sub")?.Value;
-    var userName = User.FindFirst("preferred_username")?.Value;
-    return Ok(new { userId, userName });
+    var username = User.FindFirst("preferred_username")?.Value;
+    return Ok(new { userId, username });
 }
 ```
 

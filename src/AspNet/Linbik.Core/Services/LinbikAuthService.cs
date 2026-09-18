@@ -87,13 +87,9 @@ public sealed class LinbikAuthService(
             // The cookie token is HS256 JWT; payload is base64url-encoded JSON at segment [1].
             var claims = ReadJwtPayloadClaims(authToken);
 
-            var userId = claims.GetValueOrDefault(ClaimTypes.NameIdentifier)
-                      ?? claims.GetValueOrDefault("sub");
-            var userName = claims.GetValueOrDefault(ClaimTypes.Name)
-                        ?? claims.GetValueOrDefault("name")
-                        ?? claims.GetValueOrDefault("preferred_username");
-            var nickName = claims.GetValueOrDefault("nickname")
-                        ?? claims.GetValueOrDefault("display_name");
+            var userId = claims.GetValueOrDefault("sub");
+            var displayName = claims.GetValueOrDefault(ClaimTypes.Name);
+            var username = claims.GetValueOrDefault("preferred_username");
 
             if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
             {
@@ -104,8 +100,8 @@ public sealed class LinbikAuthService(
             var profile = new UserProfile
             {
                 UserId = userGuid,
-                UserName = userName ?? string.Empty,
-                NickName = nickName ?? userName ?? string.Empty
+                Username = username ?? string.Empty,
+                DisplayName = displayName ?? string.Empty
             };
 
             return Task.FromResult<UserProfile?>(profile);

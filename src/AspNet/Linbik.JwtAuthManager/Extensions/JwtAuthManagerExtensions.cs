@@ -1,5 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Linbik.Core.Extensions;
 using Linbik.Core.Responses;
 using Linbik.Core.Services;
@@ -25,7 +23,7 @@ public static class JwtAuthManagerExtensions
 {
     private const string AuthTokenCookie = Core.LinbikDefaults.AuthTokenCookie;
     private const string LinbikRefreshTokenCookie = Core.LinbikDefaults.RefreshTokenCookie;
-    private const string UserNameCookie = Core.LinbikDefaults.UserNameCookie;
+    private const string UsernameCookie = Core.LinbikDefaults.UsernameCookie;
     private const string IntegrationTokenPrefix = Core.LinbikDefaults.IntegrationTokenPrefix;
 
     /// <summary>
@@ -287,7 +285,7 @@ public static class JwtAuthManagerExtensions
                 var responseData = new LoginCallbackResponse
                 {
                     UserId = tokenResponse.UserId,
-                    UserName = tokenResponse.Username,
+                    Username = tokenResponse.Username,
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
@@ -311,20 +309,20 @@ public static class JwtAuthManagerExtensions
             await context.RequestServices.GetRequiredService<LinbikRefreshTokenManager>().RevokeAsync(context.Request.Cookies[LinbikRefreshTokenCookie], context.RequestAborted);
             var deleteCookieOptions = new CookieOptions { Path = "/", Domain = linbikOptions.CookieDomain, SameSite = linbikOptions.SameSite };
 
-            // Get user ID before deleting cookies (mode-aware local JWT reader; no signature validation).
+            // Get user ID from JWT cookie (no signature validation — best-effort for audit).
+            // Uses the mode-aware local reader; never mixes with Linbik API application tokens.
             var authToken = context.Request.Cookies[AuthTokenCookie];
             string? userId = null;
             if (!string.IsNullOrEmpty(authToken))
             {
                 var claims = localTokenReader.Read(authToken);
-                userId = claims.GetValueOrDefault(ClaimTypes.NameIdentifier)
-                         ?? claims.GetValueOrDefault("sub");
+                userId = claims.GetValueOrDefault("sub");
             }
 
             // Delete all auth cookies
             context.Response.Cookies.Delete(AuthTokenCookie, deleteCookieOptions);
             context.Response.Cookies.Delete(LinbikRefreshTokenCookie, deleteCookieOptions);
-            context.Response.Cookies.Delete(UserNameCookie, deleteCookieOptions);
+            context.Response.Cookies.Delete(UsernameCookie, deleteCookieOptions);
 
             // Delete integration cookies
             foreach (var cookie in context.Request.Cookies)
@@ -399,7 +397,7 @@ public static class JwtAuthManagerExtensions
                 return Results.Ok(new LBaseResponse<object>(new
                 {
                     userId = tokenResponse.UserId,
-                    userName = tokenResponse.Username,
+                    username = tokenResponse.Username,
                     displayName = tokenResponse.DisplayName,
                     integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 }));

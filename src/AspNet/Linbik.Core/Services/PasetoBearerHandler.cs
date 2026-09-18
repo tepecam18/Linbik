@@ -205,8 +205,7 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
     {
         Response.StatusCode = 403;
 
-        var actor = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                    ?? Context.User?.FindFirst("sub")?.Value;
+        var actor = Context.User?.FindFirst("sub")?.Value;
 
         Guid? sourceServiceId = null;
         if (Options.RequireApplicationToken)

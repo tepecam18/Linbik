@@ -58,7 +58,7 @@ public sealed class LinbikClaimsHeaderTransform : RequestTransform
     }
 
     /// <summary>
-    /// Claim type bazen URI biçiminde gelir (ör. ClaimTypes.NameIdentifier).
+    /// Claim type bazen URI biçiminde gelir (ör. "sub").
     /// Header adında kullanılamayacak karakterleri '-' ile değiştirir.
     /// </summary>
     private static string SanitizeHeaderName(string claimType)

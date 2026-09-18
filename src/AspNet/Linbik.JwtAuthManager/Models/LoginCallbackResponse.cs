@@ -6,7 +6,7 @@ namespace Linbik.JwtAuthManager.Models;
 public sealed class LoginCallbackResponse
 {
     public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public List<string> Integrations { get; set; } = [];
     public string? RedirectPath { get; set; }

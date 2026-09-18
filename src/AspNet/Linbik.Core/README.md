@@ -179,8 +179,8 @@ User profile information extracted from cookies.
 public sealed class UserProfile
 {
     public Guid UserId { get; set; }
-    public string UserName { get; set; }
-    public string NickName { get; set; }
+    public string Username { get; set; }
+    public string DisplayName { get; set; }
     public Dictionary<string, string> IntegrationTokens { get; set; }
 }
 ```

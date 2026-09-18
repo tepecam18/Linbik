@@ -77,7 +77,8 @@ public static class LinbikRateLimitingExtensions
 
                 var ipAddress = context.HttpContext.GetClientIpAddress();
                 var endpoint = context.HttpContext.Request.Path.Value;
-                var userId = context.HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                // Both JWT (MapInboundClaims=false) and PASETO principals expose the raw "sub" claim.
+                var userId = context.HttpContext.User?.FindFirst("sub")?.Value;
 
                 logger?.LogWarning(
                     "Rate limit exceeded for IP {IpAddress} on endpoint {Endpoint}. Retry after: {RetryAfter}",

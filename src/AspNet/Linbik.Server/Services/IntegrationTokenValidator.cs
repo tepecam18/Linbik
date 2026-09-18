@@ -117,11 +117,9 @@ public sealed class IntegrationTokenValidator
             var sub = rawClaims.GetValueOrDefault("sub");
             if (Guid.TryParse(sub, out var userId))
                 claims.UserId = userId;
-            claims.UserName = rawClaims.GetValueOrDefault("preferred_username")
-                           ?? rawClaims.GetValueOrDefault("name");
-            claims.DisplayName = rawClaims.GetValueOrDefault("nickname")
-                              ?? rawClaims.GetValueOrDefault("display_name")
-                              ?? claims.UserName;
+            claims.Username = rawClaims.GetValueOrDefault("preferred_username");
+            claims.DisplayName = rawClaims.GetValueOrDefault(ClaimTypes.Name)
+                              ?? claims.Username;
             _logger?.LogDebug("PASETO delegated token validated for user {UserId}", claims.UserId);
         }
 
@@ -181,8 +179,8 @@ public sealed class IntegrationTokenValidator
     /// <summary>
     /// Get user name from validated token claims (UserService tokens only)
     /// </summary>
-    public static string GetUserName(LinbikTokenClaims? claims) =>
-        claims?.UserName ?? string.Empty;
+    public static string GetUsername(LinbikTokenClaims? claims) =>
+        claims?.Username ?? string.Empty;
 
     /// <summary>
     /// Get display name from validated token claims (UserService tokens only)

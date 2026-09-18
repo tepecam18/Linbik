@@ -87,7 +87,7 @@ public class IntegrationController : ControllerBase
 
 ```csharp
 var userId = HttpContext.User.FindFirst("sub")?.Value;
-var userName = HttpContext.User.FindFirst("preferred_username")?.Value;
+var username = HttpContext.User.FindFirst("preferred_username")?.Value;
 var isAuthenticated = HttpContext.User.Identity?.IsAuthenticated ?? false;
 var roles = HttpContext.User.FindAll("role").Select(c => c.Value);
 ```

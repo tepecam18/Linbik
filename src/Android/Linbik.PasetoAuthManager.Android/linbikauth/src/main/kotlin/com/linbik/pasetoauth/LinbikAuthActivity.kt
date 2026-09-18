@@ -263,7 +263,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
         }
         finishSuccess(
             userId = data.optString("userId"),
-            userName = data.optString("userName"),
+            username = data.optString("username"),
             displayName = data.optString("displayName"),
             integrations = integrationList,
         )
@@ -285,12 +285,12 @@ internal class LinbikAuthActivity : ComponentActivity() {
             e.message ?: "Bir ağ hatası oluştu."
     }
 
-    private fun finishSuccess(userId: String, userName: String, displayName: String, integrations: List<String>) {
+    private fun finishSuccess(userId: String, username: String, displayName: String, integrations: List<String>) {
         clearPersistedOptions()
         val result = Intent().apply {
             putExtra(EXTRA_RESULT_TYPE, RESULT_TYPE_SUCCESS)
             putExtra(EXTRA_USER_ID, userId)
-            putExtra(EXTRA_USER_NAME, userName)
+            putExtra(EXTRA_USER_NAME, username)
             putExtra(EXTRA_DISPLAY_NAME, displayName)
             putStringArrayListExtra(EXTRA_INTEGRATIONS, ArrayList(integrations))
         }
@@ -334,7 +334,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
         private const val RESULT_TYPE_SUCCESS = "success"
         private const val RESULT_TYPE_ERROR = "error"
         private const val EXTRA_USER_ID = "linbik.userId"
-        private const val EXTRA_USER_NAME = "linbik.userName"
+        private const val EXTRA_USER_NAME = "linbik.username"
         private const val EXTRA_DISPLAY_NAME = "linbik.displayName"
         private const val EXTRA_INTEGRATIONS = "linbik.integrations"
         private const val EXTRA_ERROR_MESSAGE = "linbik.errorMessage"
@@ -373,7 +373,7 @@ internal class LinbikAuthActivity : ComponentActivity() {
         fun parseResult(intent: Intent): LinbikAuthResult = when (intent.getStringExtra(EXTRA_RESULT_TYPE)) {
             RESULT_TYPE_SUCCESS -> LinbikAuthResult.Success(
                 userId = intent.getStringExtra(EXTRA_USER_ID).orEmpty(),
-                userName = intent.getStringExtra(EXTRA_USER_NAME).orEmpty(),
+                username = intent.getStringExtra(EXTRA_USER_NAME).orEmpty(),
                 displayName = intent.getStringExtra(EXTRA_DISPLAY_NAME).orEmpty(),
                 integrations = intent.getStringArrayListExtra(EXTRA_INTEGRATIONS).orEmpty(),
             )

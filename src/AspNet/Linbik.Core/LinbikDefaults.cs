@@ -61,7 +61,7 @@ public static class LinbikDefaults
     /// <summary>
     /// Cookie name for storing the user's display name
     /// </summary>
-    public const string UserNameCookie = "userName";
+    public const string UsernameCookie = "username";
 
     // ─── Diagnostic Headers ───────────────────────────────────────
     /// <summary>

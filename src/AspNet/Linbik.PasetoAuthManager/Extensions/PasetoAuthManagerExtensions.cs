@@ -23,7 +23,7 @@ public static class PasetoAuthManagerExtensions
 {
     private const string AuthTokenCookie = Core.LinbikDefaults.AuthTokenCookie;
     private const string LinbikRefreshTokenCookie = Core.LinbikDefaults.RefreshTokenCookie;
-    private const string UserNameCookie = Core.LinbikDefaults.UserNameCookie;
+    private const string UsernameCookie = Core.LinbikDefaults.UsernameCookie;
     private const string IntegrationTokenPrefix = Core.LinbikDefaults.IntegrationTokenPrefix;
 
     private static Task<string?> CreateLocalAccessTokenAsync(
@@ -256,7 +256,7 @@ public static class PasetoAuthManagerExtensions
                 var responseData = new LoginCallbackResponse
                 {
                     UserId = tokenResponse.UserId,
-                    UserName = tokenResponse.Username,
+                    Username = tokenResponse.Username,
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
@@ -291,7 +291,7 @@ public static class PasetoAuthManagerExtensions
 
             context.Response.Cookies.Delete(AuthTokenCookie, deleteCookieOptions);
             context.Response.Cookies.Delete(LinbikRefreshTokenCookie, deleteCookieOptions);
-            context.Response.Cookies.Delete(UserNameCookie, deleteCookieOptions);
+            context.Response.Cookies.Delete(UsernameCookie, deleteCookieOptions);
 
             foreach (var cookie in context.Request.Cookies)
             {
@@ -361,7 +361,7 @@ public static class PasetoAuthManagerExtensions
                 return Results.Ok(new LBaseResponse<object>(new
                 {
                     userId = tokenResponse.UserId,
-                    userName = tokenResponse.Username,
+                    username = tokenResponse.Username,
                     displayName = tokenResponse.DisplayName,
                     integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 }));

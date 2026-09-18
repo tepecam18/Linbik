@@ -4,7 +4,7 @@ package com.linbik.pasetoauth
 sealed class LinbikAuthResult {
     data class Success(
         val userId: String,
-        val userName: String,
+        val username: String,
         val displayName: String,
         val integrations: List<String>,
     ) : LinbikAuthResult()

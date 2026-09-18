@@ -32,7 +32,7 @@ http://localhost:7020/test
 - 👤 **Kullanıcı Bilgileri**:
   - User ID
   - Username  
-  - Nickname
+  - Display Name
 - 🔑 **Integration Tokens** (varsa):
   - Package name
   - Token length
@@ -98,7 +98,7 @@ public class DashboardViewModel
 <div class="status @(Model.IsLoggedIn ? "logged-in" : "logged-out")">
     @if (Model.IsLoggedIn)
     {
-        <h3>Hoş geldiniz, @Model.Profile!.UserName!</h3>
+        <h3>Hoş geldiniz, @Model.Profile!.Username!</h3>
         @foreach (var token in Model.Tokens)
         {
             <li>📦 @token.PackageName</li>

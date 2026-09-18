@@ -11,14 +11,14 @@
     <title>Linbik Integration Test Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        
+
         .container { max-width: 900px; margin: 0 auto; }
 
         /* Notification Styles */
@@ -107,7 +107,7 @@
         .notification.hiding {
             animation: slideOut 0.3s ease-in forwards;
         }
-        
+
         .card {
             background: white;
             border-radius: 12px;
@@ -115,9 +115,9 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        
+
         h1 { color: #667eea; margin-bottom: 24px; font-size: 28px; }
-        
+
         h2 {
             color: #333;
             margin-bottom: 16px;
@@ -127,7 +127,7 @@
         }
 
         h3 { color: #333; font-size: 16px; margin-bottom: 12px; }
-        
+
         .status {
             display: flex;
             align-items: center;
@@ -136,14 +136,14 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        
+
         .status.logged-in { background: #d4edda; border: 1px solid #c3e6cb; }
         .status.logged-out { background: #f8d7da; border: 1px solid #f5c6cb; }
         .status-icon { font-size: 32px; }
         .status-text { flex: 1; }
         .status-text h3 { margin-bottom: 4px; color: #333; }
         .status-text p { color: #666; font-size: 14px; }
-        
+
         .btn {
             display: inline-block;
             padding: 10px 20px;
@@ -155,26 +155,26 @@
             cursor: pointer;
             font-size: 14px;
         }
-        
+
         .btn-primary { background: #667eea; color: white; }
         .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
         .btn-danger { background: #dc3545; color: white; }
         .btn-danger:hover { background: #c82333; }
-        
+
         .info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 12px;
             margin-bottom: 20px;
         }
-        
+
         .info-item {
             padding: 12px;
             background: #f8f9fa;
             border-radius: 8px;
             border-left: 4px solid #667eea;
         }
-        
+
         .info-item label {
             display: block;
             font-size: 11px;
@@ -182,14 +182,14 @@
             margin-bottom: 4px;
             text-transform: uppercase;
         }
-        
+
         .info-item .value {
             font-size: 14px;
             color: #333;
             font-weight: 600;
             word-break: break-all;
         }
-        
+
         .token-item {
             padding: 12px;
             background: #f8f9fa;
@@ -197,7 +197,7 @@
             margin-bottom: 8px;
             border-left: 4px solid #28a745;
         }
-        
+
         .badge {
             display: inline-block;
             padding: 3px 10px;
@@ -206,14 +206,14 @@
             font-weight: bold;
             margin-left: 8px;
         }
-        
+
         .badge-success { background: #28a745; color: white; }
         .badge-warning { background: #ffc107; color: #333; }
         .badge-info { background: #17a2b8; color: white; }
 
         /* Test Section */
         .test-section { margin-bottom: 24px; }
-        
+
         .test-group {
             background: #f8f9fa;
             border-radius: 8px;
@@ -354,12 +354,12 @@
         <!-- Login Status Card -->
         <div class="card">
             <h1>🔐 Linbik Integration Test Dashboard</h1>
-            
+
             <div class="status @(Model.IsLoggedIn ? "logged-in" : "logged-out")">
                 <div class="status-icon">@(Model.IsLoggedIn ? "✅" : "❌")</div>
                 <div class="status-text">
                     <h3>@(Model.IsLoggedIn ? "Giriş Yapıldı" : "Giriş Yapılmadı")</h3>
-                    <p>@(Model.IsLoggedIn ? $"Hoş geldin, {Model.Profile!.UserName}!" : "Testleri görmek için giriş yapın")</p>
+                    <p>@(Model.IsLoggedIn ? $"Hoş geldin, {Model.Profile!.Username}!" : "Testleri görmek için giriş yapın")</p>
                 </div>
                 @if (Model.IsLoggedIn)
                 {
@@ -380,11 +380,11 @@
                     </div>
                     <div class="info-item">
                         <label>Username</label>
-                        <span class="value">@Model.Profile.UserName</span>
+                        <span class="value">@Model.Profile.Username</span>
                     </div>
                     <div class="info-item">
-                        <label>Nickname</label>
-                        <span class="value">@Model.Profile.NickName</span>
+                        <label>Display Name</label>
+                        <span class="value">@Model.Profile.DisplayName</span>
                     </div>
                     <div class="info-item">
                         <label>Integration Tokens</label>
@@ -417,7 +417,7 @@
                 </div>
                 <div id="auth-result" class="result-box"></div>
                 <div class="note-box">
-                    💡 <strong>Not:</strong> Protected ve Profile endpoint'leri <code>[LinbikAuthorize]</code> ile korunur. 
+                    💡 <strong>Not:</strong> Protected ve Profile endpoint'leri <code>[LinbikAuthorize]</code> ile korunur.
                     Giriş yapmadan <strong>401 Unauthorized</strong> döner.
                 </div>
             </div>
@@ -483,7 +483,7 @@
                     {
                         @foreach (var token in Model.Tokens)
                         {
-                            <button class="btn-test btn-integration" 
+                            <button class="btn-test btn-integration"
                                     onclick="testEndpoint('/Test/TestIntegrationToken?packageName=@token.PackageName', 'integration')">
                                 🔑 @token.PackageName
                             </button>
@@ -492,7 +492,7 @@
                 </div>
                 <div id="integration-result" class="result-box"></div>
                 <div class="note-box">
-                    💡 Integration token'lar, YARP proxy üzerinden diğer servislere istek yaparken 
+                    💡 Integration token'lar, YARP proxy üzerinden diğer servislere istek yaparken
                     <code>Authorization: Bearer {token}</code> olarak eklenir.
                 </div>
             </div>
@@ -503,7 +503,7 @@
                     🖥️ Linbik.Server Integration Testleri
                     <span class="badge badge-success">[LinbikDelegatedAuthorize]</span>
                 </div>
-                
+
                 <h3 style="margin-top: 16px; margin-bottom: 8px; color: #28a745;">✅ Public Endpoints (Auth Gerektirmez)</h3>
                 <div class="test-buttons">
                     <button class="btn-test btn-success" onclick="testEndpoint('/Test/TestServerPublicEndpoint', 'server-public')">
@@ -595,7 +595,7 @@
                     method: 'GET',
                     credentials: 'include'
                 });
-                
+
                 if (response.ok) {
                     window.location.reload();
                 } else {
@@ -668,7 +668,7 @@
                 const response = await fetch(url, {
                     method: 'POST',
                     credentials: 'include',
-                    headers: { 
+                    headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
@@ -804,17 +804,17 @@
         function showNotification(message, type = 'info', duration = 5000) {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
-            
+
             const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
-            
+
             notification.innerHTML = `
                 <div class="icon">${icon}</div>
                 <div class="message">${message}</div>
                 <button class="close" onclick="closeNotification(this)">×</button>
             `;
-            
+
             document.body.appendChild(notification);
-            
+
             // Auto remove after duration
             if (duration > 0) {
                 setTimeout(() => {
@@ -832,22 +832,22 @@
         // Check for query parameters on page load
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
-            
+
             // Check for error message
             const errorMsg = urlParams.get('error');
             if (errorMsg) {
                 showNotification(decodeURIComponent(errorMsg), 'error', 8000);
-                
+
                 // Clean URL without reloading
                 const cleanUrl = window.location.pathname;
                 window.history.replaceState({}, document.title, cleanUrl);
             }
-            
+
             // Check for success message
             const successMsg = urlParams.get('message');
             if (successMsg) {
                 showNotification(decodeURIComponent(successMsg), 'success', 5000);
-                
+
                 // Clean URL without reloading
                 const cleanUrl = window.location.pathname;
                 window.history.replaceState({}, document.title, cleanUrl);

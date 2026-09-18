@@ -74,6 +74,19 @@ class LinbikPasetoAuthClient {
     }
 
     companion object {
+        /**
+         * Configure all SDK HTTP requests (login, callback, refresh and logout).
+         * Call from Application.onCreate on each process start, before authentication.
+         * The supplied client is cloned; its interceptors and transport settings are kept,
+         * but its CookieJar is replaced with Linbik's shared persistent cookie jar.
+         * Use applicationContext in interceptors; this configuration lives for the process.
+         * Browser/Custom Tab requests do not use this client.
+         */
+        @JvmStatic
+        fun configureHttpClient(client: okhttp3.OkHttpClient) {
+            LinbikHttpConfiguration.configure(client)
+        }
+
         /** Uygulamanızın kendi OkHttp istemcisinin Linbik oturum çerezlerini paylaşması için. */
         fun cookieJar(): okhttp3.CookieJar = LinbikSharedCookieJar()
     }

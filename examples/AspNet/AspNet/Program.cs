@@ -1,4 +1,5 @@
-﻿using Linbik.Core.Extensions;
+using Linbik.Core.Extensions;
+using Linbik.JwtAuthManager.Extensions;
 using Linbik.PasetoAuthManager.Extensions;
 using Linbik.Server.Extensions;
 using Linbik.YARP.Extensions;
@@ -13,7 +14,8 @@ builder.Services.AddOpenApi();
 
 // ✅ Linbik - Fluent builder pattern for all Linbik services
 builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
-    .AddLinbikPasetoAuth()
+    //.AddLinbikPasetoAuth()
+    .AddLinbikJwtAuth()
     .AddLinbikServer(builder.Configuration.GetSection("Linbik:Server"))
     .AddLinbikYarp();
 
@@ -62,7 +64,8 @@ app.MapControllerRoute(
     pattern: "{controller=Test}/{action=Index}/{id?}");
 
 // ✅ Map Linbik OAuth endpoints (login, refresh, logout)
-app.UseLinbikPasetoAuth();
+//app.UseLinbikPasetoAuth();
+app.UseLinbikJwtAuth();
 
 // ✅ Map Linbik Integration webhook endpoints
 // Receives notifications when services create/remove/toggle integrations

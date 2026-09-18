@@ -70,7 +70,7 @@ public sealed class IntegrationServiceOptions
 {
 
     /// <summary>
-    /// Source path pattern (e.g., "api/serverTest")
+    /// Source path pattern (e.g., "/api/serverTest")
     /// The {**path} will be automatically appended
     /// </summary>
     public string SourcePath { get; set; } = string.Empty;
@@ -80,10 +80,7 @@ public sealed class IntegrationServiceOptions
     /// </summary>
     public string TargetBaseUrl { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Target path pattern (e.g., "api/integration")
-    /// The captured path will be appended here
-    /// </summary>
+    /// <summary>Remote path prefix replaced by SourcePath in documentation and restored by the proxy.</summary>
     public string TargetPath { get; set; } = string.Empty;
 
     /// <summary>
@@ -91,12 +88,18 @@ public sealed class IntegrationServiceOptions
     /// </summary>
     public int TimeoutSeconds { get; set; } = 30;
 
+    /// <summary>Delegated document to merge into the host OpenAPI document. Null disables importing.</summary>
+    public string? DelegatedDocumentPath { get; set; } = "/openapi/delegated.json";
+
     /// <summary>
     /// Path to this integration service's OpenAPI document (e.g., "/openapi/apps.json").
     /// Combined with <see cref="TargetBaseUrl"/> at gateway startup to probe the document and,
     /// if reachable, regenerate a typed Application client with NSwag. When left empty,
     /// no client generation is attempted for this service. When the document is unreachable,
     /// the previously generated client (if any) keeps being used as-is.
+    /// A 401 response is retried once with the target package's Linbik Application bearer
+    /// token. This applies to both apps.json and delegated.json document paths; downloading
+    /// delegated documentation does not grant access to delegated API operations.
     /// </summary>
     public string? DocumentPath { get; set; } = "/openapi/apps.json";
 

@@ -4,10 +4,10 @@ namespace Linbik.Server.Interfaces;
 
 /// <summary>
 /// Interface for handling integration lifecycle events from Linbik platform.
-/// 
+///
 /// Implement this interface in your integration service to receive notifications
 /// when main services create, remove, toggle, or change admin profiles for integrations.
-/// 
+///
 /// Usage:
 /// <code>
 /// public class MyIntegrationHandler : ILinbikIntegrationHandler
@@ -20,7 +20,7 @@ namespace Linbik.Server.Interfaces;
 ///     }
 /// }
 /// </code>
-/// 
+///
 /// Register:
 /// <code>
 /// builder.Services.AddLinbikIntegrationHandler&lt;MyIntegrationHandler&gt;();

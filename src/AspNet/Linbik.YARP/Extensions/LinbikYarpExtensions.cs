@@ -3,6 +3,7 @@ using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Services.Interfaces;
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Interfaces;
+using Linbik.YARP.OpenApi;
 using Linbik.YARP.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +22,33 @@ namespace Linbik.YARP.Extensions;
 public static class LinbikYarpExtensions
 {
     private const string IntegrationTokenCookiePrefix = LinbikDefaults.IntegrationTokenPrefix;
+
+    /// <summary>
+    /// Registers an Application client explicitly, without relying on generated names or
+    /// assembly discovery. Call before building the application. The package name must
+    /// match a configured IntegrationServices key. No OpenAPI document is required.
+    /// </summary>
+    public static IServiceCollection AddLinbikApplicationClient<TClient, TImplementation>(
+        this IServiceCollection services, string packageName)
+        where TClient : class
+        where TImplementation : class, TClient
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageName);
+        services.AddHttpClient<TClient, TImplementation>($"Linbik.Application.{packageName}.{typeof(TClient).FullName}")
+            .ConfigureHttpClient((sp, client) =>
+            {
+                var options = sp.GetRequiredService<IOptions<YARPOptions>>().Value;
+                if (!options.IntegrationServices.TryGetValue(packageName, out var config))
+                    throw new InvalidOperationException(
+                        $"Integration service '{packageName}' is not configured in YARPOptions.IntegrationServices.");
+                client.BaseAddress = new Uri(config.TargetBaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
+            })
+            .AddHttpMessageHandler(sp => new ApplicationPasetoAuthHandler(packageName,
+                sp.GetRequiredService<IApplicationTokenProvider>(),
+                sp.GetRequiredService<ILogger<ApplicationPasetoAuthHandler>>()));
+        return services;
+    }
 
     /// <summary>
     /// Add Linbik YARP services for API gateway with token management (builder pattern)
@@ -70,6 +98,11 @@ public static class LinbikYarpExtensions
 
     private static void AddYarpServices(this IServiceCollection services)
     {
+        // Add Delegated docs
+        services.AddLinbikDelegatedOpenApi();
+        services.ConfigureAll<Microsoft.AspNetCore.OpenApi.OpenApiOptions>(options =>
+            options.AddLinbikDelegatedDocuments());
+
         // Add token provider for user-context tokens
         services.AddSingleton<ITokenProvider, MultiJwtTokenProvider>();
 
@@ -185,14 +218,19 @@ public static class LinbikYarpExtensions
                 break;
         }
 
-        if (classType is null || interfaceType is null)
+        if (classType is null)
             return;
 
-        services.AddTransient(interfaceType, sp =>
+        // Minimal APIs infer services by the exact parameter type. Register the concrete
+        // client as well as its optional interface, independently of document reachability.
+        services.AddTransient(classType, sp =>
         {
             var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(httpClientName);
             return ActivatorUtilities.CreateInstance(sp, classType, httpClient);
         });
+
+        if (interfaceType is not null && interfaceType.IsAssignableFrom(classType))
+            services.AddTransient(interfaceType, sp => sp.GetRequiredService(classType));
     }
 
     /// <summary>
@@ -303,7 +341,7 @@ public static class LinbikYarpExtensions
 
     /// <summary>
     /// Map server proxy routes for Linbik.Server integration endpoints
-    /// Pattern: /{sourcePath}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
+    /// Pattern: /{sourcePath}/{**path} -> {targetBaseUrl}/{path}
     /// Automatically injects JWT token from integration_{packageName} cookie
     /// </summary>
     public static IEndpointRouteBuilder UseLinbikYarp(this IEndpointRouteBuilder endpoints)
@@ -319,7 +357,7 @@ public static class LinbikYarpExtensions
             var cookiePrefix = options.IntegrationTokenCookiePrefix;
 
             // Map route: /{packageName}/{**path}
-            endpoints.Map($"{integration.Value.SourcePath}/{{**path}}", async (HttpContext context) =>
+            endpoints.Map($"/{integration.Value.SourcePath.Trim('/')}/{{**path}}", async (HttpContext context) =>
             {
                 var path = context.Request.RouteValues["path"]?.ToString() ?? string.Empty;
 
@@ -330,7 +368,9 @@ public static class LinbikYarpExtensions
 
 
                 // Build target URL
-                var targetUrl = $"{serviceConfig.TargetBaseUrl}{serviceConfig.TargetPath}";
+                var targetUrl = serviceConfig.TargetBaseUrl.TrimEnd('/');
+                if (!string.IsNullOrEmpty(serviceConfig.TargetPath.Trim('/')))
+                    targetUrl += "/" + serviceConfig.TargetPath.Trim('/');
 
                 if (!string.IsNullOrEmpty(path))
                     targetUrl = $"{targetUrl}/{path}";
@@ -354,8 +394,13 @@ public static class LinbikYarpExtensions
                     };
 
                     // Add Authorization header with JWT token
-                    requestMessage.Headers.Authorization =
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    if (!string.IsNullOrWhiteSpace(token))
+                        requestMessage.Headers.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    else if (System.Net.Http.Headers.AuthenticationHeaderValue.TryParse(
+                                 context.Request.Headers.Authorization.ToString(), out var authorization) &&
+                             authorization.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase))
+                        requestMessage.Headers.Authorization = authorization;
 
                     // Copy headers (except Host and Authorization)
                     foreach (var header in context.Request.Headers)
@@ -431,7 +476,7 @@ public static class LinbikYarpExtensions
 
     /// <summary>
     /// Map Application proxy routes
-    /// Pattern: /app/{packageName}/{**path} -> {targetBaseUrl}/{targetPath}/{path}
+    /// Pattern: /app/{packageName}/{**path} -> {targetBaseUrl}/{path}
     /// Automatically injects the application's PASETO Application token from cache (no user context required)
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
@@ -477,7 +522,9 @@ public static class LinbikYarpExtensions
                     : serviceConfig.TargetBaseUrl;
 
                 // Build target URL
-                var targetUrl = $"{baseUrl}{serviceConfig.TargetPath}";
+                var targetUrl = baseUrl.TrimEnd('/');
+                if (!string.IsNullOrEmpty(serviceConfig.TargetPath.Trim('/')))
+                    targetUrl += "/" + serviceConfig.TargetPath.Trim('/');
 
                 if (!string.IsNullOrEmpty(path))
                     targetUrl = $"{targetUrl}/{path}";

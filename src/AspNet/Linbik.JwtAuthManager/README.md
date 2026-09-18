@@ -87,7 +87,7 @@ AddLinbikJwtAuth(opt => { });
 [HttpGet]
 public IActionResult Protected()
 {
-    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = User.FindFirst("sub")?.Value;
     return Ok(new { userId });
 }
 ```
@@ -95,17 +95,19 @@ or with minimal APIs:
 ```csharp
 app.MapGet("/protected", [LinbikAuthorize] (ClaimsPrincipal user) =>
 {
-    var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = user.FindFirst("sub")?.Value;
     return Results.Ok(new { userId });
 });
 
 app.MapGet("/protected", (HttpContext context) =>
 {
-    var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    var userId = context.User.FindFirst("sub")?.Value;
     return Results.Ok(new { userId });
 })
 .RequireAuthorization("LinbikAuthorize");
 ```
+
+> Note: `jwtBearerOptions.MapInboundClaims = false` is set, so claim types stay as the raw JWT names (`sub`, `preferred_username`, `name`) instead of being remapped to long `ClaimTypes.*` URIs — matching `Linbik.PasetoAuthManager`'s claim structure.
 
 ### Access Integration Tokens
 

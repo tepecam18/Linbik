@@ -11,8 +11,11 @@ import java.io.IOException
 
 /** Owns HTTP resources and response decoding independently of Activity lifecycle. */
 internal class LinbikAuthHttpClient(
-    private val client: OkHttpClient = OkHttpClient.Builder().cookieJar(LinbikSharedCookieJar()).build(),
+    private val customClient: OkHttpClient? = null,
 ) {
+    private val client: OkHttpClient
+        get() = customClient ?: LinbikHttpConfiguration.client
+
     suspend fun updateSession(options: LinbikPasetoAuthOptions, refresh: Boolean): Boolean = withContext(Dispatchers.IO) {
         val path = if (refresh) options.refreshPath else options.logoutPath
         val request = Request.Builder().url(options.backendBaseUrl.trimEnd('/') + path).apply {

@@ -31,7 +31,7 @@ public sealed class LinbikTokenResponse
     public string Username { get; set; } = string.Empty;
 
     /// <summary>
-    /// User's display name (nickname)
+    /// User's display name
     /// </summary>
     public string DisplayName { get; set; } = string.Empty;
 

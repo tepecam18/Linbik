@@ -44,7 +44,7 @@ public sealed class TestController(
         {
             HttpContext.User = principal;
             var userId = principal.FindFirst("sub")?.Value;
-            var userName = principal.FindFirst("preferred_username")?.Value;
+            var username = principal.FindFirst("preferred_username")?.Value;
             var displayName = principal.FindFirst("name")?.Value;
 
             if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
@@ -52,8 +52,8 @@ public sealed class TestController(
                 profile = new UserProfile
                 {
                     UserId = userGuid,
-                    UserName = userName ?? string.Empty,
-                    NickName = displayName ?? userName ?? string.Empty
+                    Username = username ?? string.Empty,
+                    DisplayName = displayName ?? username ?? string.Empty
                 };
             }
         }
@@ -95,7 +95,7 @@ public sealed class TestController(
     public IActionResult Protected()
     {
         var userId = User.FindFirst("sub")?.Value;
-        var userName = User.FindFirst("preferred_username")?.Value;
+        var username = User.FindFirst("preferred_username")?.Value;
         var displayName = User.FindFirst("name")?.Value;
 
         return Json(new
@@ -103,7 +103,7 @@ public sealed class TestController(
             success = true,
             message = "✅ [LinbikAuthorize] ile korunan endpoint'e erişildi!",
             authScheme = "LinbikScheme (Cookie JWT - HS256)",
-            user = new { userId, userName, displayName },
+            user = new { userId, username, displayName },
             claimCount = User.Claims.Count(),
             timestamp = DateTime.UtcNow
         });
@@ -121,7 +121,7 @@ public sealed class TestController(
         return Json(new
         {
             userId = User.FindFirst("sub")?.Value,
-            userName = User.FindFirst("preferred_username")?.Value,
+            username = User.FindFirst("preferred_username")?.Value,
             displayName = User.FindFirst("name")?.Value,
             email = User.FindFirst("email")?.Value,
             isAuthenticated = User.Identity?.IsAuthenticated ?? false,

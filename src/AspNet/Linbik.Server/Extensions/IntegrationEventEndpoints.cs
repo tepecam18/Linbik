@@ -2,6 +2,8 @@ using Linbik.Server.Interfaces;
 using Linbik.Server.Models;
 using Linbik.Server.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace Linbik.Server.Extensions;
@@ -31,19 +33,27 @@ internal static class IntegrationEventEndpoints
         {
             // Read body for full event data (sent by Linbik.App notification service)
             IntegrationEvent? integrationEvent = null;
-            try
+            var hasBody = request.HttpContext.Features.Get<IHttpRequestBodyDetectionFeature>()?.CanHaveBody
+                ?? (request.ContentLength > 0 || request.Headers.ContainsKey("Transfer-Encoding"));
+            if (hasBody)
             {
-                integrationEvent = await request.ReadFromJsonAsync<IntegrationEvent>();
-            }
-            catch
-            {
-                // Body may be empty — construct minimal event
+                if (!request.HasJsonContentType())
+                    return Results.StatusCode(StatusCodes.Status415UnsupportedMediaType);
+                try
+                {
+                    integrationEvent = await request.ReadFromJsonAsync<IntegrationEvent>(request.HttpContext.RequestAborted);
+                }
+                catch (JsonException)
+                {
+                    return Results.BadRequest(new { success = false, message = "Invalid integration event JSON" });
+                }
+                if (integrationEvent is null)
+                    return Results.BadRequest(new { success = false, message = "Integration event body cannot be null" });
             }
 
             integrationEvent ??= new IntegrationEvent();
             integrationEvent.IntegrationId = integrationId;
             integrationEvent.EventType = IntegrationEventType.Removed;
-            integrationEvent.Timestamp = DateTime.UtcNow;
 
             var result = await handler.OnIntegrationRemovedAsync(integrationEvent);
 

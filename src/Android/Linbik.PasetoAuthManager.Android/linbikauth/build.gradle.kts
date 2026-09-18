@@ -51,6 +51,6 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.browser)
-    implementation(libs.okhttp)
+    api(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
 }

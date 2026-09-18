@@ -22,6 +22,14 @@ Android'in sistem düzeyindeki `CookieManager`'ı ile OkHttp arasında bir köpr
 
 ## Geliştirici Rehberi
 
+### Ortak HTTP yapılandırması
+
+`LinbikPasetoAuthClient.configureHttpClient(okHttpClient)` hem Activity'nin
+login/callback çağrılarını hem refresh/logout çağrılarını yapılandırır.
+`Application.onCreate` içinde çağrılır. Interceptor ve bağlantı ayarları korunur;
+cookie yönetimi `LinbikSharedCookieJar` üzerinden devam eder. Chucker örneği ve
+process yaşam döngüsü ayrıntıları [ana README](../README.md) içindedir.
+
 ### Yeni Bir Özellik Ekleme
 1. **API Katmanı:** Eğer yeni bir endpoint (örn. profil bilgisi çekme) eklenecekse, `LinbikPasetoAuthClient` içine yeni bir `suspend` metod eklenmelidir.
 2. **Hata Yönetimi:** Ağ istekleri için `LinbikAuthActivity.getJson` metodu kullanılmalı veya benzer bir hata yakalama mekanizması kurulmalıdır.

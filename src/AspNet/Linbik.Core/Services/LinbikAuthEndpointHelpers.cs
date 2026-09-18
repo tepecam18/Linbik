@@ -11,7 +11,7 @@ internal static class LinbikAuthEndpointHelpers
 {
     private const string AuthTokenCookie = LinbikDefaults.AuthTokenCookie;
     private const string LinbikRefreshTokenCookie = LinbikDefaults.RefreshTokenCookie;
-    private const string UserNameCookie = LinbikDefaults.UserNameCookie;
+    private const string UsernameCookie = LinbikDefaults.UsernameCookie;
     private const string IntegrationTokenPrefix = LinbikDefaults.IntegrationTokenPrefix;
 
     internal static DateTime CalculateExpiry(long? unixTimestamp, DateTime defaultExpiry)
@@ -46,7 +46,7 @@ internal static class LinbikAuthEndpointHelpers
 
         context.Response.Cookies.Append(AuthTokenCookie, accessToken, CreateCookieOptions(accessTokenExpiry, cookieDomain, sameSite, httpOnly: true));
 
-        context.Response.Cookies.Append(UserNameCookie, tokenResponse.Username, CreateCookieOptions(refreshTokenExpiry, cookieDomain, sameSite, httpOnly: false));
+        context.Response.Cookies.Append(UsernameCookie, tokenResponse.Username, CreateCookieOptions(refreshTokenExpiry, cookieDomain, sameSite, httpOnly: false));
     }
 
     private static CookieOptions CreateCookieOptions(

@@ -1,5 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
+
+:: publish.bat Debug produces packages suitable for source-level debugging.
+set BUILD_CONFIGURATION=Release
+if /i "%~1"=="Debug" set BUILD_CONFIGURATION=Debug
 
 :: =======================================
 :: AYARLAR DOSYASI YAPILANDIRMASI
@@ -122,12 +127,12 @@ if %ERRORLEVEL% neq 0 ( echo Restore hatasi! & pause & exit /b %ERRORLEVEL% )
 
 echo.
 echo [2/5] Projeler Build Ediliyor...
-dotnet build ./examples/AspNet/AspNet.sln --configuration Release --no-restore
+dotnet build ./examples/AspNet/AspNet.sln --configuration %BUILD_CONFIGURATION% --no-restore
 if %ERRORLEVEL% neq 0 ( echo Build hatasi! & pause & exit /b %ERRORLEVEL% )
 
 echo.
 echo [3/5] Testler Calistiriliyor...
-dotnet test ./examples/AspNet/AspNet.sln --no-restore --verbosity normal
+dotnet test ./examples/AspNet/AspNet.sln --configuration %BUILD_CONFIGURATION% --no-restore --verbosity normal
 if %ERRORLEVEL% neq 0 ( echo Test hatasi! & pause & exit /b %ERRORLEVEL% )
 
 echo.
@@ -136,31 +141,38 @@ if exist .\nupkg rmdir /s /q .\nupkg
 
 if "%PACK_CORE%"=="1" (
     echo - Linbik.Core paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_JWT%"=="1" (
     echo - Linbik.JwtAuthManager paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_YARP%"=="1" (
     echo - Linbik.YARP paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.YARP/Linbik.YARP.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.YARP/Linbik.YARP.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_SERVER%"=="1" (
     echo - Linbik.Server paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_CLI%"=="1" (
     echo - Linbik.Cli paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.Cli/Linbik.Cli.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.Cli/Linbik.Cli.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_PASETO%"=="1" (
     echo - Linbik.PasetoAuthManager paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 if "%PACK_SLICES%"=="1" (
     echo - Linbik.Slices paketleniyor...
-    dotnet pack ./src/AspNet/Linbik.Slices/Linbik.Slices.csproj -c Release -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    dotnet pack ./src/AspNet/Linbik.Slices/Linbik.Slices.csproj -c %BUILD_CONFIGURATION% -o .\nupkg /p:PackageVersion=%FULL_VERSION%
+    if !ERRORLEVEL! neq 0 ( echo Pack hatasi! & pause & exit /b !ERRORLEVEL! )
 )
 echo.
 echo [5/5] Paketler Nuget'e Yayinlanacak...

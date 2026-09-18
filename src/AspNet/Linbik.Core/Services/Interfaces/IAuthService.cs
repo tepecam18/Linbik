@@ -101,12 +101,12 @@ public sealed class UserProfile
     /// <summary>
     /// Gets or sets the user's username.
     /// </summary>
-    public string UserName { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the user's display name (nickname).
+    /// Gets or sets the user's display name
     /// </summary>
-    public string NickName { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the integration tokens keyed by service package name.

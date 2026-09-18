@@ -2,6 +2,8 @@
 
 YARP (Yet Another Reverse Proxy) integration for Linbik multi-service authentication. Provides automatic token injection, apps token provider, and typed apps HTTP client.
 
+Delegated OpenAPI aggregation, proxy path migration and refresh/cache setup: [OPENAPI.md](OPENAPI.md).
+
 ## 📦 Installation
 
 ```bash
@@ -60,10 +62,12 @@ app.UseLinbikApplication();
   "YARP": {
     "IntegrationServices": {
       "payment-gateway": {
-        "BaseUrl": "https://payment.example.com"
+        "SourcePath": "/payment-gateway",
+        "TargetBaseUrl": "https://payment.example.com"
       },
       "survey-service": {
-        "BaseUrl": "https://survey.example.com"
+        "SourcePath": "/survey-service",
+        "TargetBaseUrl": "https://survey.example.com"
       }
     }
   }
@@ -205,7 +209,7 @@ public class PaymentController : ControllerBase
 
 ### Application Proxy Endpoints (UseLinbikApplication)
 
-`UseLinbikApplication(string routePrefix = "app")` maps one route per configured `IntegrationServices` entry: `/{routePrefix}/{packageName}/{**path}` → `{TargetBaseUrl}{TargetPath}/{path}`, injecting the cached application PASETO token as `Authorization: Bearer {token}` (no user context/cookie required). No local cache hit means a `503 service_unavailable` response.
+`UseLinbikApplication(string routePrefix = "app")` maps one route per configured `IntegrationServices` entry: `/{routePrefix}/{packageName}/{**path}` → `{TargetBaseUrl}{TargetPath}/{path}`, injecting the application PASETO token as `Authorization: Bearer {token}` (no user context/cookie required). An unavailable token means a `503 service_unavailable` response. `TargetPath` is the optional downstream prefix; do not repeat it in the incoming request path.
 
 `YARPOptions.ApplicationTimeoutSeconds` configures the `IApplicationServiceClient`'s HTTP timeout.
 

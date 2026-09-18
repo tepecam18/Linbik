@@ -87,16 +87,16 @@ public sealed class LinbikDocsAuthOptions
         if (rule == "*")
             return true;
 
-        var userName = user.FindFirst("preferred_username")?.Value
+        var username = user.FindFirst("preferred_username")?.Value
             ?? user.Identity.Name
             ?? user.FindFirst("sub")?.Value;
 
-        if (userName is null)
+        if (username is null)
             return false;
 
         return rule
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Any(allowed => string.Equals(allowed, userName, StringComparison.OrdinalIgnoreCase));
+            .Any(allowed => string.Equals(allowed, username, StringComparison.OrdinalIgnoreCase));
     }
 }
 

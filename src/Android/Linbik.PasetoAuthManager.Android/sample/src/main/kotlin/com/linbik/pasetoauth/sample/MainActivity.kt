@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
             is LinbikAuthResult.Success -> {
                 binding.statusText.text = buildString {
                     appendLine("✅ Giriş başarılı")
-                    appendLine("Kullanıcı: ${result.displayName} (@${result.userName})")
+                    appendLine("Kullanıcı: ${result.displayName} (@${result.username})")
                     appendLine("userId: ${result.userId}")
                     if (result.integrations.isNotEmpty()) {
                         appendLine("Entegrasyonlar: ${result.integrations.joinToString()}")

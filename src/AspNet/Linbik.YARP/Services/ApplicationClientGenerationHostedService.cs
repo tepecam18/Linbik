@@ -1,4 +1,7 @@
 using System.Text;
+using System.Net;
+using System.Net.Http.Headers;
+using Linbik.YARP.Interfaces;
 using Linbik.YARP.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,7 +25,8 @@ public sealed class ApplicationClientGenerationHostedService(
     IHttpClientFactory httpClientFactory,
     IOptions<YARPOptions> options,
     IHostEnvironment environment,
-    ILogger<ApplicationClientGenerationHostedService> logger) : IHostedService
+    ILogger<ApplicationClientGenerationHostedService> logger,
+    IApplicationTokenProvider? tokenProvider = null) : IHostedService
 {
     /// <summary>Named HttpClient used solely to probe/download integration services' OpenAPI documents.</summary>
     public const string ProbeClientName = "Linbik.YARP.NSwagProbe";
@@ -42,7 +46,11 @@ public sealed class ApplicationClientGenerationHostedService(
             var documentName = serviceConfig.DocumentName ?? packageName;
             try
             {
-                await RegenerateClientAsync(documentName, serviceConfig, yarpOptions, cancellationToken);
+                await RegenerateClientAsync(packageName, documentName, serviceConfig, yarpOptions, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -58,6 +66,7 @@ public sealed class ApplicationClientGenerationHostedService(
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private async Task RegenerateClientAsync(
+        string packageName,
         string documentName,
         IntegrationServiceOptions serviceConfig,
         YARPOptions yarpOptions,
@@ -72,7 +81,7 @@ public sealed class ApplicationClientGenerationHostedService(
         try
         {
             var client = httpClientFactory.CreateClient(ProbeClientName);
-            using var response = await client.GetAsync(documentUrl, linkedCts.Token);
+            using var response = await DownloadDocumentAsync(client, documentUrl, packageName, linkedCts.Token);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -144,6 +153,24 @@ public sealed class ApplicationClientGenerationHostedService(
         await File.WriteAllTextAsync(outputPath, generatedCode, Encoding.UTF8, cancellationToken);
         logger.LogInformation("Regenerated Application client {ClassName} for {DocumentName} at {Path}",
             className, documentName, outputPath);
+    }
+
+    private async Task<HttpResponseMessage> DownloadDocumentAsync(
+        HttpClient client, string documentUrl, string packageName, CancellationToken cancellationToken)
+    {
+        var response = await client.GetAsync(documentUrl, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.Unauthorized || tokenProvider is null)
+            return response;
+
+        response.Dispose();
+        var integration = await tokenProvider.GetApplicationIntegrationAsync(packageName, cancellationToken);
+        if (string.IsNullOrWhiteSpace(integration?.Token))
+            throw new ApplicationTokenUnavailableException(packageName);
+
+        // Keep credentials on this request only: the probe client is shared across services.
+        using var request = new HttpRequestMessage(HttpMethod.Get, documentUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", integration.Token);
+        return await client.SendAsync(request, cancellationToken);
     }
 
     /// <summary>

@@ -120,6 +120,10 @@ public static class LinbikJwtAuthExtensions
                     }
                 };
 
+                // Keep raw claim types (e.g. "sub") instead of mapping to long ClaimTypes URIs,
+                // matching Linbik.PasetoAuthManager's un-mapped ClaimsIdentity.
+                jwtBearerOptions.MapInboundClaims = false;
+
                 jwtBearerOptions.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,

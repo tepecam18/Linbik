@@ -4,6 +4,47 @@ A native library that lets Android apps whose backend uses **Linbik.PasetoAuthMa
 (ASP.NET) sign users in with their Linbik account, plus a sample app that uses this
 library.
 
+## HTTP istemcisi ve Chucker
+
+Login, callback, refresh ve logout aynı yapılandırılabilir OkHttp istemcisini
+kullanır. Uygulamanızın istemcisini `Application.onCreate()` içinde, giriş akışı
+başlamadan önce kaydedin:
+
+```kotlin
+LinbikPasetoAuthClient.configureHttpClient(appHttpClient)
+```
+
+Linbik istemcinin bir kopyasını oluşturur: interceptor, timeout, TLS, dispatcher
+ve connection pool ayarları korunur; CookieJar ise PKCE ve oturum paylaşımını
+korumak için `LinbikSharedCookieJar` olur. Verdiğiniz istemci değiştirilmez.
+Kopya aynı dispatcher/pool'u paylaştığından Linbik kullanılırken bunları kapatmayın.
+Kayıt process genelindedir; process yeniden başladığında Application üzerinden
+tekrar yapılmalıdır. Interceptor'larda Activity yerine applicationContext kullanın.
+Yapılandırma yapılmazsa önceki varsayılan davranış devam eder.
+
+Chucker kullanan uygulamada örnek:
+
+```kotlin
+// Application.onCreate içinde; Chucker bağımlılıkları uygulama modülüne aittir.
+val httpBuilder = OkHttpClient.Builder()
+if (BuildConfig.DEBUG) {
+    val chucker = ChuckerInterceptor.Builder(applicationContext)
+        .redactHeaders("Authorization", "Cookie", "Set-Cookie")
+        .build()
+    httpBuilder.addInterceptor(chucker)
+}
+LinbikPasetoAuthClient.configureHttpClient(httpBuilder.build())
+```
+
+Uygulama modülünde Chucker'ın `debugImplementation` ve release için
+`library-no-op` bağımlılıklarını kullanın; kütüphane Chucker'ı zorunlu getirmez.
+Header maskelemesi URL query veya body içindeki callback kodlarını/token'ları
+maskelemez; kayıtları yalnız geliştirmede kullanın ve paylaşmadan önce temizleyin.
+Custom Tabs tarayıcı trafiği bu OkHttp istemcisinden geçmediği için Chucker'da
+görünmez; backend login/callback/refresh/logout istekleri görünür.
+
+[Chucker kurulum belgesi](https://github.com/ChuckerTeam/chucker)
+
 ```
 Linbik.PasetoAuthManager.Android/
   linbikauth/   # Publishable Android library (com.linbik.pasetoauth)

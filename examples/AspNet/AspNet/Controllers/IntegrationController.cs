@@ -142,9 +142,9 @@ public sealed class IntegrationController : ControllerBase
     [HttpGet("protected")]
     public IActionResult Protected()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-        var displayName = User.FindFirst("display_name")?.Value;
+        var userId = User.FindFirst("sub")?.Value;
+        var displayName = User.FindFirst(ClaimTypes.Name)?.Value;
+        var username = User.FindFirst("preferred_username")?.Value;
 
         return Ok(new
         {
@@ -154,7 +154,7 @@ public sealed class IntegrationController : ControllerBase
             user = new
             {
                 userId,
-                userName,
+                username,
                 displayName
             },
             claimCount = User.Claims.Count(),
@@ -182,10 +182,10 @@ public sealed class IntegrationController : ControllerBase
             message = "✅ User profile retrieved from JWT claims",
             profile = new
             {
-                userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
-                userName = User.FindFirst(ClaimTypes.Name)?.Value,
+                userId = User.FindFirst("sub")?.Value,
+                username = User.FindFirst("preferred_username")?.Value,
                 displayName = User.FindFirst("display_name")?.Value,
-                email = User.FindFirst(ClaimTypes.Email)?.Value,
+                email = "",
                 isAuthenticated = User.Identity?.IsAuthenticated ?? false,
                 authenticationType = User.Identity?.AuthenticationType
             },
@@ -202,8 +202,9 @@ public sealed class IntegrationController : ControllerBase
     [HttpPost("process")]
     public IActionResult Process([FromBody] ProcessRequest? request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+        var userId = User.FindFirst("sub")?.Value;
+        var displayName = User.FindFirst(ClaimTypes.Name)?.Value;
+        var username = User.FindFirst("preferred_username")?.Value;
 
         return Ok(new
         {
@@ -212,7 +213,7 @@ public sealed class IntegrationController : ControllerBase
             result = new
             {
                 processedBy = "Linbik.Server Integration",
-                forUser = new { userId, userName },
+                forUser = new { userId, username, displayName },
                 inputData = request,
                 outputData = new
                 {
@@ -233,7 +234,7 @@ public sealed class IntegrationController : ControllerBase
     [HttpGet("user-data")]
     public IActionResult UserData()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.FindFirst("sub")?.Value;
 
         // Simulate fetching user-specific data
         var userData = new
