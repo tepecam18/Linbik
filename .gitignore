@@ -392,3 +392,4 @@ playwright/.auth/
 !.env.example
 .sonarqube/
 publish-settings.txt
+examples/AspNet.Gateway/ApiGateway/.linbik/credentials.json
