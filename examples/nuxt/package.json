@@ -1,21 +1,18 @@
 {
-  "name": "nuxt-app",
-  "private": true,
+  "name": "nuxt",
   "type": "module",
+  "private": true,
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "start": "nuxt start",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
-    "test": "node --test test/*.test.mjs",
-    "test:smoke": "node --test test/smoke/*.test.mjs"
+    "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "jsonwebtoken": "^9.0.2",
-    "nuxt": "^3.15.4",
-    "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "@linbik/paseto-auth": "link:../../src/Web/Linbik.PasetoAuthManager.Web",
+    "nuxt": "^4.5.2",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.1"
   }
 }

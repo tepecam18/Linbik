@@ -1,554 +1,83 @@
-# Linbik Nuxt.Examples
+# Linbik Web SDK — Nuxt örneği
 
-Nuxt 3 / Node.js / Bun ile Linbik OAuth 2.1 entegrasyonu örneği.
+`src/Web/Linbik.PasetoAuthManager.Web` paketini yerel bağımlılık olarak kullanır.
+Giriş, sayfa açılışında oturum yenileme, kullanıcı/entegrasyon gösterimi, korunan API
+çağrısı ve çıkış örneklerini içerir. Tokenlar backend'in HttpOnly çerezlerinde kalır.
 
-## 🎯 Genel Bakış
+## Başlatma
 
-Bu proje, JavaScript/TypeScript tabanlı client uygulamalarının Linbik ile nasıl entegre olacağını göstermektedir. 
-
-> ⚠️ **Not**: Henüz resmi bir JavaScript/TypeScript kütüphanesi bulunmamaktadır. Bu örnek, Linbik OAuth 2.1 API'sini doğrudan kullanarak nasıl entegrasyon yapılacağını gösterir.
->
-> Bu örnek şu an **Nuxt 3** (`package.json`'da `nuxt: ^3.15.4`) üzerinde çalışıyor —
-> `nuxt.config.ts`'teki `future.compatibilityVersion: 4` bayrağı, Nuxt 4'e geçişi
-> Nuxt 3 içinde kademeli olarak deneyimlemeyi sağlayan bir Nuxt 3 opt-in ayarıdır,
-> gerçek bir Nuxt 4 kurulumu anlamına gelmez. Nuxt 4'e tam geçiş yol haritada
-> (bkz. `PROJECT_STATUS.md`).
-
-**Kullanım Alanları:**
-- 🌐 Nuxt/Vue.js web uygulamaları
-- 📱 Node.js backend servisleri
-- ⚡ Bun runtime ile hızlı uygulamalar
-- 🔧 Mevcut Linbik servislerini kullanan client'lar
-
-## 📦 Proje Yapısı
-
-```
-nuxt/
-├── app/
-│   ├── app.vue                 ← Ana layout
-│   └── pages/
-│       ├── index.vue           ← Ana sayfa
-│       ├── login.vue           ← Doğrulanmış kullanıcı bilgisinin görünümü
-│       └── [...all].vue        ← Catch-all route
-├── server/
-│   ├── middleware/login.ts     ← POST /login callback doğrulaması
-│   └── utils/verify-login-token.mjs ← Sunucu tarafında JWT doğrulama
-├── composables/                ← Vue composables (TODO)
-│   └── useLinbik.ts            ← Linbik auth composable
-├── nuxt.config.ts              ← Nuxt yapılandırması
-├── package.json
-├── Dockerfile
-└── README.md
-```
-
-## 🚀 Hızlı Başlangıç
-
-### 1. Bağımlılıkları Yükle
-
-```bash
+```sh
 cd examples/nuxt
-
-# npm ile
-npm install
-
-# veya pnpm ile
 pnpm install
-
-# veya bun ile
-bun install
+cp .env.example .env
+pnpm dev --https
 ```
 
-### 2. Environment Ayarla
+Yerel HTTPS sertifikalarını tarayıcıda güvenilir yapın. `.env` içindeki backend
+adresini ve kayıtlı client adını kendi ortamınıza göre ayarlayın. Keyless modda
+backend'in ilk istemcisini kullanmak için client adını boş bırakabilirsiniz.
+Örnekte web adresi `https://localhost:3000`, backend `https://localhost:7020` kabul edilir.
+Her iki uçta aynı hostname ve HTTPS kullanmak SameSite çerez akışını korur.
 
-`.env` dosyası oluştur:
+## Backend ayarları
 
-```bash
-# Linbik Server URL
-NUXT_PUBLIC_LINBIK_URL=https://api.linbik.com
-# veya lokal geliştirme için
-# NUXT_PUBLIC_LINBIK_URL=http://localhost:5481
+Mevcut `examples/AspNet/AspNet/Program.cs` JWT ile çalışıyor. PASETO örneği için
+`.AddLinbikJwtAuth()` yerine `.AddLinbikPasetoAuth()` ve `UseLinbikJwtAuth()` yerine
+`UseLinbikPasetoAuth()` kullanın; PASETO anahtar ayarlarını backend dokümanına göre yapın.
+SDK'nin kullandığı çerez/endpoint sözleşmesi mevcut JWT moduyla da aynıdır.
 
-# Service bilgileri (linbik.com'dan alınır)
-NUXT_LINBIK_SERVICE_ID=your-service-guid
-NUXT_LINBIK_CLIENT_ID=your-client-guid
-NUXT_LINBIK_API_KEY=lnbk_your_api_key
+Backend `Linbik:Clients` listesinde web istemcisini yapılandırın (ClientId kayıtlı
+web istemcinizin kimliğidir):
 
-# Integration service public key (RS256 doğrulama için)
-NUXT_LINBIK_PUBLIC_KEY=MIIBIjAN...
-
-# App URL
-NUXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### 3. Development Server Başlat
-
-```bash
-# npm ile
-npm run dev
-
-# veya bun ile
-bun run dev
-```
-
-Uygulama http://localhost:3000 adresinde başlayacak.
-
-## 🔧 Linbik OAuth 2.1 Entegrasyonu
-
-### Authorization Code Flow (Manuel)
-
-JavaScript/TypeScript için kütüphane olmadan OAuth flow:
-
-```
-1. Kullanıcı "Linbik ile Giriş Yap" butonuna tıklar
-   ↓
-2. Client → Linbik redirect
-   GET {LINBIK_URL}/auth/{clientId}
-   ↓
-3. Kullanıcı Linbik'te giriş yapar
-   ↓
-4. Linbik → Client callback (authorization code ile)
-   GET {APP_URL}/api/linbik/callback?code=xxx
-   ↓
-5. Client (server-side) → Linbik token exchange
-   POST {LINBIK_URL}/oauth/token
-   Headers: ApiKey, Code
-   ↓
-6. Linbik → Token response
-   { userId, username, integrations[], refreshToken }
-   ↓
-7. Client → Session oluştur (cookie/localStorage)
-```
-
-## 💻 Kod Örnekleri
-
-### 1. Login Redirect (Client-Side)
-
-```typescript
-// composables/useLinbik.ts
-export const useLinbik = () => {
-  const config = useRuntimeConfig()
-  
-  const login = (returnUrl?: string) => {
-    const linbikUrl = config.public.linbikUrl
-    const clientId = config.public.linbikClientId
-    
-    // Optional: PKCE code challenge
-    const codeVerifier = generateCodeVerifier()
-    const codeChallenge = await sha256Base64Url(codeVerifier)
-    
-    // Store verifier for later validation
-    sessionStorage.setItem('pkce_verifier', codeVerifier)
-    
-    // Redirect to Linbik
-    const authUrl = `${linbikUrl}/auth/${clientId}/${codeChallenge}`
-    window.location.href = authUrl
-  }
-  
-  const logout = async () => {
-    // Clear session cookie
-    useCookie('session').value = null
-    
-    // Clear integration tokens
-    const cookies = document.cookie.split(';')
-    cookies.forEach(cookie => {
-      const name = cookie.split('=')[0].trim()
-      if (name.startsWith('integration_')) {
-        useCookie(name).value = null
-      }
-    })
-    
-    navigateTo('/')
-  }
-  
-  return { login, logout }
+```json
+{
+  "Name": "Web",
+  "ClientId": "YOUR_REGISTERED_WEB_CLIENT_ID",
+  "RedirectUrl": "https://localhost:3000",
+  "ActionResultType": "Redirect"
 }
 ```
 
-### 2. OAuth Callback (Server-Side API Route)
+Linbik'teki yetkilendirme callback adresi backend'in
+`https://localhost:7020/api/Linbik/callback` adresidir. `RedirectUrl` ise callback
+tamamlandıktan sonra gidilecek Nuxt adresidir. `Json` modundaki Mobile istemcisini kullanmayın.
+PKCE backend tarafından yönetilir; özel anahtar/API anahtarı Nuxt public config'e konmaz.
 
-```typescript
-// server/api/linbik/callback.get.ts
-import { H3Event } from 'h3'
+Farklı portlar farklı origin olduğu için backend'e CORS ekleyin:
 
-export default defineEventHandler(async (event: H3Event) => {
-  const query = getQuery(event)
-  const code = query.code as string
-  
-  if (!code) {
-    throw createError({
-      statusCode: 400,
-      message: 'Authorization code is missing'
-    })
-  }
-  
-  const config = useRuntimeConfig()
-  
-  // Exchange code for tokens
-  const response = await $fetch(`${config.linbikUrl}/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'ApiKey': config.linbikApiKey,
-      'Code': code,
-      'Content-Type': 'application/json'
-    },
-    body: {}
-  })
-  
-  if (!response) {
-    throw createError({
-      statusCode: 401,
-      message: 'Token exchange failed'
-    })
-  }
-  
-  // Set session cookie
-  setCookie(event, 'session', JSON.stringify({
-    userId: response.user_id,
-    username: response.user_name,
-    displayName: response.nick_name
-  }), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7 // 7 gün
-  })
-  
-  // Set integration token cookies
-  if (response.integrations) {
-    for (const integration of response.integrations) {
-      setCookie(event, `integration_${integration.package_name}`, integration.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 // 1 saat
-      })
-    }
-  }
-  
-  // Set refresh token cookie
-  if (response.refresh_token) {
-    setCookie(event, 'linbikRefreshToken', response.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 14 // 14 gün
-    })
-  }
-  
-  // PKCE validation (optional)
-  // Client should validate code_challenge with stored verifier
-  
-  return sendRedirect(event, '/')
-})
+```csharp
+// builder.Build() öncesi
+builder.Services.AddCors(options => options.AddPolicy("NuxtExample", policy =>
+    policy.WithOrigins("https://localhost:3000")
+        .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+
+// app.UseRouting() sonrası, authentication/authorization öncesi
+app.UseCors("NuxtExample");
 ```
 
-### 3. Refresh Token (Server-Side API Route)
+Üretimde origin listesini gerçek web adresiyle sınırlandırın. Aynı site üzerinde
+HTTPS kullanın; farklı sitelerde SameSite/üçüncü taraf çerez kuralları ayrıca geçerlidir.
 
-```typescript
-// server/api/auth/refresh.post.ts
-export default defineEventHandler(async (event: H3Event) => {
-  const refreshToken = getCookie(event, 'linbikRefreshToken')
-  
-  if (!refreshToken) {
-    throw createError({
-      statusCode: 401,
-      message: 'Refresh token not found'
-    })
-  }
-  
-  const config = useRuntimeConfig()
-  
-  const response = await $fetch(`${config.linbikUrl}/oauth/refresh`, {
-    method: 'POST',
-    headers: {
-      'ApiKey': config.linbikApiKey,
-      'RefreshToken': refreshToken,
-      'Content-Type': 'application/json'
-    },
-    body: {}
-  })
-  
-  // Update cookies with new tokens
-  // ... (same as callback)
-  
-  return { success: true }
-})
+## Kodun yerleşimi
+
+- `app/plugins/linbik.client.ts`: tarayıcıya özel SDK örneği.
+- `app/composables/useLinbikAuth.ts`: kullanıcı, bekleme/hata durumu ve oturum işlemleri.
+- `app/app.vue`: düğmeler ve `/Test/Protected` çağrısı; uygulama açılırken bir kez refresh yapar.
+- `.env.example`: `NUXT_PUBLIC_LINBIK_*` ayarları. API yolu kendi backend'iniz için değiştirilebilir.
+
+401 yanıtı giriş gerektiğini gösterir. Ağ/CORS hatası oturum yokmuş gibi gizlenmez.
+Korunan API otomatik tekrar çağrılmaz; başarısız bir yazma isteğini tekrarlamak uygulamanın kararıdır.
+Bu örnek SSR sırasında oturum sorgulamaz; kullanıcı durumu tarayıcı açıldıktan sonra yüklenir.
+
+## Doğrulama
+
+```sh
+node --test ../../src/Web/Linbik.PasetoAuthManager.Web/test/client.test.js
+pnpm build
 ```
 
-### 4. Protected API Route
+Canlı akış: giriş yapın → Nuxt'a dönüldüğünü ve kullanıcıyı doğrulayın → korunan API'yi
+çağırın → yenileyin → çıkış yapın → sayfayı yenileyerek oturumun kapanmasını kontrol edin.
 
-```typescript
-// server/api/protected/profile.get.ts
-export default defineEventHandler(async (event: H3Event) => {
-  const session = getCookie(event, 'session')
-  
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-      message: 'Not authenticated'
-    })
-  }
-  
-  const user = JSON.parse(session)
-  
-  return {
-    userId: user.userId,
-    username: user.username,
-    displayName: user.displayName
-  }
-})
-```
-
-### 5. Integration Service Proxy
-
-```typescript
-// server/api/integration/[service]/[...path].ts
-export default defineEventHandler(async (event: H3Event) => {
-  const serviceName = getRouterParam(event, 'service')
-  const path = getRouterParam(event, 'path') || ''
-  
-  // Get integration token from cookie
-  const token = getCookie(event, `integration_${serviceName}`)
-  
-  if (!token) {
-    throw createError({
-      statusCode: 401,
-      message: `No token for ${serviceName}`
-    })
-  }
-  
-  const config = useRuntimeConfig()
-  const serviceConfig = config.integrationServices[serviceName]
-  
-  if (!serviceConfig) {
-    throw createError({
-      statusCode: 404,
-      message: `Service ${serviceName} not configured`
-    })
-  }
-  
-  // Proxy request to integration service
-  const response = await $fetch(`${serviceConfig.baseUrl}/${path}`, {
-    method: event.method,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: event.method !== 'GET' ? await readBody(event) : undefined
-  })
-  
-  return response
-})
-```
-
-### 6. Auth Middleware
-
-```typescript
-// middleware/auth.ts
-export default defineNuxtRouteMiddleware(async (to, from) => {
-  const session = useCookie('session')
-  
-  if (!session.value && to.path !== '/login') {
-    return navigateTo('/login')
-  }
-})
-```
-
-### 7. Vue Component Usage
-
-```vue
-<!-- pages/dashboard.vue -->
-<script setup lang="ts">
-definePageMeta({
-  middleware: 'auth'
-})
-
-const { data: profile } = await useFetch('/api/protected/profile')
-const { logout } = useLinbik()
-</script>
-
-<template>
-  <div class="dashboard">
-    <h1>Hoş geldiniz, {{ profile?.displayName }}!</h1>
-    <p>User ID: {{ profile?.userId }}</p>
-    
-    <button @click="logout" class="btn-logout">
-      Çıkış Yap
-    </button>
-  </div>
-</template>
-```
-
-## ⚙️ Yapılandırma
-
-### nuxt.config.ts
-
-```typescript
-export default defineNuxtConfig({
-  future: {
-    compatibilityVersion: 4
-  },
-  
-  runtimeConfig: {
-    // Server-side only (gizli)
-    linbikApiKey: process.env.NUXT_LINBIK_API_KEY,
-    linbikPublicKey: process.env.NUXT_LINBIK_PUBLIC_KEY,
-    
-    // Integration services config
-    integrationServices: {
-      'payment-gateway': {
-        baseUrl: 'https://payment.example.com/api'
-      },
-      'survey-service': {
-        baseUrl: 'https://survey.example.com/api'
-      }
-    },
-    
-    public: {
-      // Client-side accessible
-      linbikUrl: process.env.NUXT_PUBLIC_LINBIK_URL || 'https://api.linbik.com',
-      linbikClientId: process.env.NUXT_LINBIK_CLIENT_ID,
-      appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    }
-  }
-})
-```
-
-## 🔐 JWT Doğrulama (Integration Service Olarak)
-
-Eğer bu uygulama bir integration service olarak çalışacaksa:
-
-```typescript
-// server/utils/validateToken.ts
-import jwt from 'jsonwebtoken'
-
-export function validateLinbikToken(token: string): LinbikClaims | null {
-  const config = useRuntimeConfig()
-  
-  try {
-    // Convert base64 public key to PEM
-    const publicKey = `-----BEGIN PUBLIC KEY-----\n${
-      config.linbikPublicKey.match(/.{1,64}/g)?.join('\n')
-    }\n-----END PUBLIC KEY-----`
-    
-    const decoded = jwt.verify(token, publicKey, {
-      algorithms: ['RS256'],
-      issuer: 'Linbik'
-    }) as LinbikClaims
-    
-    return decoded
-  } catch (error) {
-    console.error('JWT validation failed:', error)
-    return null
-  }
-}
-
-interface LinbikClaims {
-  sub: string       // userId
-  username: string
-  displayName: string
-  aud: string       // serviceId
-  iss: string       // "Linbik"
-  exp: number
-  iat: number
-}
-```
-
-```typescript
-// server/api/integration/protected.get.ts
-export default defineEventHandler(async (event: H3Event) => {
-  const authHeader = getHeader(event, 'Authorization')
-  
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw createError({ statusCode: 401, message: 'No token' })
-  }
-  
-  const token = authHeader.substring(7)
-  const claims = validateLinbikToken(token)
-  
-  if (!claims) {
-    throw createError({ statusCode: 401, message: 'Invalid token' })
-  }
-  
-  return {
-    message: 'Protected data',
-    userId: claims.sub,
-    username: claims.username
-  }
-})
-```
-
-## 🔄 Bun Desteği
-
-Bun runtime ile çalıştırmak için:
-
-```bash
-# Bun ile yükle
-bun install
-
-# Development
-bun run dev
-
-# Build
-bun run build
-
-# Production
-bun run .output/server/index.mjs
-```
-
-## 🐳 Docker
-
-```dockerfile
-FROM oven/bun:1 AS builder
-WORKDIR /app
-COPY package.json bun.lockb ./
-RUN bun install
-COPY . .
-RUN bun run build
-
-FROM oven/bun:1
-WORKDIR /app
-COPY --from=builder /app/.output ./.output
-EXPOSE 3000
-CMD ["bun", "run", ".output/server/index.mjs"]
-```
-
-## 📋 API Karşılaştırma: AspNet vs Nuxt
-
-| Özellik | AspNet (Kütüphane) | Nuxt (Manuel) |
-|---------|-------------------|---------------|
-| Login | `UseLinbikJwtAuth()` | `$fetch('/auth/{clientId}')` |
-| Callback | Otomatik | Server API route |
-| Token Storage | Cookie (otomatik) | Cookie (manuel) |
-| Refresh | `app.UseLinbikJwtAuth()` | Server API route |
-| Integration Proxy | `app.UseLinbikYarp()` | Server API route |
-| Rate Limiting | `AddLinbikRateLimiting()` | Nuxt rate limit module |
-
-## 🔮 Gelecek Planlar
-
-- [ ] `@linbik/nuxt` - Nuxt module
-- [ ] `@linbik/vue` - Vue plugin
-- [ ] `@linbik/node` - Node.js SDK
-- [ ] `@linbik/bun` - Bun SDK
-
-## 📖 İlgili Dokümantasyon
-
-- [Linbik Platform](https://linbik.com) — OAuth 2.1 API referansı
-- [AspNet.Examples](../AspNet/AspNet/README.md) - .NET ile karşılaştırma
-- [Nuxt Documentation](https://nuxt.com/docs)
-
-## 📄 Lisans
-
-Bu proje özel bir lisans altında yayınlanmaktadır.
-
----
-
-**Version**: 1.2.0  
-**Last Updated**: 9 Eylül 2026
-
-## Otomatik kontroller
-
-`npm test` token doğrulama testlerini çalıştırır. `npm run build` ardından
-`npm run test:smoke`, çalışan sunucuda geçerli/geçersiz callback ve istek izolasyonunu
-kontrol eder. Bu örneğin session cookie'si görüntüleme verisidir; korunan servislerde
-imzalı token doğrulamasının yerini almaz.
+[SDK ayrıntıları](../../src/Web/Linbik.PasetoAuthManager.Web/README.md) ·
+[Nuxt runtime config](https://nuxt.com/docs/4.x/guide/going-further/runtime-config)

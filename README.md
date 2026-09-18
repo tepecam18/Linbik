@@ -60,6 +60,8 @@ User → Authenticate once on Linbik
 
 Also available: a native **Android** client (`src/Android/Linbik.PasetoAuthManager.Android`) for the PASETO mobile-client flow — see its [README](src/Android/Linbik.PasetoAuthManager.Android/README.md).
 
+For browser applications, **[Linbik.PasetoAuthManager.Web](src/Web/Linbik.PasetoAuthManager.Web/README.md)** (`@linbik/paseto-auth`) provides cookie-based sign-in, refresh, logout and API requests with TypeScript types. See the **[Nuxt example](examples/nuxt/README.md)** for local setup.
+
 ---
 
 ## 🚀 Quick Start
