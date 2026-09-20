@@ -375,6 +375,7 @@ public static class PasetoAuthManagerExtensions
             }
         }).WithTags("Linbik").RequireRateLimiting("LinbikStrict");
 
+        endpoints.MapLinbikSession(options.SessionPath);
         return endpoints;
     }
 

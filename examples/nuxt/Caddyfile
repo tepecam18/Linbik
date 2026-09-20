@@ -1,0 +1,11 @@
+# Public HTTPS origin; run Nuxt on port 3001 and ASP.NET on port 5096.
+https://localhost:3000 {
+    tls internal
+    @login path /api/Linbik/login /api/Linbik/callback
+    handle @login {
+        reverse_proxy localhost:5096
+    }
+    handle {
+        reverse_proxy localhost:3001
+    }
+}

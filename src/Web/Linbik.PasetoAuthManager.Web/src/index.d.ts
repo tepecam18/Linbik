@@ -6,6 +6,9 @@ export interface LinbikPasetoAuthOptions {
   loginPath?: string;
   refreshPath?: string;
   logoutPath?: string;
+  sessionPath?: string;
+  /** Use POST when a same-origin server adapter exposes logout as POST. */
+  logoutMethod?: 'GET' | 'POST';
   fetch?: typeof globalThis.fetch;
   navigate?: (url: string) => void;
 }
@@ -28,6 +31,7 @@ export class LinbikPasetoAuthClient {
   getSignInUrl(returnPath?: string): string;
   signIn(returnPath?: string): void;
   refreshToken(): Promise<LinbikUser>;
+  getSession(): Promise<LinbikUser | null>;
   signOut(): Promise<void>;
   /** Cookie-bearing backend request. Check response.ok; HTTP errors do not throw. */
   fetch(path: string, init?: RequestInit): Promise<Response>;

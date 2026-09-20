@@ -11,6 +11,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddOpenApi();
 
+// CORS (Cross-Origin Resource Sharing) configuration
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.WithOrigins("http://localhost:3000")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+});
 
 // ✅ Linbik - Fluent builder pattern for all Linbik services
 builder.Services.AddLinbik(builder.Configuration.GetSection("Linbik"))
@@ -51,6 +62,7 @@ if (app.Environment.IsDevelopment())
 //app.UseHttpsRedirection();
 
 app.UseRouting();
+app.UseCors();
 
 // ✅ Rate limiting middleware - must be after UseRouting for attribute-based rate limiting to work
 app.UseLinbikRateLimiting();

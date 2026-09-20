@@ -1,0 +1,12 @@
+{
+  "name": "@linbik/paseto-auth-server",
+  "version": "0.1.0",
+  "description": "Server-side Linbik authentication and PASETO sessions for Node.js",
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": { "types": "./src/index.d.ts", "node": "./src/index.js" } },
+  "files": ["src", "README.md"],
+  "scripts": { "test": "node --test", "keygen": "node src/keygen.js" },
+  "dependencies": { "paseto-ts": "2.0.7" },
+  "engines": { "node": ">=22" }
+}

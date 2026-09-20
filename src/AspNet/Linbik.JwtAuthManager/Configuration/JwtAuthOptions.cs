@@ -67,4 +67,7 @@ public sealed class JwtAuthOptions
     /// Token refresh path
     /// </summary>
     public string RefreshPath { get; set; } = "/api/Linbik/refresh";
+
+    /// <summary>Read-only authenticated session endpoint (does not rotate tokens).</summary>
+    public string SessionPath { get; set; } = "/api/Linbik/session";
 }

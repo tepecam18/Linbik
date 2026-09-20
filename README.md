@@ -62,6 +62,8 @@ Also available: a native **Android** client (`src/Android/Linbik.PasetoAuthManag
 
 For browser applications, **[Linbik.PasetoAuthManager.Web](src/Web/Linbik.PasetoAuthManager.Web/README.md)** (`@linbik/paseto-auth`) provides cookie-based sign-in, refresh, logout and API requests with TypeScript types. See the **[Nuxt example](examples/nuxt/README.md)** for local setup.
 
+For a standalone Node.js backend, **[Linbik.PasetoAuthManager.Server](src/Web/Linbik.PasetoAuthManager.Server/README.md)** (`@linbik/paseto-auth-server`) handles Linbik login, PKCE and PASETO sessions. The **[Nuxt FullStack example](examples/nuxt.FullStack/README.md)** runs its frontend and Nitro backend together, with SSR or CSR and no ASP.NET dependency.
+
 ---
 
 ## 🚀 Quick Start

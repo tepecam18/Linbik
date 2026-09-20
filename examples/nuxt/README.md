@@ -1,33 +1,62 @@
-# Linbik Web SDK — Nuxt örneği
+# Linbik Web SDK — Nuxt SSR / CSR örneği
 
-`src/Web/Linbik.PasetoAuthManager.Web` paketini yerel bağımlılık olarak kullanır.
-Giriş, sayfa açılışında oturum yenileme, kullanıcı/entegrasyon gösterimi, korunan API
-çağrısı ve çıkış örneklerini içerir. Tokenlar backend'in HttpOnly çerezlerinde kalır.
+Aynı uygulama iki modda çalışır. `.env` içindeki `NUXT_SSR=true` sunucuda render,
+`NUXT_SSR=false` tarayıcıda render seçer. Bu bir **derleme ayarıdır**: değiştirince
+dev sunucusunu yeniden başlatın veya yeniden derleyin. Her iki mod Nitro sunucusunu
+kullanır; `nuxt generate` ile tamamen statik dağıtım bu örneğin sunucu adaptörünü içermez.
+Framework bağımsız SDK'nin doğrudan backend kullanımı ayrıca desteklenir.
 
-## Başlatma
+## Mimari
 
-```sh
-cd examples/nuxt
-pnpm install
-cp .env.example .env
-pnpm dev --https
+```text
+Tarayıcı → https://localhost:3000 (Caddy)
+             /api/Linbik/login, callback → ASP.NET :5096
+             diğer yollar                → Nuxt :3001
+                                             /api/auth/* → ASP.NET :5096
 ```
 
-Yerel HTTPS sertifikalarını tarayıcıda güvenilir yapın. `.env` içindeki backend
-adresini ve kayıtlı client adını kendi ortamınıza göre ayarlayın. Keyless modda
-backend'in ilk istemcisini kullanmak için client adını boş bırakabilirsiniz.
-Örnekte web adresi `https://localhost:3000`, backend `https://localhost:7020` kabul edilir.
-Her iki uçta aynı hostname ve HTTPS kullanmak SameSite çerez akışını korur.
+Login ve callback aynı public origin üzerinden backend'e gider; PKCE ve oturum çerezleri
+web hostunda kalır. Tarayıcı ayrı backend origin'ine istek yapmaz; bu örnek için CORS gerekmez.
+Backend yalnızca güvenilen proxy/sunucu tarafından erişilebilir olmalıdır.
 
-## Backend ayarları
+SSR'de istek başına oluşturulan SDK yalnızca Linbik çerezlerini backend'e taşır.
+`GET /api/Linbik/session` access tokenı mevcut JWT/PASETO doğrulayıcısıyla kontrol eder.
+Geçerli oturumda refresh çağrılmaz. Oturum geçersizse ve refresh çerezi varsa bir kez
+refresh yapılır. Dönen Set-Cookie başlıkları ayrı ayrı HTML yanıtına eklenir; güncel
+çerezler aynı isteğin sonraki backend çağrılarında da kullanılır. Tarayıcıya sadece
+kullanıcı görünüm modeli aktarılır, tokenlar Nuxt payload'ına konmaz.
 
-Mevcut `examples/AspNet/AspNet/Program.cs` JWT ile çalışıyor. PASETO örneği için
-`.AddLinbikJwtAuth()` yerine `.AddLinbikPasetoAuth()` ve `UseLinbikJwtAuth()` yerine
-`UseLinbikPasetoAuth()` kullanın; PASETO anahtar ayarlarını backend dokümanına göre yapın.
-SDK'nin kullandığı çerez/endpoint sözleşmesi mevcut JWT moduyla da aynıdır.
+CSR'de aynı oturum kontrolü tarayıcı açıldıktan sonra `/api/auth/session` üzerinden
+çalışır. SSR hydration sırasında işlem tekrarlanmaz. `/protected` sayfasının middleware'i
+SSR'de HTML üretilmeden, CSR'de sayfa gösterilmeden oturumu kontrol eder. API yetkisi her
+zaman backend tarafından ayrıca doğrulanır. Backend kesintisi giriş yapılmamış durumuyla
+karıştırılmaz; korunan sayfa 503 verir.
 
-Backend `Linbik:Clients` listesinde web istemcisini yapılandırın (ClientId kayıtlı
-web istemcinizin kimliğidir):
+## Yerel kurulum
+
+ASP.NET örneğini `http://localhost:5096` üzerinde çalıştırın. Güncel kaynak kodundaki
+session endpoint'ini içeren backend gerekir. Örnek şu anda JWT kullanır; PASETO için
+`AddLinbikJwtAuth` / `UseLinbikJwtAuth` yerine PASETO karşılıklarını kullanabilirsiniz.
+Her iki manager da aynı session endpoint'ini ekler.
+
+```powershell
+cd examples/nuxt
+pnpm install
+Copy-Item .env.example .env
+pnpm dev --port 3001
+```
+
+Ayrı terminalde Caddy kurulu olmalı:
+
+```sh
+caddy run --config Caddyfile
+```
+
+Tarayıcıda **https://localhost:3000** açın. Caddy'nin yerel CA sertifikasını güvenilir
+hale getirin. TLS doğrulamasını kapatmayın. `Secure` çerezler nedeniyle public uç HTTPS
+kullanır; Nuxt ve ASP.NET arasındaki yerel bağlantı HTTP olabilir.
+
+Backend `Linbik:Clients` içindeki Web istemcinizi şu şekilde ayarlayın:
 
 ```json
 {
@@ -38,46 +67,52 @@ web istemcinizin kimliğidir):
 }
 ```
 
-Linbik'teki yetkilendirme callback adresi backend'in
-`https://localhost:7020/api/Linbik/callback` adresidir. `RedirectUrl` ise callback
-tamamlandıktan sonra gidilecek Nuxt adresidir. `Json` modundaki Mobile istemcisini kullanmayın.
-PKCE backend tarafından yönetilir; özel anahtar/API anahtarı Nuxt public config'e konmaz.
+Linbik platformundaki callback adresi **https://localhost:3000/api/Linbik/callback**
+olmalıdır; backend'in özel portunu kullanmayın. Caddy public Host ve forwarded scheme
+bilgilerini backend'e taşır. Backend `CookieDomain` ayarını boş veya public host ile
+uyumlu tutun. Proxy yalnızca login/callback yollarını ASP.NET'e açar; refresh/logout
+Nitro katmanından geçer. Public origin değişirse Caddyfile, client RedirectUrl,
+platform callback ve `NUXT_PUBLIC_LINBIK_WEB_ORIGIN` birlikte güncellenmelidir.
 
-Farklı portlar farklı origin olduğu için backend'e CORS ekleyin:
+## Dosyalar ve güvenlik sınırları
 
-```csharp
-// builder.Build() öncesi
-builder.Services.AddCors(options => options.AddPolicy("NuxtExample", policy =>
-    policy.WithOrigins("https://localhost:3000")
-        .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+- `app/plugins/linbik.server.ts`: her SSR isteği için ayrı cookie transport.
+- `app/plugins/linbik.client.ts`: aynı origin'e istek yapan tarayıcı istemcisi.
+- `app/composables/useLinbikAuth.ts`: iki modun ortak oturum durumu.
+- `server/api/auth/[action].ts`: yalnızca session, refresh, logout ve örnek protected çağrıları. Genel amaçlı açık proxy değildir.
+- `app/middleware/auth.ts`: korunan sayfa kontrolü.
+- `Caddyfile`: login/callback dahil aynı origin yerleşimi.
 
-// app.UseRouting() sonrası, authentication/authorization öncesi
-app.UseCors("NuxtExample");
-```
+Refresh/logout public uçları POST ister; Origin ve özel istek başlığı doğrulanır.
+Logout backend'in mevcut GET sözleşmesine sunucuda çevrilir. Token içeren yanıtlar ve
+kişisel HTML `private, no-store` döner; bunları CDN'de cache/prerender etmeyin.
+Backend adresi private runtime config'dedir. Cookie transport sadece bu backend'e
+istek yapar, yönlendirmeleri izlemez, Domain'i kaldırıp çerezi public hosta bağlar;
+Secure/HttpOnly/SameSite/expiry korunur. Bu adaptör aynı public host altında çalışan
+tek uygulama içindir. Cookie adlarını paylaşan farklı uygulamalar ayrı host kullanmalıdır.
 
-Üretimde origin listesini gerçek web adresiyle sınırlandırın. Aynı site üzerinde
-HTTPS kullanın; farklı sitelerde SameSite/üçüncü taraf çerez kuralları ayrıca geçerlidir.
-
-## Kodun yerleşimi
-
-- `app/plugins/linbik.client.ts`: tarayıcıya özel SDK örneği.
-- `app/composables/useLinbikAuth.ts`: kullanıcı, bekleme/hata durumu ve oturum işlemleri.
-- `app/app.vue`: düğmeler ve `/Test/Protected` çağrısı; uygulama açılırken bir kez refresh yapar.
-- `.env.example`: `NUXT_PUBLIC_LINBIK_*` ayarları. API yolu kendi backend'iniz için değiştirilebilir.
-
-401 yanıtı giriş gerektiğini gösterir. Ağ/CORS hatası oturum yokmuş gibi gizlenmez.
-Korunan API otomatik tekrar çağrılmaz; başarısız bir yazma isteğini tekrarlamak uygulamanın kararıdır.
-Bu örnek SSR sırasında oturum sorgulamaz; kullanıcı durumu tarayıcı açıldıktan sonra yüklenir.
+Bir SDK örneği eşzamanlı refresh'i birleştirir; farklı HTTP istekleri veya sekmeler arası
+refresh yarışları backend refresh-token yöneticisinin sorumluluğundadır. `integrations`
+listesi yalnızca arayüz ipucudur, yetki kanıtı değildir. Korunan API çağrıları otomatik
+tekrarlanmaz.
 
 ## Doğrulama
 
-```sh
-node --test ../../src/Web/Linbik.PasetoAuthManager.Web/test/client.test.js
+```powershell
+node --test ../../src/Web/Linbik.PasetoAuthManager.Web/test/*.test.js
+$env:NUXT_SSR='true'
 pnpm build
+node --test test/session.test.mjs
+$env:NUXT_SSR='false'
+pnpm build
+$env:NUXT_TEST_SSR='false'
+node --test test/session.test.mjs
 ```
 
-Canlı akış: giriş yapın → Nuxt'a dönüldüğünü ve kullanıcıyı doğrulayın → korunan API'yi
-çağırın → yenileyin → çıkış yapın → sayfayı yenileyerek oturumun kapanmasını kontrol edin.
+Testler yerel sahte backend ile kişisel HTML, kullanıcı izolasyonu, cookie yenileme,
+çıkış, anonim yönlendirme, hata ayrımı ve CSRF sınırını kontrol eder. Gerçek Linbik
+giriş/onay/callback akışı ayrıca kayıtlı istemciyle denenmelidir.
 
-[SDK ayrıntıları](../../src/Web/Linbik.PasetoAuthManager.Web/README.md) ·
-[Nuxt runtime config](https://nuxt.com/docs/4.x/guide/going-further/runtime-config)
+[SDK](../../src/Web/Linbik.PasetoAuthManager.Web/README.md) ·
+[Nuxt cookie aktarımı](https://nuxt.com/docs/4.x/getting-started/data-fetching) ·
+[Caddy reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)

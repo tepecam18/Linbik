@@ -1,21 +1,18 @@
 <script setup lang="ts">
-const { user, busy, error, signIn, refresh, signOut, run } = useLinbikAuth()
+const { user, busy, error, loginUrl, loadSession, refresh, signOut, run } = useLinbikAuth()
 const { $linbik } = useNuxtApp()
-const config = useRuntimeConfig().public
 const result = ref('')
 const ready = ref(false)
 
-onMounted(async () => {
-  ready.value = true
-  await refresh()
-})
+await loadSession()
+onMounted(() => { ready.value = true })
 
 watch(user, () => { result.value = '' })
 
 function callApi() {
   result.value = ''
   return run(async () => {
-    const response = await $linbik.fetch(config.linbikProtectedPath)
+    const response = await $linbik.fetch('/api/auth/protected')
     if (!response.ok) throw new Error(`API isteği başarısız: ${response.status}`)
     result.value = JSON.stringify(await response.json(), null, 2)
   })
@@ -34,7 +31,7 @@ function callApi() {
       <p v-else>Devam etmek için Linbik hesabınızı kullanın.</p>
       <p v-if="user?.integrations.length">Entegrasyonlar: {{ user.integrations.join(', ') }}</p>
       <div class="actions">
-        <button v-if="!user" :disabled="!ready || busy" @click="signIn">Linbik ile giriş yap</button>
+        <a v-if="!user" :href="loginUrl">Linbik ile giriş yap</a>
         <button :disabled="!ready || busy" @click="refresh">Oturumu yenile</button>
         <button v-if="user" :disabled="busy" @click="callApi">Korunan API'yi çağır</button>
         <button v-if="user" :disabled="busy" @click="signOut">Çıkış yap</button>
@@ -43,6 +40,7 @@ function callApi() {
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <pre v-if="result">{{ result }}</pre>
     </section>
+    <NuxtPage />
   </main>
 </template>
 

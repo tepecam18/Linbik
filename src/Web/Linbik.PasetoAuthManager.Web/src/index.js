@@ -77,15 +77,20 @@ export class LinbikPasetoAuthClient {
     if (this.#logout) return Promise.reject(new Error('Sign-out is in progress.'));
     if (!this.#refresh) {
       this.#refresh = this.#session(this.#options.refreshPath ?? '/api/Linbik/refresh', 'POST')
-        .then(user => {
-          if (!user || typeof user.userId !== 'string' || typeof user.username !== 'string' || !Array.isArray(user.integrations) || !user.integrations.every(value => typeof value === 'string')) {
-            throw new LinbikAuthError('Invalid user response.', 200);
-          }
-          return { userId: user.userId, username: user.username, displayName: typeof user.displayName === 'string' ? user.displayName : user.username, integrations: user.integrations };
-        })
+        .then(validateUser)
         .finally(() => { this.#refresh = undefined; });
     }
     return this.#refresh;
+  }
+
+  /** Read the validated session without rotating tokens; anonymous sessions return null. */
+  async getSession() {
+    try {
+      return validateUser(await this.#session(this.#options.sessionPath ?? '/api/Linbik/session', 'GET'));
+    } catch (error) {
+      if (error instanceof LinbikAuthError && error.status === 401) return null;
+      throw error;
+    }
   }
 
   signOut() {
@@ -93,9 +98,16 @@ export class LinbikPasetoAuthClient {
       // Ensure an in-flight refresh cannot restore cookies after logout.
       this.#logout = (async () => {
         if (this.#refresh) await this.#refresh.catch(() => {});
-        await this.#session(this.#options.logoutPath ?? '/api/Linbik/logout', 'GET');
+        await this.#session(this.#options.logoutPath ?? '/api/Linbik/logout', this.#options.logoutMethod ?? 'GET');
       })().finally(() => { this.#logout = undefined; });
     }
     return this.#logout;
   }
+}
+
+function validateUser(user) {
+  if (!user || typeof user.userId !== 'string' || typeof user.username !== 'string' || !Array.isArray(user.integrations) || !user.integrations.every(value => typeof value === 'string')) {
+    throw new LinbikAuthError('Invalid user response.', 200);
+  }
+  return { userId: user.userId, username: user.username, displayName: typeof user.displayName === 'string' ? user.displayName : user.username, integrations: user.integrations };
 }

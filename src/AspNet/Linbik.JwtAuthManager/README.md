@@ -220,3 +220,13 @@ session expiry to detect reuse, and revoke all replacements when reuse is detect
 RevokeAsync must invalidate the entire session even when passed an older hash.
 Persisting a custom store also requires stable access-token signing keys across restarts.
 Keep those keys in application secret configuration, never source control.
+
+## Read-only web session
+
+`UseLinbikJwtAuth()` also maps `GET /api/Linbik/session` (configurable via
+`JwtAuthOptions.SessionPath`). It authenticates through `LinbikScheme` and returns
+`LBaseResponse` with `userId`, `username`, `displayName` and integration cookie names.
+An absent/invalid access token returns 401; the endpoint never refreshes tokens or
+writes cookies. Responses are `private, no-store`. Integration names are UI hints,
+not authorization evidence. The web SDK's `getSession()` supports this endpoint.
+See [Nuxt SSR/CSR example](../../../examples/nuxt/README.md).

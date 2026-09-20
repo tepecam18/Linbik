@@ -411,6 +411,7 @@ public static class JwtAuthManagerExtensions
             }
         }).WithTags("Linbik").RequireRateLimiting("LinbikStrict");
 
+        endpoints.MapLinbikSession(options.SessionPath);
         return endpoints;
     }
 
