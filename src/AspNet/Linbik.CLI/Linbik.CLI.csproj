@@ -12,7 +12,6 @@
 		<PackageId>Linbik.Cli</PackageId>
 
 		<PackageVersion>0.0.1</PackageVersion>
-		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
 		<Description>Command-line tool to bootstrap Linbik projects and handle service registration bindings on Linbik.com.</Description>
 		<Authors>tepecam18</Authors>
@@ -23,6 +22,9 @@
 
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+		<!-- Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>

@@ -1,5 +1,6 @@
 using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Configuration;
+using Linbik.Core.Extensions;
 using Linbik.Core.Services.Interfaces;
 using Linbik.JwtAuthManager.Configuration;
 using Linbik.JwtAuthManager.Services;
@@ -102,6 +103,11 @@ public static class LinbikJwtAuthExtensions
         services.TryAddSingleton<ILinbikRefreshTokenStore, InMemoryLinbikRefreshTokenStore>();
         services.TryAddScoped<LinbikRefreshTokenManager>();
         services.AddAuthentication();
+
+        // The login/callback/logout/refresh endpoints mapped by UseLinbikJwtAuth() unconditionally
+        // require the "LinbikAuth"/"LinbikStrict" rate limiting policies. Ensure they exist so apps
+        // that never called AddLinbikRateLimiting() don't fail at request time instead of startup.
+        services.EnsureLinbikRateLimiting(new RateLimitOptions());
 
         services.AddOptions<JwtBearerOptions>(LinbikScheme)
             .Configure<IOptions<JwtAuthOptions>>((jwtBearerOptions, jwtAuthOptionsAccessor) =>

@@ -121,14 +121,23 @@ var hasIntegrations = HttpContext.HasIntegrations();
 
 ## 🔒 Rate Limiting
 
-Rate limiting is shared through `Linbik.Core.Extensions`. All overloads of `AddLinbikRateLimiting`, including the parameterless overload, register the policies.
+`AddLinbikJwtAuth()` endpoints unconditionally require the `LinbikAuth`/`LinbikStrict` policies
+(via `RequireRateLimiting`), so `AddLinbikJwtAuth()` automatically registers them with default
+`RateLimitOptions` if they aren't already registered. You still need to add the middleware
+yourself — `AddLinbikRateLimiting` never calls `UseRateLimiter`:
 
 ```csharp
-// In Program.cs
-builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik:RateLimiting"));
-
-// In middleware pipeline
+// In middleware pipeline (required even with the defaults above)
 app.UseLinbikRateLimiting();
+```
+
+To customize the limits (e.g. from configuration), call `AddLinbikRateLimiting` explicitly
+**before** `AddLinbikJwtAuth`/`AddLinbikPasetoAuth` — whichever call registers the policies first
+wins; a later call is a safe no-op instead of throwing a duplicate-policy error:
+
+```csharp
+// In Program.cs — before AddLinbikJwtAuth()
+builder.Services.AddLinbikRateLimiting(builder.Configuration.GetSection("Linbik:RateLimiting"));
 ```
 
 ```json

@@ -6,7 +6,6 @@
 		<Nullable>enable</Nullable>
 
 		<PackageVersion>0.0.2</PackageVersion>
-		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
 		<Description>Enables external Linbik services to integrate and communicate securely with this service inside the Linbik ecosystem.</Description>
 		<Authors>tepecam18</Authors>
@@ -22,12 +21,15 @@
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
+		<!-- Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
 		<!-- Debug bilgisi - HER ZAMAN embedded -->
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>
 		<EmbedAllSources>true</EmbedAllSources>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		
+
 		<!-- Optimizasyonları Debug'da kapat -->
 		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
 

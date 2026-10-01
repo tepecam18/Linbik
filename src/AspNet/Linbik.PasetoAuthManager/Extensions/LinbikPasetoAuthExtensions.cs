@@ -116,6 +116,11 @@ public static class LinbikPasetoAuthExtensions
         services.TryAddScoped<LinbikRefreshTokenManager>();
         services.AddAuthentication();
 
+        // The login/callback/logout/refresh endpoints mapped by UseLinbikPasetoAuth() unconditionally
+        // require the "LinbikAuth"/"LinbikStrict" rate limiting policies. Ensure they exist so apps
+        // that never called AddLinbikRateLimiting() don't fail at request time instead of startup.
+        services.EnsureLinbikRateLimiting(new RateLimitOptions());
+
         services.AddOptions<PasetoBearerOptions>(LinbikScheme)
             .Configure<IOptions<PasetoAuthOptions>>((bearerOptions, pasetoAccessor) =>
             {

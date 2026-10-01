@@ -55,6 +55,38 @@ public sealed class AuthCallbackTests
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EndpointsWorkWithoutExplicitAddLinbikRateLimitingCall(bool paseto)
+    {
+        // Regression test: AddLinbikJwtAuth/AddLinbikPasetoAuth endpoints unconditionally
+        // RequireRateLimiting("LinbikAuth"/"LinbikStrict"). An app that wires up rate limiting
+        // middleware (app.UseLinbikRateLimiting()) but never calls AddLinbikRateLimiting()
+        // must not fail requests with "no such policy exists".
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<IAuditLogger, DefaultAuditLogger>();
+        builder.Services.AddSingleton<LinbikMetrics>();
+        builder.Services.AddHttpClient<ILinbikAuthClient, LinbikAuthClient>();
+        builder.Services.AddSingleton(DispatchProxy.Create<IPasetoHelper, UnusedPasetoHelper>());
+        var linbik = builder.Services.AddLinbik(o => o.EnableHeartbeat = false);
+        if (paseto) linbik.AddLinbikPasetoAuth(o => o.PkceEnabled = false);
+        else linbik.AddLinbikJwtAuth(o => o.PkceEnabled = false);
+        await using var app = builder.Build();
+        app.UseRouting();
+        app.UseLinbikRateLimiting();
+        if (paseto) app.UseLinbikPasetoAuth();
+        else app.UseLinbikJwtAuth();
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        using var response = await client.GetAsync("/api/Linbik/callback");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Authorization code is required", await response.Content.ReadAsStringAsync());
+    }
+
     public class UnusedPasetoHelper : DispatchProxy
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>

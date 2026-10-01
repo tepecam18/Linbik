@@ -1,8 +1,13 @@
 # Linbik.PasetoAuthManager.Web
 
 Framework bağımsız, bağımlılıksız ESM web istemcisi. Paket adı: `@linbik/paseto-auth`.
-JavaScript ile çalışır ve TypeScript tiplerini içerir. Henüz npm'e yayımlanmamıştır;
-yerel paket bağlantısı için [Nuxt örneğine](../../../examples/nuxt/README.md) bakın.
+JavaScript ile çalışır ve TypeScript tiplerini içerir.
+
+```sh
+npm install @linbik/paseto-auth
+```
+
+Yerel geliştirme için paket bağlantısı örneği: [Nuxt örneği](../../../examples/nuxt/README.md).
 
 ```ts
 import { LinbikPasetoAuthClient, LinbikAuthError } from '@linbik/paseto-auth'

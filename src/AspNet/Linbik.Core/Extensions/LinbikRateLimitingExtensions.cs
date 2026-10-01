@@ -25,6 +25,15 @@ public static class LinbikRateLimitingExtensions
     private const string UnknownPartitionKey = "unknown";
 
     /// <summary>
+    /// Marks an <see cref="IServiceCollection"/> that has already had the Linbik rate limiting
+    /// policies registered, so a redundant call (explicit or from an AuthManager) is a safe no-op
+    /// instead of throwing when the underlying policy name is added twice.
+    /// </summary>
+    private sealed class LinbikRateLimitingMarker
+    {
+    }
+
+    /// <summary>
     /// Add rate limiting services configured for Linbik authentication.
     /// </summary>
     public static IServiceCollection AddLinbikRateLimiting(
@@ -35,7 +44,7 @@ public static class LinbikRateLimitingExtensions
         var options = new RateLimitOptions();
         configureOptions(options);
         services.Configure(configureOptions);
-        services.AddCommonLinbikRateLimiting(options);
+        services.EnsureLinbikRateLimiting(options);
         return services;
     }
 
@@ -49,7 +58,7 @@ public static class LinbikRateLimitingExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         var options = configuration.Get<RateLimitOptions>() ?? new RateLimitOptions();
         services.Configure<RateLimitOptions>(configuration);
-        services.AddCommonLinbikRateLimiting(options);
+        services.EnsureLinbikRateLimiting(options);
         return services;
     }
 
@@ -60,7 +69,27 @@ public static class LinbikRateLimitingExtensions
     {
         var defaultOptions = new RateLimitOptions();
         services.Configure<RateLimitOptions>(_ => { });
-        services.AddCommonLinbikRateLimiting(defaultOptions);
+        services.EnsureLinbikRateLimiting(defaultOptions);
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the <c>LinbikAuth</c>/<c>LinbikStrict</c>/<c>LinbikGeneral</c> rate limiting policies
+    /// exactly once per <see cref="IServiceCollection"/>. Linbik.JwtAuthManager and
+    /// Linbik.PasetoAuthManager call this automatically (with default <see cref="RateLimitOptions"/>)
+    /// because their endpoints unconditionally require the <see cref="LinbikAuthPolicy"/>/"LinbikStrict"
+    /// policies via <c>RequireRateLimiting</c>; without them, requests fail at runtime with
+    /// "no such policy exists" instead of at startup. Call <see cref="AddLinbikRateLimiting(IServiceCollection)"/>
+    /// (or an overload) explicitly BEFORE <c>AddLinbikJwtAuth</c>/<c>AddLinbikPasetoAuth</c> to customize
+    /// limits; a call afterward is a no-op since the policies already exist.
+    /// </summary>
+    internal static IServiceCollection EnsureLinbikRateLimiting(this IServiceCollection services, RateLimitOptions rateLimitOptions)
+    {
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(LinbikRateLimitingMarker)))
+            return services;
+
+        services.AddSingleton<LinbikRateLimitingMarker>();
+        services.AddCommonLinbikRateLimiting(rateLimitOptions);
         return services;
     }
 

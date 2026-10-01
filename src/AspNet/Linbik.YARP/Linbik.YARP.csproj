@@ -2,12 +2,13 @@
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
+
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		
+
+		<!-- Package -->
 		<PackageVersion>0.0.2</PackageVersion>
-		<Version>$(GitVersion_NuGetVersionV2)</Version>
-		
+
 		<Description>Provides YARP-based gateway features to securely expose Linbik ecosystem services to end users.</Description>
 		<Authors>tepecam18</Authors>
 		<Company>Linbik</Company>
@@ -15,27 +16,27 @@
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		
-		<IncludeSource>true</IncludeSource>
 
-		<!-- deterministic/CI -->
+		<!-- Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+		<!-- Debugging -->
+		<DebugType>embedded</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+
+		<!-- Source Link -->
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+
+		<!-- Build -->
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
-		<!-- Debug bilgisi - HER ZAMAN embedded -->
-		<DebugType>embedded</DebugType>
-		<DebugSymbols>true</DebugSymbols>
-		<EmbedAllSources>true</EmbedAllSources>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-
-		<!-- Optimizasyonları Debug'da kapat -->
+		<!-- Debug build -->
 		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
-		
-
-		<!-- sourcelink -->
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -48,7 +49,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="" />
-		<None Update="OPENAPI.md" Pack="true" PackagePath="" />
+		<None Include="README.md"
+			  Pack="true"
+			  PackagePath="" />
+
+		<None Update="OPENAPI.md"
+			  Pack="true"
+			  PackagePath="" />
 	</ItemGroup>
+
 </Project>

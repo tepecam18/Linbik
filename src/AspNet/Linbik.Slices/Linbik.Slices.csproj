@@ -6,7 +6,6 @@
 		<Nullable>enable</Nullable>
 
 		<PackageVersion>0.0.1</PackageVersion>
-		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
 		<Description>Vertical-slice infrastructure for Linbik services: ILinbikSender dispatch, Result&lt;T&gt;, validation pipeline, minimal-API endpoint helpers, plus a source generator and analyzer that turn declarative [LinbikSlice]/[LFlow] slices into endpoint mappings and DI registrations.</Description>
 		<Authors>tepecam18</Authors>
@@ -17,6 +16,9 @@
 
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+		<!-- Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>

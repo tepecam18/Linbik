@@ -6,7 +6,6 @@
 		<Nullable>enable</Nullable>
 
 		<PackageVersion>0.0.2</PackageVersion>
-		<Version>$(GitVersion_NuGetVersionV2)</Version>
 
 		<Description>Provides seamless Linbik JWT Authorize and Login capabilities. Registration and login flows are executed on Linbik.com and handled securely by this package.</Description>
 		<Authors>tepecam18</Authors>
@@ -21,6 +20,9 @@
 		<!-- deterministic/CI -->
 		<Deterministic>true</Deterministic>
 		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+		<!-- Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 		<!-- Debug bilgisi - HER ZAMAN embedded -->
 		<DebugType>embedded</DebugType>
