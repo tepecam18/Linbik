@@ -1,62 +1,95 @@
-name: Multi Project NuGet Publish with GitVersion
+name: Publish NuGet
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'NuGet version (for example 1.2.10 or 1.2.10-preview.1)'
+        required: true
+        type: string
+      package:
+        description: Package to publish
+        type: choice
+        default: All
+        options:
+          - All
+          - Linbik.Core
+          - Linbik.JwtAuthManager
+          - Linbik.YARP
+          - Linbik.Server
+          - Linbik.Cli
+          - Linbik.PasetoAuthManager
+          - Linbik.Slices
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
 
 jobs:
-  build-test-pack-publish:
+  publish:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION_INPUT: ${{ inputs.version }}
+      PACKAGE_INPUT: ${{ inputs.package || 'All' }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Install GitVersion
-      uses: GitTools/actions/gitversion/setup@v0.9.14
-      with:
-        versionSpec: '5.x'
-
-    - name: Calculate Version
-      id: gitversion
-      uses: GitTools/actions/gitversion/execute@v0.9.14
-      with:
-        useConfigFile: true
-        configFilePath: GitVersion.yml
-
-    - name: Restore
-      run: dotnet restore Linbik.slnx
-
-    - name: Build
-      run: dotnet build Linbik.slnx --configuration Release --no-restore
-
-    - name: Test
-      run: dotnet test ./tests/Linbik.Tests/Linbik.Tests.csproj -c Release --no-build --no-restore --verbosity normal
-
-    - name: Pack Linbik.Core
-      run: dotnet pack ./src/AspNet/Linbik.Core/Linbik.Core.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
-
-    - name: Pack Linbik.JwtAuthManager (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.JwtAuthManager/Linbik.JwtAuthManager.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
-
-    - name: Pack Linbik.YARP (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.YARP/Linbik.YARP.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
-
-    - name: Pack Linbik.Server (with updated Linbik.Core version)
-      run: dotnet pack ./src/AspNet/Linbik.Server/Linbik.Server.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} 
-
-    - name: Pack Linbik.Cli
-      run: dotnet pack ./src/AspNet/Linbik.CLI/Linbik.CLI.csproj -c Release -o ./nupkg /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }}
-
-
-    - name: Publish all packages
-      run: |
-        dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate settings
+        shell: pwsh
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if (-not $env:NUGET_USER) { throw 'Set repository variable NUGET_USER to your NuGet profile name.' }
+          $version = $env:VERSION_INPUT
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME -replace '^v', '' }
+          if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') { throw 'Invalid package version.' }
+          "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Restore
+        run: dotnet restore Linbik.slnx
+      - name: Build
+        run: dotnet build Linbik.slnx -c Release --no-restore /p:PackageVersion=$PACKAGE_VERSION
+      - name: Test
+        run: dotnet test tests/Linbik.Tests/Linbik.Tests.csproj -c Release --no-build --no-restore
+      - name: Pack selected packages
+        shell: pwsh
+        run: |
+          $projects = [ordered]@{
+            'Linbik.Core' = 'Linbik.Core'
+            'Linbik.JwtAuthManager' = 'Linbik.JwtAuthManager'
+            'Linbik.YARP' = 'Linbik.YARP'
+            'Linbik.Server' = 'Linbik.Server'
+            'Linbik.Cli' = 'Linbik.CLI'
+            'Linbik.PasetoAuthManager' = 'Linbik.PasetoAuthManager'
+            'Linbik.Slices' = 'Linbik.Slices'
+          }
+          if ($env:PACKAGE_INPUT -ne 'All' -and -not $projects.Contains($env:PACKAGE_INPUT)) { throw 'Unknown package selection.' }
+          foreach ($entry in $projects.GetEnumerator()) {
+            if ($env:PACKAGE_INPUT -ne 'All' -and $env:PACKAGE_INPUT -ne $entry.Key) { continue }
+            $project = $entry.Value
+            dotnet pack "src/AspNet/$project/$project.csproj" -c Release -o ./nupkg "/p:PackageVersion=$env:PACKAGE_VERSION"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-${{ env.PACKAGE_VERSION }}
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Publish
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push './nupkg/*.nupkg' --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
