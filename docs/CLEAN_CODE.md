@@ -41,7 +41,7 @@ ve bilinçli davranış değişiklikleri aşağıda ayrıca belirtilmiştir.
 
 ## Doğrulama
 
-Yerel sonuç: .NET Release derlemesi 0 hata / 0 uyarı; 36 .NET testi,
+Yerel sonuç: .NET Release derlemesi 0 hata / 0 uyarı; 206 .NET testi,
 3 Nuxt birim testi, 1 Nuxt HTTP smoke testi ve 3 Android testi başarılı.
 Nuxt üretim paketi, Android kütüphanesi ve Android örnek uygulaması derlendi.
 

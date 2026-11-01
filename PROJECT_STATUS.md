@@ -26,6 +26,8 @@ Linbik Framework, OAuth 2.1 Authorization Code Flow ile çoklu servis federated 
 | **Linbik.YARP** | 1.2.7 | 🔵 Beta | YARP proxy, Application client |
 | **Linbik.Slices** | 1.2.7 | 🔵 Beta | Vertical-slice mediator (source-generated endpoint registration) |
 | **Linbik.Slices.Generators** | 1.2.7 | 🔵 Beta | Roslyn incremental source generator + analyzer (LINBIK001-004) |
+| **Linbik.Slices.CodeFixes** | 1.2.7 | 🔵 Beta | IDE quick fixes for LINBIK001/004 (packed into Linbik.Slices under `analyzers/dotnet/cs`) |
+| **Linbik.Slices.Testing** | 1.2.7 | 🔵 Beta | Test helpers for slices (`AsFlow`, fake authentication) |
 | **Linbik.CLI** | 1.2.7 | 🔵 Beta | CLI tool (init, status, export-config, doctor) |
 | **Linbik.PasetoAuthManager.Android** | 1.2.4 | 🔵 Beta | Native Kotlin client for the PASETO mobile-client flow |
 
@@ -136,6 +138,7 @@ Fix the live bugs listed above, each already file-referenced there:
 
 ### Mid-term
 - [ ] Extend the repository regression suite to cover more authentication, concurrency and device scenarios
+- [ ] Per-endpoint `RateLimitPolicy` on `[LinbikSlice]` (deferred; not needed for MVP)
 - [ ] Split `Linbik.Core` into an abstractions/config package vs a concrete client/SDK package
 - [ ] Add CI smoke tests that actually run the example projects
 - [ ] OpenAPI spec generation

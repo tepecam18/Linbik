@@ -19,22 +19,26 @@ internal static class LinbikSliceConstants
 
     public const string GeneratedNamespace = "Linbik.Slices.Generated";
 
+    private const string HelpBase = "https://github.com/tepecam18/Linbik/blob/main/src/AspNet/Linbik.Slices/README.md#";
+
     public static readonly DiagnosticDescriptor MissingFlow = new(
         id: "LINBIK001",
         title: "Slice akış (flow) deklarasyonu eksik",
-        messageFormat: "'{0}' [LinbikSlice] taşıyor ama [LFlow], [LFlowPublic] veya [LAuthorizeFlow] yok. Deny-by-default: erişilen akışları açıkça bildirin (public için [LFlowPublic]).",
+        messageFormat: "'{0}' [LinbikSlice] taşıyor ama [LFlow], [LFlowPublic] veya [LAuthorizeFlow] yok. Deny-by-default: erişilen akışları açıkça bildirin. Örn. herkese açık için [LFlowPublic], Gateway arkasında [LFlow(LinbikFlow.Self)], doğrudan kimlik doğrulama için [LAuthorizeFlow(LinbikFlow.Self)].",
         category: "Linbik.Slices",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "linbik001",
         description: "Her slice, hangi yetkilendirme akışlarına açık olduğunu açıkça deklare etmelidir. Unutulan attribute kazara public endpoint açmasın diye derleme kırılır.");
 
     public static readonly DiagnosticDescriptor MissingRequestOrHandler = new(
         id: "LINBIK002",
         title: "Slice Request veya Handler eksik",
-        messageFormat: "'{0}' [LinbikSlice] taşıyor ama iç içe bir Request (ILinbikRequest<>) ve/veya Handler (ILinbikHandler<,>) bulunamadı.",
+        messageFormat: "'{0}' [LinbikSlice] taşıyor ama iç içe bir Request (ILinbikRequest<>) ve/veya Handler (ILinbikHandler<,>) bulunamadı. Slice sınıfının içine 'public sealed record Request : ILinbikRequest<Response>' ve 'public sealed class Handler : ILinbikHandler<Request, Response>' ekleyin.",
         category: "Linbik.Slices",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "linbik002",
         description: "Bir slice; ILinbikRequest<TResponse> uygulayan bir Request ve ILinbikHandler<TRequest,TResponse> uygulayan bir Handler içermelidir.");
 
     public static readonly DiagnosticDescriptor NoSlicesFound = new(
@@ -44,15 +48,17 @@ internal static class LinbikSliceConstants
         category: "Linbik.Slices",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "linbik003",
         description: "Registry, geçerli slice yokken kasıtlı olarak üretilmez (aksi halde slice içermeyen projeler boş bir registry üretip gerçek slice'ları olan tüketici projedeki registry'yi gölgeler). Bu uyarı olmadan hata, 'IServiceCollection AddLinbikSlices içermiyor' gibi kafa karıştırıcı bir CS hatası olarak görünür.");
 
     public static readonly DiagnosticDescriptor ConflictingFlowDeclaration = new(
         id: "LINBIK004",
         title: "Birden fazla akış deklarasyonu",
-        messageFormat: "'{0}' [LFlow], [LFlowPublic] ve [LAuthorizeFlow] attribute'larından birden fazlasını taşıyor. Bunlardan yalnızca biri kullanılabilir.",
+        messageFormat: "'{0}' [LFlow], [LFlowPublic] ve [LAuthorizeFlow] attribute'larından birden fazlasını taşıyor. Bunlardan yalnızca birini bırakıp diğerlerini kaldırın.",
         category: "Linbik.Slices",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "linbik004",
         description: "[LFlow] Linbik-Flow header'ına (Gateway) güvenir; [LAuthorizeFlow] gerçek authentication scheme'ini doğrular; [LFlowPublic] hiç kontrol yapmaz. Aynı slice'ta ikisi birden hangi mekanizmanın geçerli olduğunu belirsizleştirir.");
 
     public static ImmutableArray<DiagnosticDescriptor> All =>

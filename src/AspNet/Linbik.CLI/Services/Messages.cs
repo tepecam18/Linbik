@@ -200,12 +200,6 @@ internal static class Messages
     public static string Yes => IsTurkish ? "Evet" : "Yes";
     public static string No => IsTurkish ? "Hayır" : "No";
 
-    public static string Remaining(double hours) => IsTurkish
-        ? $"{hours:F0}s kaldı"
-        : $"{hours:F0}h remaining";
-
-    public static string Expired => IsTurkish ? "SÜRESİ DOLMUŞ" : "EXPIRED";
-
     public static string ServiceIdMismatch => IsTurkish
         ? "⚠ ServiceId eşleşmiyor! 'linbik export-config' çalıştırın."
         : "⚠ ServiceId mismatch! Run 'linbik export-config'.";

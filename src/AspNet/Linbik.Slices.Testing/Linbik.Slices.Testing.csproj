@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<PackageVersion>0.0.1</PackageVersion>
+
+		<Description>Test helpers for Linbik.Slices services: header-driven fake Linbik authentication schemes and HttpClient extensions (AsFlow, AsAuthenticated) for exercising [LFlow] and [LAuthorizeFlow] slices with WebApplicationFactory or TestServer. For test projects only.</Description>
+		<Authors>tepecam18</Authors>
+		<Company>Linbik</Company>
+		<PackageTags>linbik;vertical-slice;testing;minimal-api;tepecam18</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://linbik.com</PackageProjectUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+
+		<Deterministic>true</Deterministic>
+		<ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+		<DebugType>embedded</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		<EmbedAllSources>true</EmbedAllSources>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<Optimize Condition="'$(Configuration)' == 'Debug'">false</Optimize>
+
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<RepositoryUrl>https://github.com/tepecam18/Linbik.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Linbik.Core\Linbik.Core.csproj" />
+		<ProjectReference Include="..\Linbik.Slices\Linbik.Slices.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+</Project>

@@ -5,7 +5,9 @@
   <Project Path="src/AspNet/Linbik.PasetoAuthManager/Linbik.PasetoAuthManager.csproj" />
   <Project Path="src/AspNet/Linbik.Server/Linbik.Server.csproj" />
   <Project Path="src/AspNet/Linbik.Slices/Linbik.Slices.csproj" />
+  <Project Path="src/AspNet/Linbik.Slices.CodeFixes/Linbik.Slices.CodeFixes.csproj" />
   <Project Path="src/AspNet/Linbik.Slices.Generators/Linbik.Slices.Generators.csproj" />
+  <Project Path="src/AspNet/Linbik.Slices.Testing/Linbik.Slices.Testing.csproj" />
   <Project Path="src/AspNet/Linbik.YARP/Linbik.YARP.csproj" />
   <Project Path="examples/AspNet/AspNet/AspNet.csproj" />
   <Project Path="examples/AspNet.Gateway/ApiGateway/ApiGateway.csproj" />

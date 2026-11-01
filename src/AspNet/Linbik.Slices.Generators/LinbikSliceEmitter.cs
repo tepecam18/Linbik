@@ -111,16 +111,11 @@ internal static class LinbikSliceEmitter
                 sb.AppendLine($"                __e.WithSummary(\"{Escape(m.Summary)}\");");
             if (m.Description is not null)
                 sb.AppendLine($"                __e.WithDescription(\"{Escape(m.Description)}\");");
-            // LinbikEndpoint.Handle tip-silinmi\u015f Task<IResult> d\u00f6nd\u00fcr\u00fcr; OpenAPI generator'\u0131
-            // bundan y\u00fck (response) \u015femas\u0131n\u0131 \u00e7\u0131karamaz (docs'ta yaln\u0131z "200 OK" g\u00f6r\u00fcn\u00fcr,
-            // \u015fema yok). .Produces<T>() ile ba\u015far\u0131 + bilinen hata durum kodlar\u0131n\u0131n
-            // hepsinin ayn\u0131 LBaseResponse<TResponse> zarf\u0131n\u0131 kulland\u0131\u011f\u0131n\u0131 aç\u0131k\u00e7a bildiriyoruz
-            // (LError: 400/403/404/409 — bkz. Linbik.Slices.Results.LError).
+            // LinbikEndpoint.Handle tip-silinmiş Task<IResult> döndürür; OpenAPI generator'ı
+            // bundan yük (response) şemasını çıkaramaz (docs'ta yalnız "200 OK" görünür,
+            // şema yok). .Produces<T>() ile başarı + bilinen hata durumlarının
+            // response şemalarını açıkça tanımlıyoruz.
             sb.AppendLine($"                __e.Produces<global::Linbik.Core.Responses.LBaseResponse<{m.ResponseFqn}>>(200);");
-            sb.AppendLine($"                __e.Produces<global::Linbik.Core.Responses.LBaseResponse<{m.ResponseFqn}>>(400);");
-            sb.AppendLine($"                __e.Produces<global::Linbik.Core.Responses.LBaseResponse<{m.ResponseFqn}>>(403);");
-            sb.AppendLine($"                __e.Produces<global::Linbik.Core.Responses.LBaseResponse<{m.ResponseFqn}>>(404);");
-            sb.AppendLine($"                __e.Produces<global::Linbik.Core.Responses.LBaseResponse<{m.ResponseFqn}>>(409);");
             sb.AppendLine("            }");
         }
         sb.AppendLine("            return app;");

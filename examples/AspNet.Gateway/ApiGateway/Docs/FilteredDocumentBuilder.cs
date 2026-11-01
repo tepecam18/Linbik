@@ -64,21 +64,10 @@ public static class FilteredDocumentBuilder
         {
             if (snap.Document is not JsonObject downstream) continue;
 
-            // components/schemas'ı kopyala (basit merge — name çakışması üzerine yaz; ileride prefiks eklenebilir)
-            if (downstream["components"] is JsonObject comps &&
-                comps["schemas"] is JsonObject schemas)
-            {
-                foreach (var (schemaName, schemaNode) in schemas)
-                {
-                    if (schemaNode is null) continue;
-                    if (!componentsSchemas.ContainsKey(schemaName))
-                    {
-                        componentsSchemas[schemaName] = schemaNode.DeepClone();
-                    }
-                }
-            }
-
             if (downstream["paths"] is not JsonObject downstreamPaths) continue;
+
+            // Bu snapshot'tan flow filtresinden geçen path item'lar; şemalar bunlardan erişilebilirliğe göre seçilir.
+            var snapshotItems = new List<(string Path, JsonObject Item)>();
 
             foreach (var (path, pathItemNode) in downstreamPaths)
             {
@@ -140,17 +129,58 @@ public static class FilteredDocumentBuilder
                 if (rewrittenPathItem.Count(kv => IsHttpVerb(kv.Key)) == 0)
                     continue;
 
+                snapshotItems.Add((publicPath, rewrittenPathItem));
+            }
+
+            if (snapshotItems.Count == 0) continue;
+
+            // Yalnız kalan operasyonlardan erişilebilen şemaları al; çakışmada {ServicePrefix}_{Name}.
+            if (downstream["components"] is JsonObject comps && comps["schemas"] is JsonObject schemas)
+            {
+                var reachable = ReachableSchemas(snapshotItems.Select(i => i.Item), schemas);
+                var renames = new Dictionary<string, string>(StringComparer.Ordinal);
+                var toAdd = new List<(string Name, JsonNode Node)>();
+
+                foreach (var name in reachable)
+                {
+                    if (schemas[name] is not { } schemaNode) continue;
+
+                    if (componentsSchemas[name] is { } existingSchema)
+                    {
+                        if (JsonNode.DeepEquals(existingSchema, schemaNode)) continue;
+                        var newName = snap.ServicePrefix + "_" + name;
+                        renames[name] = newName;
+                        toAdd.Add((newName, schemaNode.DeepClone()));
+                    }
+                    else
+                    {
+                        toAdd.Add((name, schemaNode.DeepClone()));
+                    }
+                }
+
+                if (renames.Count > 0)
+                {
+                    foreach (var (_, item) in snapshotItems) RewriteSchemaRefs(item, renames);
+                    foreach (var (_, node) in toAdd) RewriteSchemaRefs(node, renames);
+                }
+
+                foreach (var (name, node) in toAdd)
+                    componentsSchemas[name] = node;
+            }
+
+            foreach (var (publicPath, item) in snapshotItems)
+            {
                 // Aynı public path birden çok source'tan gelebilir (teorik olarak): merge et.
                 if (paths[publicPath] is JsonObject existing)
                 {
-                    foreach (var (k, v) in rewrittenPathItem)
+                    foreach (var (k, v) in item)
                     {
                         existing[k] = v?.DeepClone();
                     }
                 }
                 else
                 {
-                    paths[publicPath] = rewrittenPathItem;
+                    paths[publicPath] = item;
                 }
             }
         }
@@ -162,6 +192,71 @@ public static class FilteredDocumentBuilder
         }
 
         return result.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+    }
+
+    private const string SchemaRefPrefix = "#/components/schemas/";
+
+    private static void CollectSchemaRefs(JsonNode? node, HashSet<string> found)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var (key, value) in obj)
+                {
+                    if (key == "$ref" && value is JsonValue jv && jv.TryGetValue<string>(out var r) &&
+                        r.StartsWith(SchemaRefPrefix, StringComparison.Ordinal))
+                        found.Add(r[SchemaRefPrefix.Length..]);
+                    else
+                        CollectSchemaRefs(value, found);
+                }
+                break;
+            case JsonArray arr:
+                foreach (var item in arr) CollectSchemaRefs(item, found);
+                break;
+        }
+    }
+
+    private static HashSet<string> ReachableSchemas(IEnumerable<JsonNode> roots, JsonObject allSchemas)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+
+        var direct = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var root in roots) CollectSchemaRefs(root, direct);
+        foreach (var name in direct) queue.Enqueue(name);
+
+        while (queue.Count > 0)
+        {
+            var name = queue.Dequeue();
+            if (!seen.Add(name)) continue;
+            if (allSchemas[name] is not { } schema) continue;
+
+            var next = new HashSet<string>(StringComparer.Ordinal);
+            CollectSchemaRefs(schema, next);
+            foreach (var n in next) queue.Enqueue(n);
+        }
+        return seen;
+    }
+
+    private static void RewriteSchemaRefs(JsonNode? node, IReadOnlyDictionary<string, string> renames)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var (key, value) in obj.ToList())
+                {
+                    if (key == "$ref" && value is JsonValue jv && jv.TryGetValue<string>(out var r) &&
+                        r.StartsWith(SchemaRefPrefix, StringComparison.Ordinal) &&
+                        renames.TryGetValue(r[SchemaRefPrefix.Length..], out var renamed))
+                        obj[key] = SchemaRefPrefix + renamed;
+                    else
+                        RewriteSchemaRefs(value, renames);
+                }
+                break;
+            case JsonArray arr:
+                foreach (var item in arr) RewriteSchemaRefs(item, renames);
+                break;
+        }
     }
 
     private static string ResolvePublicPrefix(string flow) => flow switch

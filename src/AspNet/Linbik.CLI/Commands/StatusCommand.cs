@@ -60,15 +60,6 @@ internal static class StatusCommand
         ConsoleUI.Info($"  Claimed:     {(credentials.IsClaimed ? Messages.Provisioned : Messages.NotProvisioned)}");
         ConsoleUI.Info($"  Provisioned: {credentials.ProvisionedAt:yyyy-MM-dd HH:mm:ss UTC}");
 
-        if (credentials.ExpiresAt != default)
-        {
-            var remaining = credentials.ExpiresAt - DateTime.UtcNow;
-            if (remaining.TotalSeconds > 0)
-                ConsoleUI.Info($"  Expires:     {credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC} ({Messages.Remaining(remaining.TotalHours)})");
-            else
-                ConsoleUI.Warning($"  Expires:     {Messages.Expired} ({credentials.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC})");
-        }
-
         Console.WriteLine();
     }
 

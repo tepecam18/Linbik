@@ -133,8 +133,7 @@ internal static class InitCommand
             ApiKey = provision.ApiKey,
             ClaimToken = provision.ClaimToken,
             IsClaimed = false,
-            ProvisionedAt = DateTime.UtcNow,
-            ExpiresAt = provision.ExpiresAt
+            ProvisionedAt = DateTime.UtcNow
         };
         await CredentialsManager.SaveAsync(basePath, credentials);
 

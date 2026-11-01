@@ -112,7 +112,7 @@ public sealed class ApplicationClientGenerationHostedService(
         OpenApiDocument document;
         try
         {
-            document = await OpenApiDocument.FromJsonAsync(json);
+            document = await OpenApiDocument.FromJsonAsync(NSwagDocumentNormalizer.Normalize(json));
         }
         catch (Exception ex)
         {

@@ -7,7 +7,7 @@ namespace Linbik.Core.Services.Interfaces;
 public interface ILinbikCredentialStore
 {
     /// <summary>
-    /// Try to load cached credentials. Returns null if no cache exists or if expired.
+    /// Try to load cached credentials. Returns null if no cache exists.
     /// </summary>
     Task<LinbikCredentials?> LoadAsync(CancellationToken cancellationToken = default);
 
@@ -17,12 +17,12 @@ public interface ILinbikCredentialStore
     Task SaveAsync(LinbikCredentials credentials, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Delete the cache file (e.g., on expiry or error).
+    /// Delete the cache file (e.g., on error).
     /// </summary>
     Task DeleteAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Check if cached credentials exist and are not expired.
+    /// Check if cached credentials exist.
     /// </summary>
     Task<bool> HasValidCredentialsAsync(CancellationToken cancellationToken = default);
 }
@@ -41,5 +41,4 @@ public sealed class LinbikCredentials
     public string? ClaimUrl { get; set; }
     public bool IsClaimed { get; set; }
     public DateTime ProvisionedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
 }

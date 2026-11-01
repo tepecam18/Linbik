@@ -65,6 +65,40 @@ namespace Linbik.Tests
             finally { Directory.Delete(directory, recursive: true); }
         }
 
+        [Fact]
+        public async Task NumericStringUnionSchemaGeneratesNumericDefault()
+        {
+            const string document = """
+                {"openapi":"3.1.1","info":{"title":"Test","version":"1"},"paths":{},
+                 "components":{"schemas":{"RequeueDeadLetterMessagesRequest":{"type":"object","properties":{
+                   "queue":{"type":"string","default":""},
+                   "count":{"pattern":"^-?(?:0|[1-9]\\d*)$","type":["integer","string"],"format":"int32","default":1}}}}}}
+                """;
+            var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                var options = new YARPOptions { GeneratedClientOutputDirectory = directory };
+                options.IntegrationServices.Add("messtick", new IntegrationServiceOptions
+                {
+                    TargetBaseUrl = "https://example.invalid", DocumentPath = "/openapi/apps.json", DocumentName = "custom"
+                });
+                using var http = new HttpClient(new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(document)
+                }));
+                var service = new ApplicationClientGenerationHostedService(new ProbeFactory(http),
+                    Options.Create(options), WebApplication.CreateBuilder().Environment,
+                    NullLogger<ApplicationClientGenerationHostedService>.Instance);
+                await service.StartAsync(CancellationToken.None);
+
+                var generated = await File.ReadAllTextAsync(Path.Combine(directory, "CustomApplicationClient.g.cs"));
+                Assert.Contains("public int Count { get; set; } = 1;", generated);
+                Assert.DoesNotContain("= \"1\"", generated);
+            }
+            finally { Directory.Delete(directory, recursive: true); }
+        }
+
         public class ProbeTokens : DispatchProxy
         {
             public string? Token { get; set; }

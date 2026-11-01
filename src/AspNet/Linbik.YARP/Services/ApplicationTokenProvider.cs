@@ -477,7 +477,9 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
 
         try
         {
-            await _provisionClient.EnsureProvisionedAsync("http://localhost", "/api/linbik/callback", clientName: null, cancellationToken);
+            var clientName = _options.Clients.FirstOrDefault()?.Name;
+            string baseUrl =  _options.Clients.FirstOrDefault()?.RedirectUrl ?? "http://localhost";
+            await _provisionClient.EnsureProvisionedAsync( baseUrl, "/api/linbik/callback", clientName, cancellationToken);
         }
         catch (Exception ex)
         {

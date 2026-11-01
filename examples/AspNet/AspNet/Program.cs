@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // MVC Services
 builder.Services.AddControllersWithViews();
-builder.Services.AddOpenApi();
+builder.Services.AddLinbikFlowDocuments();
 
 // CORS (Cross-Origin Resource Sharing) configuration
 builder.Services.AddCors(options =>
@@ -50,6 +50,9 @@ app.EnsureLinbik();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
+    options.AddDocument("self", "Self");
+    options.AddDocument("delegated", "Delegated");
+    options.AddDocument("apps", "Apps");
     options.WithTitle("AspNet.Examples - Linbik Integration");
     options.Title = "AspNet.Examples API";
 });

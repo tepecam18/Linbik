@@ -36,17 +36,6 @@ public sealed class FileLinbikCredentialStore(ILogger<FileLinbikCredentialStore>
             var json = await File.ReadAllTextAsync(path, cancellationToken);
             var credentials = JsonSerializer.Deserialize<LinbikCredentials>(json, _jsonOptions);
 
-            if (credentials == null)
-                return null;
-
-            // Check if expired
-            if (credentials.ExpiresAt < DateTime.UtcNow && !credentials.IsClaimed)
-            {
-                logger.LogInformation("Linbik credentials expired at {ExpiresAt}. Deleting cache.", credentials.ExpiresAt);
-                File.Delete(path);
-                return null;
-            }
-
             return credentials;
         }
         catch (Exception ex)

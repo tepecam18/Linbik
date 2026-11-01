@@ -229,3 +229,35 @@ MIT License
 **Version**: 1.2.0  
 **Platform**: ASP.NET Core 10.0 (net10.0)  
 **Last Updated**: 9 Eylül 2026
+
+## Flow documents without a gateway
+
+Register the three documents instead of a single AddOpenApi registration:
+
+```csharp
+using Linbik.Core.Extensions;
+
+builder.Services.AddLinbikFlowDocuments();
+// ...
+app.MapOpenApi();
+```
+
+This exposes /openapi/self.json, /openapi/delegated.json and /openapi/apps.json.
+The latter two match Linbik.YARP's default DelegatedDocumentPath and DocumentPath.
+AddLinbikFlowExtension is included automatically. Existing endpoint paths are preserved.
+
+Filtering uses LFlowAuthorizeAttribute metadata (also emitted by Linbik.Slices).
+Self maps to self, Delegated to delegated, Application to apps. Multiple allowed flows
+include an operation in multiple documents. No flow restriction, or an empty allowed-flow
+list, includes the operation in all documents, matching the existing flow transformer.
+Authentication attributes alone do not classify a document: specify flow metadata explicitly.
+
+Optional per-document customization is available through AddLinbikFlowDocuments(options => ...).
+If customizing ShouldInclude, compose the existing predicate to retain flow filtering.
+
+No MapLinbikGatewayDocs or AddLinbikGatewayAuth is needed in a standalone application.
+MapLinbikScalar belongs to the gateway example; it is optional UI, not document generation.
+Use Scalar's MapScalarApiReference and register self/delegated/apps with AddDocument if desired.
+Continue configuring the application's normal authentication and authorization.
+MapOpenApi does not restrict document downloads by itself; apply the desired authorization
+policy to its returned endpoint builder if documentation access must be restricted.

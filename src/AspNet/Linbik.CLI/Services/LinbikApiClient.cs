@@ -168,7 +168,6 @@ internal sealed class ProvisionResponse
     public string ApiKey { get; set; } = string.Empty;
     public string ClaimToken { get; set; } = string.Empty;
     public string ClaimUrl { get; set; } = string.Empty;
-    public DateTime ExpiresAt { get; set; }
 }
 
 internal sealed class TokenResponse

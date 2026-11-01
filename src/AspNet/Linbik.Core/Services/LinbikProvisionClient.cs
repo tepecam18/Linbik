@@ -164,8 +164,7 @@ public sealed class LinbikProvisionClient(
             ClaimToken = result.Data.ClaimToken,
             ClaimUrl = result.Data.ClaimUrl,
             IsClaimed = false,
-            ProvisionedAt = DateTime.UtcNow,
-            ExpiresAt = result.Data.ExpiresAt
+            ProvisionedAt = DateTime.UtcNow
         });
     }
 
@@ -212,7 +211,6 @@ public sealed class LinbikProvisionClient(
         public string ApiKey { get; set; } = string.Empty;
         public string ClaimToken { get; set; } = string.Empty;
         public string ClaimUrl { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; set; }
     }
 
     #endregion

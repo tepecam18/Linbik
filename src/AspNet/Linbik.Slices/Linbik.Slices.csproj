@@ -51,6 +51,15 @@
 			eklemeye gerek kalmaz).
 		-->
 		<None Include="..\Linbik.Slices.Generators\bin\$(Configuration)\netstandard2.0\Linbik.Slices.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+
+		<!-- IDE quick fixes for LINBIK001/LINBIK004; ships next to the analyzer. -->
+		<None Include="..\Linbik.Slices.CodeFixes\bin\$(Configuration)\netstandard2.0\Linbik.Slices.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Build-order only: guarantees the dlls packed above exist. Not referenced at compile time. -->
+		<ProjectReference Include="..\Linbik.Slices.Generators\Linbik.Slices.Generators.csproj" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\Linbik.Slices.CodeFixes\Linbik.Slices.CodeFixes.csproj" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>

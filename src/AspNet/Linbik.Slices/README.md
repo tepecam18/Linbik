@@ -366,6 +366,27 @@ The generator automatically declares all response shapes (200, 400, 403, 404, 40
 
 ---
 
+## Security Notes
+
+### CSRF / Antiforgery
+
+Slice endpoints do **not** use ASP.NET Core Antiforgery, and none is needed for the generated shape:
+
+- ASP.NET Core minimal APIs validate antiforgery tokens automatically only for **form binding** (`[FromForm]`). Slices bind from the query string (`GET`/`DELETE`/`HEAD`) or a JSON body (`POST`/`PUT`/`PATCH`), so the middleware never applies.
+- A `[FromBody]` endpoint requires `Content-Type: application/json`. A cross-site HTML form cannot send that content type, and a cross-site `fetch` with it triggers a CORS preflight, which a narrow allow-list rejects.
+- The default cookie is `SameSite=Lax`, so the browser does not attach it to cross-site `POST`/`PUT`/`PATCH`/`DELETE` requests.
+
+This only holds while you keep to the following:
+
+- **No side effects on `GET`/`HEAD` slices.** `Lax` cookies are sent on top-level cross-site navigations, so a state-changing `GET` slice is exposed to CSRF.
+- **Keep the CORS allow-list narrow** (on the Gateway or the service) and never combine `AllowAnyOrigin` with credentials.
+- **Do not weaken the cookie.** `SameSite=None` or a `CookieDomain` shared with untrusted sibling subdomains re-opens the attack surface.
+- **Do not add `[FromForm]` or `text/plain` bodies to slices.** Those are the shapes a cross-site form can send.
+
+The `Self` flow is cookie-based, so it is the only flow with a CSRF surface. `Delegated` and `Application` use `Authorization: Bearer` tokens, which browsers never attach automatically.
+
+---
+
 ## Exception Handling
 
 Register the optional JSON parse error handler to convert malformed request bodies into the standard `LBaseResponse` contract instead of the default ASP.NET Core problem details response:
@@ -403,6 +424,96 @@ One file per feature. All related types (request, response, validator, handler) 
 | `LINBIK002` | Error | `[LinbikSlice]` without a nested `Request` (`ILinbikRequest<>`) and/or `Handler` (`ILinbikHandler<,>`) | Missing required inner types |
 | `LINBIK003` | Warning | A project contains no `[LinbikSlice]`-marked types at all | `AddLinbikSlices`/`MapLinbikSlices` were not generated for this project — add a slice or remove those calls |
 | `LINBIK004` | Error | `[LinbikSlice]` carries more than one of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]` | Conflicting flow declaration — only one of these attributes may be used per slice |
+
+---
+
+## Testing your slices
+
+The optional **`Linbik.Slices.Testing`** package (test projects only) removes the need to hand-craft tokens or the Gateway's `Linbik-Flow` header in integration tests:
+
+```csharp
+var client = factory
+    .WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddLinbikTestAuthentication()))
+    .CreateClient();
+
+client.AsFlow(LinbikFlow.Self);                        // [LFlow]          → sends Linbik-Flow: Self
+client.AsAuthenticated(LinbikFlow.Self, userId: "42"); // [LAuthorizeFlow] → fake identity on LinbikScheme
+```
+
+`AddLinbikTestAuthentication()` replaces (or adds) the `LinbikScheme`, `LinbikDelegated` and `LinbikApplication` handlers with header-driven fakes. See the package README for details. Never reference it from production projects.
+
+---
+
+## Troubleshooting
+
+### Build-time diagnostics
+
+#### LINBIK001
+
+**Cause:** the slice has `[LinbikSlice]` but no flow attribute. Flow declaration is deny-by-default, so the build fails instead of silently exposing a public endpoint.
+
+**Fix:** add exactly one of:
+
+```csharp
+[LFlowPublic]                       // anyone, no authentication
+[LFlow(LinbikFlow.Self)]            // trusts the Linbik-Flow header (requires the Gateway)
+[LAuthorizeFlow(LinbikFlow.Self)]   // verifies a real authentication scheme
+```
+
+#### LINBIK002
+
+**Cause:** the slice class has no nested `Request` implementing `ILinbikRequest<TResponse>`, or no nested `Handler` implementing `ILinbikHandler<TRequest, TResponse>`. The slice is left out of the generated registry.
+
+**Fix:** nest both types inside the slice class:
+
+```csharp
+public sealed record Request(...) : ILinbikRequest<Response>;
+public sealed record Response(...);
+public sealed class Handler : ILinbikHandler<Request, Response> { ... }
+```
+
+#### LINBIK003
+
+**Cause:** the project contains no valid `[LinbikSlice]` type, so `AddLinbikSlices` / `MapLinbikSlices` are not generated and calling them fails with a missing-method error.
+
+**Fix:** add a slice to the project, or remove the `AddLinbikSlices` / `MapLinbikSlices` calls. If every slice is already present, fix any LINBIK002 error first — an invalid slice is not counted.
+
+#### LINBIK004
+
+**Cause:** the slice carries more than one of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]`.
+
+**Fix:** keep the one that matches how the endpoint should be protected and remove the others.
+
+### Runtime responses
+
+| Status | `title` | Meaning |
+|---|---|---|
+| 401 | `unauthorized` | No usable identity. For `[LFlow]`: the `Linbik-Flow` header is missing, duplicated, or contains invalid characters. For `[LAuthorizeFlow]`: none of the allowed flows authenticated the request. |
+| 403 | `forbidden_flow` | The `Linbik-Flow` header is valid but the flow is not in the slice's allowed list. The message lists the allowed flows. |
+
+Rule of thumb: **401** means "we could not establish who/which flow you are", **403** means "we know the flow, and it is not allowed here".
+
+#### `[LFlow]` returns 401 locally
+
+`[LFlow]` trusts the `Linbik-Flow` header, which the Gateway sets after it has authenticated the request. Calling the service directly (curl, browser, tests) sends no such header, so the response is `401` with `Required header 'Linbik-Flow' is missing. Requests must be routed through the API Gateway.`
+
+- Call the endpoint through the Gateway, or
+- switch to `[LAuthorizeFlow]` if the service is reachable without a Gateway, or
+- in tests, send the header yourself (`client.DefaultRequestHeaders.Add("Linbik-Flow", "Self")`).
+
+Never expose an `[LFlow]` service to the internet without the Gateway stripping client-supplied `Linbik-Flow` headers — anyone could otherwise claim any flow.
+
+#### `[LAuthorizeFlow]`: "not configured on this service"
+
+The message `Flow(s) X are not configured on this service (missing authentication scheme registration)` means the allowed flow maps to an authentication scheme that is not registered in this process. Each flow needs its scheme:
+
+| Flow | Scheme | Registered by |
+|---|---|---|
+| `Self` | `LinbikScheme` | `AddLinbikJwtAuth` / `AddLinbikPasetoAuth` |
+| `Delegated` | `LinbikDelegated` | `AddLinbikServer` |
+| `Application` | `LinbikApplication` | `AddLinbikServer` |
+
+Register the matching package, or drop that flow from the attribute. `Authentication is not configured for this service.` means `AddAuthentication` was never called at all.
 
 ---
 

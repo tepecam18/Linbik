@@ -13,6 +13,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
@@ -24,6 +25,8 @@
     <ProjectReference Include="../../src/AspNet/Linbik.YARP/Linbik.YARP.csproj" />
     <ProjectReference Include="../../src/AspNet/Linbik.Slices/Linbik.Slices.csproj" />
     <ProjectReference Include="../../src/AspNet/Linbik.Slices.Generators/Linbik.Slices.Generators.csproj" />
+    <ProjectReference Include="../../src/AspNet/Linbik.Slices.CodeFixes/Linbik.Slices.CodeFixes.csproj" />
+    <ProjectReference Include="../../src/AspNet/Linbik.Slices.Testing/Linbik.Slices.Testing.csproj" />
     <ProjectReference Include="../../src/AspNet/Linbik.CLI/Linbik.CLI.csproj" />
   </ItemGroup>
 </Project>
