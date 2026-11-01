@@ -158,14 +158,15 @@ public sealed class SliceGeneratorTests
     }
 
     [Fact]
-    public void EndpointDocumentsAllLBaseResponseStatusCodes()
+    public void EndpointDocumentsOnlySuccessResponse()
     {
         var run = SliceCompilation.RunGenerator(SliceCompilation.Slice(Public));
 
         const string produces = "Produces<global::Linbik.Core.Responses.LBaseResponse<global::Demo.Response>>";
-        Assert.Equal(5, Count(run.Generated!, produces));
-        foreach (var status in new[] { 200, 400, 403, 404, 409 })
-            Assert.Contains($"{produces}({status});", run.Generated);
+        Assert.Empty(run.CompilationErrors);
+        Assert.NotNull(run.Generated);
+        Assert.Equal(1, Count(run.Generated, "__e.Produces<"));
+        Assert.Contains($"{produces}(200);", run.Generated);
     }
 
     [Fact]
