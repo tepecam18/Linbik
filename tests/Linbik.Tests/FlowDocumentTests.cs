@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System.Text.Json.Nodes;
 using Linbik.Core.Attributes;
 using Linbik.Core.Extensions;
@@ -26,11 +27,16 @@ public sealed class FlowDocumentTests
         app.MapGet("/shared", () => "ok").WithMetadata(new LFlowAuthorizeAttribute("Self", "Delegated"));
         app.MapGet("/authenticated", () => "ok").WithMetadata(new LFlowAuthorizeAttribute());
         app.MapGet("/public", () => "ok");
+        app.MapGet("/custom/login", () => "ok").WithTags("Linbik");
+        app.MapPost("/custom/integration", () => "ok").WithTags("Linbik System")
+            .WithMetadata(new LFlowAuthorizeAttribute("Application"));
         app.MapOpenApi();
         await app.StartAsync();
         using var client = app.GetTestClient();
         var json = JsonNode.Parse(await client.GetStringAsync($"/openapi/{document}.json"))!;
         var paths = json["paths"]!;
+        Assert.Equal(document == "self", paths["/custom/login"] is not null);
+        Assert.Equal(document == "self", paths["/custom/integration"] is not null);
         Assert.NotNull(paths[included]);
         Assert.Null(paths[excluded]);
         Assert.NotNull(paths["/public"]);

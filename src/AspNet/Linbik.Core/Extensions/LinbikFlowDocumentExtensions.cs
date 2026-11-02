@@ -1,5 +1,6 @@
 using Linbik.Core.Attributes;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Linbik.Core.Extensions;
@@ -27,6 +28,14 @@ public static class LinbikFlowDocumentExtensions
                 options.AddLinbikFlowExtension();
                 options.ShouldInclude = api =>
                 {
+                    var metadata = api.ActionDescriptor.EndpointMetadata;
+                    var systemEndpoint = metadata.OfType<ITagsMetadata>()
+                        .Any(tags => tags.Tags.Any(tag => tag is "Linbik System" or "Linbik"));
+                    // Auth-manager controllers use the Linbik controller tag.
+                    systemEndpoint |= api.ActionDescriptor.RouteValues.TryGetValue("controller", out var controller)
+                        && string.Equals(controller, "Linbik", StringComparison.OrdinalIgnoreCase);
+                    if (systemEndpoint)
+                        return name == "self";
                     var rule = api.ActionDescriptor.EndpointMetadata
                         .OfType<LFlowAuthorizeAttribute>().LastOrDefault();
                     return rule is null || rule.AllowedFlows.Length == 0 ||

@@ -203,8 +203,8 @@ public static class LinbikYarpExtensions
         string httpClientName)
     {
         var className = $"{ApplicationClientGenerationHostedService.ToPascalCase(documentName)}ApplicationClient";
-        var classTypeName = $"Linbik.YARP.Generated.{className}";
-        var interfaceTypeName = $"Linbik.YARP.Generated.I{className}";
+        var classTypeName = $"Linbik.YARP.Generated.{className}.{className}";
+        var interfaceTypeName = $"Linbik.YARP.Generated.{className}.I{className}";
 
         Type? classType = null;
         Type? interfaceType = null;

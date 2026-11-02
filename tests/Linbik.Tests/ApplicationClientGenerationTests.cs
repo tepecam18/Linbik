@@ -5,7 +5,7 @@ using Linbik.YARP.Interfaces;
 using Linbik.Core.Builders;
 using Linbik.YARP.Configuration;
 using Linbik.YARP.Extensions;
-using Linbik.YARP.Generated;
+using Linbik.YARP.Generated.RegressionApplicationClient;
 using Linbik.YARP.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -196,8 +196,7 @@ namespace Linbik.Tests
     }
 }
 
-namespace Linbik.YARP.Generated
-{
+namespace Linbik.YARP.Generated.RegressionApplicationClient {
     public interface IRegressionApplicationClient;
     public sealed class RegressionApplicationClient(HttpClient httpClient) : IRegressionApplicationClient
     {

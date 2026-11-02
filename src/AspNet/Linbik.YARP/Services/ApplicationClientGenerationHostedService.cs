@@ -131,7 +131,7 @@ public sealed class ApplicationClientGenerationHostedService(
             InjectHttpClient = true,
             CSharpGeneratorSettings =
             {
-                Namespace = "Linbik.YARP.Generated"
+                Namespace = $"Linbik.YARP.Generated.{className}"
             }
         };
 
