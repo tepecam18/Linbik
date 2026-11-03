@@ -1,70 +1,8 @@
-﻿namespace Linbik.Server.Configuration;
+namespace Linbik.Server.Configuration;
 
+/// <summary>Server-specific settings. Identity and validation settings belong to LinbikOptions.</summary>
 public sealed class ServerOptions
 {
-    /// <summary>
-    /// Ed25519 public key for PASETO v4.public validation (Base64-encoded 32-byte public key).
-    /// This is the public key corresponding to the Linbik platform's signing key.
-    /// </summary>
-    public string PublicKey { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Package Name of this service (for audience validation)
-    /// </summary>
-    public string PackageName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Require PackageName validation in token audience
-    /// </summary>
-    public bool ValidateAudience { get; set; } = true;
-
-    /// <summary>
-    /// JWT issuer name (default: "Linbik"). Kept for backward compatibility — used as the expected issuer
-    /// in PASETO token validation.
-    /// </summary>
-    public string JwtIssuer { get; set; } = Core.LinbikDefaults.Issuer;
-
-    /// <summary>
-    /// Require issuer validation
-    /// </summary>
-    public bool ValidateIssuer { get; set; } = true;
-
-
-    /// <summary>
-    /// Authorization code lifetime in minutes (default: 10)
-    /// </summary>
-    public int AuthorizationCodeLifetimeMinutes { get; set; } = 10;
-
-    /// <summary>
-    /// Access token (JWT) lifetime in minutes (default: 60)
-    /// </summary>
-    public int AccessTokenExpiration { get; set; } = 60;
-
-    /// <summary>
-    /// Refresh token lifetime in days (default: 30)
-    /// </summary>
-    public int RefreshTokenExpirationDays { get; set; } = 30;
-
-
-    /// <summary>
-    /// Enable PKCE (Proof Key for Code Exchange) validation
-    /// </summary>
-    public bool EnablePKCE { get; set; } = true;
-
-    /// <summary>
-    /// Enable IP whitelisting validation for services
-    /// </summary>
-    public bool EnableIpWhitelisting { get; set; } = true;
-
-    /// <summary>
-    /// Clock skew tolerance for token validation (default: 5 minutes)
-    /// </summary>
-    public int ClockSkewMinutes { get; set; } = 5;
-
-    /// <summary>
-    /// Base path for integration webhook endpoints (default: /api/Linbik)
-    /// This is where Linbik platform sends integration lifecycle events.
-    /// This value is used as the default basePath when calling MapLinbikIntegrationEndpoints().
-    /// </summary>
+    /// <summary>Base path for integration lifecycle webhook endpoints.</summary>
     public string IntegrationEndpointPath { get; set; } = "/api/Linbik";
 }

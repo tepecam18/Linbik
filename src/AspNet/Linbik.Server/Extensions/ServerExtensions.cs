@@ -1,4 +1,5 @@
-﻿using Linbik.Core;
+using Linbik.Core;
+using Linbik.Core.Configuration;
 using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Extensions;
 using Linbik.Core.Services;
@@ -71,17 +72,9 @@ public static class ServerExtensions
         // yazan) kayıt edebilir; TryAdd sayesinde önceden kayıtlı sink ezilmez.
         services.TryAddSingleton<ILinbikSecurityEventSink, NoOpSecurityEventSink>();
 
-        // Add JWT authentication schemes if public key is configured
-        if (!string.IsNullOrEmpty(options.PublicKey))
-        {
-            AddLinbikAuthentication(services, options);
-        }
-        else
-        {
-            var logger = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>()
-                .CreateLogger("Linbik.Server");
-            logger.LogWarning("Linbik.Server: PublicKey is not configured. Delegated and application token validation will be disabled. Please configure PublicKey in ServerOptions.");
-        }
+        // Register even before keyless provisioning has supplied the public key.
+        AddLinbikAuthentication(services, options);
+        services.AddHostedService<KeylessServerProvisioningService>();
     }
 
     /// <summary>
@@ -95,21 +88,32 @@ public static class ServerExtensions
             // Kullanıcı istekleri için (sub, name, preferred_username, azp) — application token reddeder
             .AddLinbikPasetoBearer(LinbikDefaults.DelegatedScheme, opts =>
             {
-                opts.PublicKey = options.PublicKey;
-                opts.ExpectedAudience = options.PackageName;
-                opts.ExpectedIssuer = options.JwtIssuer;
                 opts.RequireApplicationToken = false;
+                opts.ValidationMaterialResolver = ResolveValidationMaterialAsync;
             })
             // Servis-servis istekleri için (token_type=apps) — kullanıcı tokenını reddeder
             .AddLinbikPasetoBearer(LinbikDefaults.ApplicationScheme, opts =>
             {
-                opts.PublicKey = options.PublicKey;
-                opts.ExpectedAudience = options.PackageName;
-                opts.ExpectedIssuer = options.JwtIssuer;
                 opts.RequireApplicationToken = true;
+                opts.ValidationMaterialResolver = ResolveValidationMaterialAsync;
             });
 
+        foreach (var scheme in new[] { LinbikDefaults.DelegatedScheme, LinbikDefaults.ApplicationScheme })
+            services.AddOptions<PasetoBearerOptions>(scheme)
+                .Configure<IOptions<LinbikOptions>>((bearer, core) => bearer.ExpectedIssuer = core.Value.JwtIssuer);
         services.AddAuthorization();
+    }
+
+    private static async Task<(string PublicKey, string Audience)> ResolveValidationMaterialAsync(Microsoft.AspNetCore.Http.HttpContext context)
+    {
+        var core = context.RequestServices.GetRequiredService<IOptions<LinbikOptions>>().Value;
+        if (!core.KeylessMode || (!string.IsNullOrWhiteSpace(core.PublicKey) && !string.IsNullOrWhiteSpace(core.PackageName)))
+            return (core.PublicKey, core.PackageName);
+
+        await context.RequestServices.GetRequiredService<LinbikProvisionClient>().EnsureProvisionedAsync(
+            $"{context.Request.Scheme}://{context.Request.Host}{context.Request.PathBase}",
+            "/api/linbik/callback", core.Clients.FirstOrDefault()?.Name, context.RequestAborted);
+        return (core.PublicKey, core.PackageName);
     }
 
     /// <summary>

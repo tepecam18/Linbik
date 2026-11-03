@@ -53,6 +53,7 @@ public sealed class LinbikProvisionClient(
             // Already has credentials configured (not keyless)
             if (!string.IsNullOrEmpty(opts.ServiceId) && !string.IsNullOrEmpty(opts.ApiKey) && opts.Clients.Count > 0)
             {
+                await EnsureValidationKeyAsync(opts, null, cancellationToken);
                 _isProvisioned = true;
                 return;
             }
@@ -61,6 +62,7 @@ public sealed class LinbikProvisionClient(
             var cached = await credentialStore.LoadAsync(cancellationToken);
             if (cached != null)
             {
+                await EnsureValidationKeyAsync(opts, cached, cancellationToken);
                 ApplyCredentials(opts, cached);
                 _isProvisioned = true;
                 logger.LogInformation("Linbik Keyless Mode: Using cached credentials (ServiceId: {ServiceId})", cached.ServiceId);
@@ -161,6 +163,8 @@ public sealed class LinbikProvisionClient(
             ServiceId = result.Data.ServiceId.ToString(),
             ClientId = result.Data.ClientId.ToString(),
             ApiKey = result.Data.ApiKey,
+            PublicKey = result.Data.PublicKey,
+            PackageName = result.Data.PackageName,
             ClaimToken = result.Data.ClaimToken,
             ClaimUrl = result.Data.ClaimUrl,
             IsClaimed = false,
@@ -172,6 +176,8 @@ public sealed class LinbikProvisionClient(
     {
         opts.ServiceId = credentials.ServiceId;
         opts.ApiKey = credentials.ApiKey;
+        opts.PublicKey = credentials.PublicKey;
+        opts.PackageName = credentials.PackageName;
 
         var existingClient = opts.Clients.FirstOrDefault(c => c.Name == credentials.ClientName);
 
@@ -187,6 +193,33 @@ public sealed class LinbikProvisionClient(
             Name = credentials.ClientName,
             RedirectUrl = "/"
         });
+    }
+
+    private async Task EnsureValidationKeyAsync(LinbikOptions opts, LinbikCredentials? cached, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(cached?.PublicKey ?? opts.PublicKey) &&
+            !string.IsNullOrEmpty(cached?.PackageName ?? opts.PackageName))
+            return;
+
+        var serviceId = cached?.ServiceId ?? opts.ServiceId;
+        if (!Guid.TryParse(serviceId, out var id))
+            throw new InvalidOperationException("A valid ServiceId is required to recover validation keys.");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/dev/{id}/validation-key");
+        request.Headers.Add("apiKey", cached?.ApiKey ?? opts.ApiKey);
+        using var response = await httpClientFactory.CreateClient("LinbikAuthClient").SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<ProvisionApiResponse>(_jsonOptions, cancellationToken);
+        var data = result?.Data;
+        if (string.IsNullOrWhiteSpace(data?.PublicKey) || string.IsNullOrWhiteSpace(data.PackageName))
+            throw new InvalidOperationException("Linbik did not return validation material.");
+        if (cached != null)
+        {
+            cached.PublicKey = data.PublicKey;
+            cached.PackageName = data.PackageName;
+            await credentialStore.SaveAsync(cached, cancellationToken);
+        }
+        opts.PublicKey = data.PublicKey;
+        opts.PackageName = data.PackageName;
     }
 
     #region Internal DTOs
@@ -206,6 +239,8 @@ public sealed class LinbikProvisionClient(
 
     private sealed class ProvisionDataDto
     {
+        public string PublicKey { get; set; } = string.Empty;
+        public string PackageName { get; set; } = string.Empty;
         public Guid ServiceId { get; set; }
         public Guid ClientId { get; set; }
         public string ApiKey { get; set; } = string.Empty;

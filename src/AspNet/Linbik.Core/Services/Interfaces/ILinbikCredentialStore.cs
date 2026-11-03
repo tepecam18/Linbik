@@ -34,6 +34,10 @@ public interface ILinbikCredentialStore
 public sealed class LinbikCredentials
 {
     public string ServiceId { get; set; } = string.Empty;
+    /// <summary>Provisioned service audience for incoming PASETO tokens.</summary>
+    public string PackageName { get; set; } = string.Empty;
+    /// <summary>Base64 Ed25519 public key; private signing keys remain on Linbik.</summary>
+    public string PublicKey { get; set; } = string.Empty;
     public string ClientId { get; set; } = string.Empty;
     public string ClientName { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;

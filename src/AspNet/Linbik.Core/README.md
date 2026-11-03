@@ -261,3 +261,46 @@ Use Scalar's MapScalarApiReference and register self/delegated/apps with AddDocu
 Continue configuring the application's normal authentication and authorization.
 MapOpenApi does not restrict document downloads by itself; apply the desired authorization
 policy to its returned endpoint builder if documentation access must be restricted.
+
+## Direct-host flow routing (no gateway)
+
+Use this explicit mode only in the application that receives and authenticates the
+external request. Do not enable it in a service receiving gateway identity headers.
+
+```csharp
+builder.Services.AddLinbikFlowDocuments();
+// Register Self and Server authentication using the normal Linbik modules.
+
+var app = builder.Build();
+app.UseAuthentication();
+app.UseLinbikStandaloneFlows(); // includes routing and verifies the selected scheme
+app.UseAuthorization();
+
+app.MapLinbikStandaloneEndpoints(routes =>
+{
+    routes.MapLinbikSlices(); // generated extension, import its namespace
+    // Attribute-routed controllers may instead be mapped here with MapControllers().
+});
+app.MapOpenApi();
+```
+
+Map the business endpoints only inside this callback; do not also map their original
+versions outside it. Keep login/callback/session/integration lifecycle endpoint mapping
+outside this callback. Those system endpoints retain their own authentication rules.
+
+An original /api/apps/delegated/payments endpoint becomes:
+- Self: /api/apps/delegated/payments
+- Delegated: /api/delegated/apps/delegated/payments
+- Application: /api/apps/apps/delegated/payments
+
+Allowed flows come from LFlowAuthorize metadata (emitted by slice flow attributes).
+Unsupported flow routes are not created. Public "*" routes allow anonymous access;
+missing or empty flow metadata requires authentication for the selected route.
+Incoming Linbik-* headers are cleared. Only successful local authentication establishes
+the trusted flow feature and internal flow header. Existing gateway mode is unchanged.
+Do not put another UseAuthentication after UseLinbikStandaloneFlows: it could replace
+the selected identity with the host's default identity. Continue normal authorization
+for roles/permissions; avoid conflicting authentication scheme declarations.
+OpenAPI documents select these concrete routes, rather than synthesizing documentation
+for paths that do not exist. Existing standalone documents without this routing mode
+continue to preserve their original paths.

@@ -27,6 +27,8 @@ public sealed class LinbikAuthorizeFlowEndpointFilter : IEndpointFilter
         EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var httpContext = context.HttpContext;
+        if (httpContext.Features.Get<Linbik.Core.Extensions.LinbikStandaloneFlow>() is not null)
+            return await next(context);
         var endpoint = httpContext.GetEndpoint();
         var attribute = endpoint?.Metadata.GetMetadata<LFlowAuthorizeAttribute>();
         var allowedFlows = attribute?.AllowedFlows is { Length: > 0 } f ? f : AllFlows;

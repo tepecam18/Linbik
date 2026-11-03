@@ -29,6 +29,9 @@ public static class LinbikFlowDocumentExtensions
                 options.ShouldInclude = api =>
                 {
                     var metadata = api.ActionDescriptor.EndpointMetadata;
+                    var standalone = metadata.OfType<LinbikStandaloneRoute>().LastOrDefault();
+                    if (standalone is not null)
+                        return standalone.Flow == flow;
                     var systemEndpoint = metadata.OfType<ITagsMetadata>()
                         .Any(tags => tags.Tags.Any(tag => tag is "Linbik System" or "Linbik"));
                     // Auth-manager controllers use the Linbik controller tag.
@@ -39,6 +42,7 @@ public static class LinbikFlowDocumentExtensions
                     var rule = api.ActionDescriptor.EndpointMetadata
                         .OfType<LFlowAuthorizeAttribute>().LastOrDefault();
                     return rule is null || rule.AllowedFlows.Length == 0 ||
+                        rule.AllowedFlows.Contains("*", StringComparer.Ordinal) ||
                         rule.AllowedFlows.Contains(flow, StringComparer.OrdinalIgnoreCase);
                 };
                 configure?.Invoke(options);

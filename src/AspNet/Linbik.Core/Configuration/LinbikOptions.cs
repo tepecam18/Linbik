@@ -69,6 +69,10 @@ public sealed class LinbikOptions
     /// application's service ID (from Linbik service registration)
     /// </summary>
     public string ServiceId { get; set; } = string.Empty;
+    /// <summary>Provisioned service audience for incoming PASETO tokens.</summary>
+    public string PackageName { get; set; } = string.Empty;
+    /// <summary>Base64 Ed25519 public key; private signing keys remain on Linbik.</summary>
+    public string PublicKey { get; set; } = string.Empty;
 
     /// <summary>
     /// Multiple clients configuration

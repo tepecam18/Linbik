@@ -24,6 +24,8 @@ public sealed class PasetoBearerOptions : AuthenticationSchemeOptions
     /// (v4.public modu) PASETO v4.public token'larını doğrulamak için kullanılacak Ed25519 public key (Base64-encoded, 32 bytes).
     /// </summary>
     public string PublicKey { get; set; } = string.Empty;
+    /// <summary>Optional asynchronous keyless validation-material resolver.</summary>
+    public Func<HttpContext, Task<(string PublicKey, string Audience)>>? ValidationMaterialResolver { get; set; }
 
     /// <summary>
     /// (v4.local modu) PASETO v4.local token'larını çözmek ve doğrulamak için kullanılacak simetrik shared key (Base64-encoded, 32 bytes).
@@ -104,6 +106,12 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
         bool isValid;
         try
         {
+            var material = Options.ValidationMaterialResolver == null
+                ? (PublicKey: Options.PublicKey, Audience: Options.ExpectedAudience)
+                : await Options.ValidationMaterialResolver(Context);
+            if (Options.ValidationMaterialResolver != null && Options.Mode == PasetoMode.Public &&
+                (string.IsNullOrWhiteSpace(material.PublicKey) || string.IsNullOrWhiteSpace(material.Audience)))
+                return AuthenticateResult.Fail("Validation key or audience is unavailable.");
             isValid = Options.Mode == PasetoMode.Local
                 ? await _pasetoHelper.ValidateLocalTokenAsync(
                     token,
@@ -112,8 +120,8 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
                     Options.ExpectedIssuer)
                 : await _pasetoHelper.ValidateTokenAsync(
                     token,
-                    Options.PublicKey,
-                    Options.ExpectedAudience,
+                    material.PublicKey,
+                    material.Audience,
                     Options.ExpectedIssuer);
         }
         catch (Exception ex)

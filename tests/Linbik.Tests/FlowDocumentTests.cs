@@ -27,6 +27,8 @@ public sealed class FlowDocumentTests
         app.MapGet("/shared", () => "ok").WithMetadata(new LFlowAuthorizeAttribute("Self", "Delegated"));
         app.MapGet("/authenticated", () => "ok").WithMetadata(new LFlowAuthorizeAttribute());
         app.MapGet("/public", () => "ok");
+        app.MapGet("/explicit-public", () => "ok").WithMetadata(new LFlowAuthorizeAttribute("*"));
+        app.MapGet("/system-public", () => "ok").WithTags("Linbik System").WithMetadata(new LFlowAuthorizeAttribute("*"));
         app.MapGet("/custom/login", () => "ok").WithTags("Linbik");
         app.MapPost("/custom/integration", () => "ok").WithTags("Linbik System")
             .WithMetadata(new LFlowAuthorizeAttribute("Application"));
@@ -40,6 +42,8 @@ public sealed class FlowDocumentTests
         Assert.NotNull(paths[included]);
         Assert.Null(paths[excluded]);
         Assert.NotNull(paths["/public"]);
+        Assert.NotNull(paths["/explicit-public"]);
+        Assert.Equal(document == "self", paths["/system-public"] is not null);
         Assert.NotNull(paths["/authenticated"]);
         Assert.Equal(document != "apps", paths["/shared"] is not null);
         Assert.NotNull(paths[included]!["get"]!["linbik-flows"]);

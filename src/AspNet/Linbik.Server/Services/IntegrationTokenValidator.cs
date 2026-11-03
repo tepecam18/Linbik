@@ -1,4 +1,4 @@
-﻿using Linbik.Core.Services.Interfaces;
+using Linbik.Core.Services.Interfaces;
 using Linbik.Server.Configuration;
 using Linbik.Server.Models;
 using Microsoft.AspNetCore.Http;
@@ -15,18 +15,22 @@ namespace Linbik.Server.Services;
 /// </summary>
 public sealed class IntegrationTokenValidator
 {
-    private readonly ServerOptions _options;
+    private readonly Linbik.Core.Configuration.LinbikOptions? _coreOptions;
+    private string PublicKey => _coreOptions?.PublicKey ?? string.Empty;
+    private string PackageName => _coreOptions?.PackageName ?? string.Empty;
     private readonly IPasetoHelper _pasetoHelper;
     private readonly ILogger<IntegrationTokenValidator>? _logger;
 
     public IntegrationTokenValidator(
         IOptions<ServerOptions> options,
         IPasetoHelper pasetoHelper,
-        ILogger<IntegrationTokenValidator>? logger = null)
+        ILogger<IntegrationTokenValidator>? logger = null,
+        IOptions<Linbik.Core.Configuration.LinbikOptions>? coreOptions = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(pasetoHelper);
-        _options = options.Value;
+        _ = options.Value;
+        _coreOptions = coreOptions?.Value;
         _pasetoHelper = pasetoHelper;
         _logger = logger;
     }
@@ -35,7 +39,7 @@ public sealed class IntegrationTokenValidator
     /// Doğrulayıcının kullanıma hazır olup olmadığını döner.
     /// Health check tarafından kullanılır.
     /// </summary>
-    public bool IsConfigured() => !string.IsNullOrEmpty(_options.PublicKey);
+    public bool IsConfigured() => !string.IsNullOrEmpty(PublicKey) && !string.IsNullOrEmpty(PackageName);
 
     /// <summary>
     /// Authorization header'dan PASETO token'ı çıkarıp doğrular.
@@ -75,12 +79,12 @@ public sealed class IntegrationTokenValidator
 
         // ValidateTokenAsync is CPU-bound (Ed25519 verify), GetAwaiter().GetResult() is safe here
         var isValid = _pasetoHelper
-            .ValidateTokenAsync(token, _options.PublicKey, _options.PackageName, _options.JwtIssuer)
+            .ValidateTokenAsync(token, PublicKey, PackageName, _coreOptions?.JwtIssuer ?? Linbik.Core.LinbikDefaults.Issuer)
             .GetAwaiter().GetResult();
 
         if (!isValid)
         {
-            _logger?.LogWarning("PASETO token validation failed for service {PackageName}", _options.PackageName);
+            _logger?.LogWarning("PASETO token validation failed for service {PackageName}", PackageName);
             return null;
         }
 
@@ -129,11 +133,11 @@ public sealed class IntegrationTokenValidator
 
         claims.PackageName = rawClaims.GetValueOrDefault("aud") ?? string.Empty;
 
-        if (_options.ValidateAudience && claims.PackageName != _options.PackageName)
+        if (claims.PackageName != PackageName)
         {
             _logger?.LogWarning(
                 "Token audience '{Audience}' does not match service '{PackageName}'",
-                claims.PackageName, _options.PackageName);
+                claims.PackageName, PackageName);
             return null;
         }
 

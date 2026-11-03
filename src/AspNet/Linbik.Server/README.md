@@ -37,14 +37,16 @@ app.UseAuthorization();
 ### Standalone Setup
 
 ```csharp
-builder.Services.AddLinbikServer(options =>
+builder.Services.Configure<LinbikOptions>(options =>
 {
-    options.PublicKey = builder.Configuration["Linbik:PublicKey"]!;   // Ed25519 public key (Base64), from Linbik platform
-    options.PackageName = "payment-gateway";                          // used for audience validation
+    options.PackageName = "payment-gateway";
+    options.PublicKey = "..."; // Base64 Ed25519 public key
+    options.JwtIssuer = "Linbik";
 });
+builder.Services.AddLinbikServer();
 ```
 
-> If `PublicKey` is left empty, `AddLinbikServer` logs a warning and skips authentication scheme registration entirely — delegated and application token validation will be disabled.
+> Validation schemes are always registered. In keyless mode provisioning supplies the shared key and audience. Standard mode requires Linbik:PublicKey and Linbik:PackageName.
 
 ## 💻 Usage
 
@@ -169,3 +171,33 @@ MIT License
 **Version**: 1.2.0  
 **Platform**: ASP.NET Core 10.0 (net10.0)  
 **Last Updated**: 9 Eylül 2026
+
+
+### Keyless receiving services
+
+With `KeylessMode = true`, register `.AddLinbikServer()` to receive application and delegated PASETO tokens without manually configuring a public key. The server module provisions credentials after the HTTP server starts, including for services that never initiate a user login. Configure a client `RedirectUrl` with the public application URL when running behind a proxy; otherwise the listening address is used for initial provisioning.
+
+Linbik generates and stores the Ed25519 private key; only the public key and package name are cached locally with the service credentials. Old credential caches missing this material are completed using the existing service's API key, preserving the service ID. Update the Linbik API first: this requires the `POST /api/dev/{serviceId}/validation-key` recovery endpoint and the new provisioning response fields.
+
+An enabled integration authorizes apps tokens in both directions. Each caller uses its own API key and requests a separate token for its target; a token cannot be reused in the opposite direction. Disabling the integration prevents new token issuance; already issued tokens remain valid until expiry.
+
+### Shared validation key
+
+ServerOptions.PublicKey has been removed. Configure the receiving service's validation
+key only through Linbik:PublicKey (LinbikOptions.PublicKey).
+Both Delegated/Application authentication and IntegrationTokenValidator read this value.
+In keyless mode provisioning populates the same option; no separate Server key is needed.
+Move any existing Linbik:Server:PublicKey value to Linbik:PublicKey and remove the old entry.
+Self session signing/encryption settings remain independent.
+
+### Shared identity settings and removed legacy options
+
+ServerOptions.PackageName and ServerOptions.JwtIssuer were removed along with PublicKey.
+Use Linbik:PackageName, Linbik:JwtIssuer and Linbik:PublicKey only.
+ServerOptions now contains IntegrationEndpointPath only.
+Removed inert legacy options: AuthorizationCodeLifetimeMinutes, AccessTokenExpiration,
+RefreshTokenExpirationDays, EnablePKCE, EnableIpWhitelisting and ClockSkewMinutes.
+These options did not configure the receiving PASETO validator.
+ValidateAudience and ValidateIssuer were also removed: incoming token audience and issuer
+validation are mandatory. Core token lifetime/PKCE settings keep their existing meaning;
+they do not change the lifetime of tokens issued by a remote service.

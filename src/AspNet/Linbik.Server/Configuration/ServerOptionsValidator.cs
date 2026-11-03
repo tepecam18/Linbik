@@ -7,7 +7,7 @@ namespace Linbik.Server.Configuration;
 /// Validates <see cref="ServerOptions"/> configuration at startup.
 /// Ensures all required values are provided and valid before application starts.
 /// </summary>
-public sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
+public sealed class ServerOptionsValidator(IOptions<Linbik.Core.Configuration.LinbikOptions>? coreOptions = null) : IValidateOptions<ServerOptions>
 {
     public ValidateOptionsResult Validate(string? name, ServerOptions options)
     {
@@ -16,41 +16,35 @@ public sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
         List<string> errors = [];
 
         // PackageName is required when audience validation is enabled
-        if (options.ValidateAudience && string.IsNullOrWhiteSpace(options.PackageName))
+        if (string.IsNullOrWhiteSpace(coreOptions?.Value.PackageName) &&
+            coreOptions?.Value.KeylessMode != true)
         {
-            errors.Add("Linbik:Server:PackageName is required when ValidateAudience is enabled. Set it to this service's package name.");
+            errors.Add("Linbik:PackageName is required for incoming token audience validation.");
         }
 
-        // JwtIssuer validation
-        if (string.IsNullOrWhiteSpace(options.JwtIssuer))
+        var publicKey = coreOptions?.Value.PublicKey;
+        if (string.IsNullOrWhiteSpace(publicKey))
         {
-            errors.Add("Linbik:Server:JwtIssuer is required.");
+            if (coreOptions?.Value.KeylessMode != true)
+                errors.Add("Linbik:PublicKey is required. Server validation uses the shared LinbikOptions key.");
+        }
+        else
+        {
+            try
+            {
+                if (Convert.FromBase64String(publicKey).Length != 32)
+                    errors.Add("Linbik:PublicKey must be a Base64-encoded 32-byte Ed25519 public key.");
+            }
+            catch (FormatException)
+            {
+                errors.Add("Linbik:PublicKey must be valid Base64.");
+            }
         }
 
-        // ClockSkew validation
-        if (options.ClockSkewMinutes < 0 || options.ClockSkewMinutes > 60)
-        {
-            errors.Add($"Linbik:Server:ClockSkewMinutes must be between 0 and 60. Current value: {options.ClockSkewMinutes}.");
-        }
-
-        // Token lifetime validations
-        if (options.AccessTokenExpiration < 1 || options.AccessTokenExpiration > 1440)
-        {
-            errors.Add($"Linbik:Server:AccessTokenExpiration must be between 1 and 1440 (24 hours). Current value: {options.AccessTokenExpiration}.");
-        }
-
-        if (options.RefreshTokenExpirationDays < 1 || options.RefreshTokenExpirationDays > 365)
-        {
-            errors.Add($"Linbik:Server:RefreshTokenExpirationDays must be between 1 and 365. Current value: {options.RefreshTokenExpirationDays}.");
-        }
-
-        if (options.AuthorizationCodeLifetimeMinutes < 1 || options.AuthorizationCodeLifetimeMinutes > 60)
-        {
-            errors.Add($"Linbik:Server:AuthorizationCodeLifetimeMinutes must be between 1 and 60. Current value: {options.AuthorizationCodeLifetimeMinutes}.");
-        }
-
+        if (string.IsNullOrWhiteSpace(coreOptions?.Value.JwtIssuer))
+            errors.Add("Linbik:JwtIssuer is required for incoming token validation.");
         // IntegrationEndpointPath validation
-        if (!options.IntegrationEndpointPath.StartsWith('/'))
+        if (string.IsNullOrWhiteSpace(options.IntegrationEndpointPath) || !options.IntegrationEndpointPath.StartsWith('/'))
         {
             errors.Add($"Linbik:Server:IntegrationEndpointPath must start with '/'. Current value: '{options.IntegrationEndpointPath}'.");
         }
