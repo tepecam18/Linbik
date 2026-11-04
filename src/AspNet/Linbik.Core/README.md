@@ -304,3 +304,9 @@ for roles/permissions; avoid conflicting authentication scheme declarations.
 OpenAPI documents select these concrete routes, rather than synthesizing documentation
 for paths that do not exist. Existing standalone documents without this routing mode
 continue to preserve their original paths.
+
+OpenAPI schema IDs for nested slice Request/Response contracts and their
+LBaseResponse<T> wrappers include the declaring type name. Regenerated clients
+may therefore use new model names. AddLinbikFlowDocuments(configure: ...) runs
+the configuration callback after the default naming is installed, so applications
+can override CreateSchemaReferenceId there.

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSwag;
 using NSwag.CodeGeneration.CSharp;
+using NSwag.CodeGeneration.OperationNameGenerators;
 
 namespace Linbik.YARP.Services;
 
@@ -126,6 +127,7 @@ public sealed class ApplicationClientGenerationHostedService(
         var settings = new CSharpClientGeneratorSettings
         {
             ClassName = className,
+            OperationNameGenerator = new SingleClientFromOperationIdOperationNameGenerator(),
             GenerateClientInterfaces = true,
             UseBaseUrl = false,
             InjectHttpClient = true,

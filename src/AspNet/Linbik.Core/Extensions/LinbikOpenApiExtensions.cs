@@ -1,4 +1,5 @@
 using Linbik.Core.OpenApi;
+using Linbik.Core.Responses;
 using Microsoft.AspNetCore.OpenApi;
 
 namespace Linbik.Core.Extensions;
@@ -19,23 +20,30 @@ public static class LinbikOpenApiExtensions
         ArgumentNullException.ThrowIfNull(options);
         options.AddOperationTransformer<LFlowOpenApiOperationTransformer>();
 
-        // Vertical-slice konvansiyonunda her slice kendi iç içe `Request`/`Response`
-        // tipini tanımlar (ör. CreateComment.Request, DeleteComment.Request). .NET'in
-        // varsayılan şema kimliği yalnız Type.Name kullanır — bu da TÜM slice'lardaki
-        // "Request"/"Response" tiplerinin aynı OpenAPI şema kimliğine çakışmasına yol
-        // açar (gateway aggregator'da ilk gelen kazanır, diğerleri sessizce kaybolur).
-        // İç içe Request/Response için üst (slice) tipin adını öne ekleyerek benzersizleştir.
-        var defaultSchemaId = options.CreateSchemaReferenceId;
+        var schemaId = options.CreateSchemaReferenceId;
         options.CreateSchemaReferenceId = typeInfo =>
         {
             var type = typeInfo.Type;
-            if (type.DeclaringType is not null && (type.Name == "Request" || type.Name == "Response"))
-            {
-                return type.DeclaringType.Name + type.Name;
-            }
-            return defaultSchemaId(typeInfo);
+            var id = schemaId(typeInfo);
+            if (id is null)
+                return null;
+            if (IsSliceContract(type))
+                return SliceContractName(type);
+            if (type.IsConstructedGenericType &&
+                type.GetGenericTypeDefinition() == typeof(LBaseResponse<>) &&
+                IsSliceContract(type.GenericTypeArguments[0]))
+                return "LBaseResponseOf" + SliceContractName(type.GenericTypeArguments[0]);
+            return id;
         };
 
         return options;
     }
+
+    private static bool IsSliceContract(Type type) =>
+        type.IsNested && type.Name is "Request" or "Response";
+
+    private static string SliceContractName(Type type) =>
+        type.DeclaringType is { } owner
+            ? SliceContractName(owner) + type.Name.Split('`')[0]
+            : type.Name.Split('`')[0];
 }
