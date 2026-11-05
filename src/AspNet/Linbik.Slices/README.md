@@ -428,6 +428,9 @@ One file per feature. All related types (request, response, validator, handler) 
 | `LINBIK002` | Error | `[LinbikSlice]` without a nested `Request` (`ILinbikRequest<>`) and/or `Handler` (`ILinbikHandler<,>`) | Missing required inner types |
 | `LINBIK003` | Warning | A project contains no `[LinbikSlice]`-marked types at all | `AddLinbikSlices`/`MapLinbikSlices` were not generated for this project — add a slice or remove those calls |
 | `LINBIK004` | Error | `[LinbikSlice]` carries more than one of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]` | Conflicting flow declaration — only one of these attributes may be used per slice |
+| `LINBIK005` | Error | Unsupported, empty or null HTTP `Method` | Use GET, HEAD, DELETE, POST, PUT or PATCH; an invalid method never falls back to POST |
+| `LINBIK006` | Warning | `[FromRoute]`, `[FromQuery]`, `[FromHeader]`, `[FromForm]` or `[FromServices]` on a body-bound Request property | POST/PUT/PATCH bind the entire Request from JSON; read other sources separately through HttpContext |
+| `LINBIK007` | Error | Undefined `LinbikFlow` enum value | Use Self, Delegated or Application; invalid slices are excluded from generated mappings |
 
 ---
 
@@ -487,6 +490,45 @@ public sealed class Handler : ILinbikHandler<Request, Response> { ... }
 **Cause:** the slice carries more than one of `[LFlow]`, `[LFlowPublic]`, `[LAuthorizeFlow]`.
 
 **Fix:** keep the one that matches how the endpoint should be protected and remove the others.
+
+#### LINBIK005
+
+**Cause:** a typo or unsupported HTTP method, such as `Method = "POSST"`.
+
+**Fix:** use a supported method, for example `[LinbikSlice("/api/orders", Method = "POST")]`. HEAD uses a real HEAD mapping with bodyless binding. Unsupported methods are rejected by both analyzer and generator.
+
+#### LINBIK006
+
+**Cause:** expecting `[FromRoute]` or another MVC property binding attribute to override JSON deserialization on a POST/PUT/PATCH Request. These attributes are honored on bodyless `[AsParameters]` requests, but do not split a JSON Request into multiple binding sources.
+
+**Fix:** remove the misleading property binding attribute. Keep body fields in Request and read route/header/query values separately through `IHttpContextAccessor.HttpContext.Request`, for example `Request.RouteValues["id"]`. Adding a body `Id` does not populate it from the route. This is a warning because existing code may intentionally read both sources itself.
+
+#### LINBIK007
+
+**Cause:** casting an undefined number to `LinbikFlow`, such as `[LAuthorizeFlow((LinbikFlow)99)]`.
+
+**Fix:** declare a supported flow, for example `[LAuthorizeFlow(LinbikFlow.Self)]`. Use `[LFlowPublic]` only when anonymous access is intended. Empty/null flow arrays retain the documented authenticated-any-flow behavior; invalid enum values are never treated as empty arrays.
+
+### Startup validation
+
+`AddLinbikSlices()` (through `AddLinbikSender()`) automatically registers host startup validation. It inspects the initial endpoints after the web host has built its endpoint data sources and fails before host `StartAsync` succeeds. Existing request-time security checks remain in place.
+
+- Generated `[LAuthorizeFlow]` slices need at least one registered scheme from their allowed flows. They intentionally do not require every allowed scheme to be registered.
+- Each protected standalone route needs the scheme for its concrete flow. For example, publishing Application routes requires the Application scheme even if Self authentication is already registered.
+- Standalone mappings on the application require `UseLinbikStandaloneFlows()`. Registration may appear before or after mapping in Program.cs, but must be complete before startup. Duplicate middleware registration is rejected immediately.
+- Standalone authorization policies, including fallback policies, must not select a different authentication scheme. Remove `AuthenticationSchemes` from `[Authorize]` / `RequireAuthorization`, preserving role and permission requirements.
+- Gateway `[LFlow]` slices do not require local authentication registration; public slices do not require an authentication scheme.
+
+Errors identify the route, missing flow/scheme and corrective registration. Register Self using `AddLinbikJwtAuth` or `AddLinbikPasetoAuth`, and Delegated/Application using `AddLinbikServer`, before `builder.Build()`. Do not make an endpoint public to silence configuration errors. Use this middleware order:
+
+```csharp
+app.UseAuthentication();
+app.UseLinbikStandaloneFlows();
+app.UseAuthorization();
+app.MapLinbikStandaloneEndpoints(routes => routes.MapLinbikSlices());
+```
+
+These checks apply to hosts using `AddLinbikSlices`/`AddLinbikSender` and the initial endpoint set. Manual endpoint filters without these registrations and endpoints added dynamically after startup retain their runtime checks. Arbitrary middleware ordering and custom wrapper methods are not statically inferred.
 
 ### Runtime responses
 

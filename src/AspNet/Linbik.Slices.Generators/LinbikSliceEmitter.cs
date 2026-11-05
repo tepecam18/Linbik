@@ -14,6 +14,16 @@ internal static class LinbikSliceEmitter
         var valid = new List<SliceModel>();
         foreach (var model in models)
         {
+            if (model.InvalidFlowValue is { } invalidFlow)
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(LinbikSliceConstants.InvalidFlow, model.Location, model.DisplayName, invalidFlow));
+                continue;
+            }
+            if (!LinbikSliceConstants.IsSupportedMethod(model.Method))
+            {
+                spc.ReportDiagnostic(Diagnostic.Create(LinbikSliceConstants.UnsupportedMethod, model.Location, model.DisplayName, model.Method));
+                continue;
+            }
             if (!model.Valid)
             {
                 spc.ReportDiagnostic(Diagnostic.Create(
@@ -76,8 +86,9 @@ internal static class LinbikSliceEmitter
         foreach (var m in valid)
         {
             var mapMethod = MapMethodFor(m.Method);
+            var methods = m.Method == "HEAD" ? "new[] { \"HEAD\" }, " : string.Empty;
             sb.AppendLine("            {");
-            sb.AppendLine($"                var __e = app.{mapMethod}(\"{Escape(m.Pattern)}\",");
+            sb.AppendLine($"                var __e = app.{mapMethod}(\"{Escape(m.Pattern)}\", {methods}");
             // GET/DELETE/HEAD gövdesiz (çoğu istemci — taray\u0131c\u0131 fetch/XHR dahil —
             // bu metotlara body koymay\u0131 client-side reddeder): [AsParameters] ile
             // Request'in property'leri query string'ten ba\u011flan\u0131r (\u00f6r. ?threadId=..&page=1).
@@ -96,6 +107,7 @@ internal static class LinbikSliceEmitter
             {
                 // [LAuthorizeFlow]: Linbik-Flow header'ına güvenmek yerine gerçek
                 // authentication scheme'ini dener — Gateway olmadan da güvenli.
+                sb.AppendLine("                __e.WithMetadata(new global::Linbik.Slices.Endpoints.LinbikSliceAuthenticationMetadata());");
                 sb.AppendLine("                __e.AddEndpointFilter<global::Linbik.Slices.Endpoints.LinbikAuthorizeFlowEndpointFilter>();");
             }
             else
@@ -163,6 +175,7 @@ internal static class LinbikSliceEmitter
     private static string MapMethodFor(string method) => method switch
     {
         "GET" => "MapGet",
+        "HEAD" => "MapMethods",
         "PUT" => "MapPut",
         "DELETE" => "MapDelete",
         "PATCH" => "MapPatch",

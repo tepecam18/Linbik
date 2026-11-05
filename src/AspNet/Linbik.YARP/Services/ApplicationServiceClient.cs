@@ -362,7 +362,7 @@ public sealed class ApplicationServiceClient(
         if (_options.IntegrationServices.TryGetValue(packageName, out var serviceConfig))
             return serviceConfig.TargetBaseUrl.TrimEnd('/');
 
-        throw new InvalidOperationException($"No base URL configured for {packageName}");
+        throw new InvalidOperationException($"No base URL configured for integration '{packageName}'. Set Linbik:YARP:IntegrationServices:{packageName}:TargetBaseUrl to its HTTP(S) URL, or return ServiceUrl in the integration token response.");
     }
 
     private static string BuildTargetUrl(string baseUrl, string endpoint)

@@ -59,10 +59,19 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         _provisionClient = provisionClient;
         _logger = logger;
 
+        // Direct construction with Options.Create also needs a safe narrowing/timer boundary.
+        if (!double.IsFinite(_options.AppsRefreshThreshold) || _options.AppsRefreshThreshold <= 0 || _options.AppsRefreshThreshold > 1)
+            throw new ArgumentOutOfRangeException(nameof(options), "Linbik:AppsRefreshThreshold must be a finite fraction greater than 0 and at most 1. Use 0.75 for 75%, not 75.");
+        if (_options.AppsTokenLifetimeMinutes < 1)
+            throw new ArgumentOutOfRangeException(nameof(options), "Linbik:AppsTokenLifetimeMinutes must be positive, for example 60.");
+
         // Setup auto-refresh timer if enabled (only for config-based services)
         if (_options.AppsAutoRefresh && _options.AppsTargetServices.Count > 0)
         {
-            var refreshInterval = TimeSpan.FromMinutes(_options.AppsTokenLifetimeMinutes * _options.AppsRefreshThreshold);
+            var intervalMs = _options.AppsTokenLifetimeMinutes * _options.AppsRefreshThreshold * 60000d;
+            if (!double.IsFinite(intervalMs) || intervalMs < 1 || intervalMs > uint.MaxValue - 1d)
+                throw new ArgumentOutOfRangeException(nameof(options), "Linbik:AppsTokenLifetimeMinutes and AppsRefreshThreshold must produce an auto-refresh timer interval between 1 and 4294967294 milliseconds. Example: lifetime 60, threshold 0.75.");
+            var refreshInterval = TimeSpan.FromMilliseconds(intervalMs);
             _autoRefreshTimer = new Timer(
                 async _ => await AutoRefreshTokensAsync(),
                 null,

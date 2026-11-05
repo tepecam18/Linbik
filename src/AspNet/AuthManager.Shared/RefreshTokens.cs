@@ -38,7 +38,10 @@ public sealed class InMemoryLinbikRefreshTokenStore : ILinbikRefreshTokenStore, 
     public Task CreateAsync(string tokenHash, LinbikRefreshSession session, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (session.ExpiresAt <= DateTimeOffset.UtcNow) throw new ArgumentOutOfRangeException(nameof(session));
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
+        if (session.ExpiresAt <= DateTimeOffset.UtcNow)
+            throw new ArgumentOutOfRangeException(nameof(session), "LinbikRefreshSession.ExpiresAt must be in the future. Set the refresh-session expiry before calling CreateAsync; expired sessions cannot be stored.");
         cache.Set(tokenHash, new Entry(session, tokenHash), session.ExpiresAt);
         return Task.CompletedTask;
     }

@@ -203,7 +203,7 @@ public static class LinbikServiceCollectionExtensions
             // Verify critical services are registered
             _ = services.GetService<ILinbikAuthClient>()
                 ?? throw new InvalidOperationException(
-                    "ILinbikAuthClient is not registered. Call services.AddLinbik() or builder.AddLinbik() in Program.cs.");
+                    "ILinbikAuthClient is not registered. Register Core before builder.Build(), for example builder.Services.AddLinbik(options => { /* service/client configuration */ });");
         }
     }
 }

@@ -1,8 +1,17 @@
 // Create once per incoming request. Never share this cookie jar between users.
-export function createServerTransport({ backendBaseUrl, cookieHeader = '', onSetCookie, fetch: transport = globalThis.fetch }) {
-  const base = new URL(backendBaseUrl);
+export function createServerTransport({ backendBaseUrl, cookieHeader = '', onSetCookie, fetch: transport = globalThis.fetch } = {}) {
+  let base;
+  try {
+    if (typeof backendBaseUrl !== 'string') throw new TypeError();
+    base = new URL(backendBaseUrl);
+  } catch {
+    throw new TypeError('backendBaseUrl must be an absolute HTTP(S) URL, for example https://backend.example.com. Do not include credentials.');
+  }
+  if (typeof onSetCookie !== 'function') throw new TypeError('onSetCookie must be a function that forwards Set-Cookie to the current response. Create a separate server transport for each incoming request.');
+  if (typeof transport !== 'function') throw new TypeError('fetch must be a function. Supply options.fetch or use a runtime with globalThis.fetch.');
+  if (typeof cookieHeader !== 'string') throw new TypeError('cookieHeader must be the incoming Cookie header string, or an empty string.');
   if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) {
-    throw new TypeError('Invalid backendBaseUrl.');
+    throw new TypeError('backendBaseUrl must be an HTTP(S) URL without credentials, query or fragment.');
   }
   const prefix = base.pathname.replace(/\/+$/, '') + '/';
   const cookies = new Map();

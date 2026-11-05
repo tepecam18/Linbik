@@ -54,6 +54,17 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
             errors.Add($"Linbik:RefreshTokenLifetimeDays must be between 1 and 365. Current value: {options.RefreshTokenLifetimeDays}.");
         }
 
+        if (options.AppsTokenLifetimeMinutes < 1)
+            errors.Add("Linbik:AppsTokenLifetimeMinutes must be positive, for example 60.");
+        if (!double.IsFinite(options.AppsRefreshThreshold) || options.AppsRefreshThreshold <= 0 || options.AppsRefreshThreshold > 1)
+            errors.Add("Linbik:AppsRefreshThreshold must be a finite fraction greater than 0 and at most 1. Use 0.75 for 75%, not 75.");
+        if (options.AppsAutoRefresh && options.AppsTargetServices is { Count: > 0 })
+        {
+            var intervalMs = options.AppsTokenLifetimeMinutes * options.AppsRefreshThreshold * 60000d;
+            if (!double.IsFinite(intervalMs) || intervalMs < 1 || intervalMs > uint.MaxValue - 1d)
+                errors.Add("Linbik:AppsTokenLifetimeMinutes and AppsRefreshThreshold must produce an auto-refresh timer interval between 1 and 4294967294 milliseconds. Example: lifetime 60, threshold 0.75.");
+        }
+
         // Validate endpoints (always validated)
         if (!options.AuthorizationEndpoint.StartsWith("/"))
         {

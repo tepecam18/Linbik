@@ -17,7 +17,14 @@ export class LinbikPasetoAuthClient {
 
   constructor(options) {
     this.#options = { ...options };
-    this.#base = new URL(options.backendBaseUrl);
+    try {
+      if (typeof options?.backendBaseUrl !== 'string') throw new TypeError();
+      this.#base = new URL(options.backendBaseUrl);
+    } catch {
+      throw new TypeError('backendBaseUrl must be an absolute HTTP(S) URL, for example https://backend.example.com. Do not include credentials.');
+    }
+    if (typeof (options.fetch ?? globalThis.fetch) !== 'function') throw new TypeError('fetch must be a function. Supply options.fetch or use a runtime with globalThis.fetch.');
+    if (options.navigate != null && typeof options.navigate !== 'function') throw new TypeError('navigate must be a function, for example navigate: url => window.location.assign(url).');
     if (!['https:', 'http:'].includes(this.#base.protocol) || this.#base.username || this.#base.password || this.#base.search || this.#base.hash) {
       throw new TypeError('backendBaseUrl must be an HTTP(S) URL without credentials, query or fragment.');
     }

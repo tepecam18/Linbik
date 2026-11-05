@@ -17,4 +17,5 @@ internal sealed record SliceModel(
     string? HandlerFqn,
     string? ValidatorFqn,
     bool Valid,
+    string? InvalidFlowValue,
     Location Location);

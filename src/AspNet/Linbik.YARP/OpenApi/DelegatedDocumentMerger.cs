@@ -10,8 +10,16 @@ public static class DelegatedDocumentMerger
 
     public static JsonObject Merge(JsonObject host, JsonObject source, string packageName, string sourcePath, string targetPath = "")
     {
-        if (source["openapi"]?.GetValue<string>().StartsWith("3.", StringComparison.Ordinal) != true || source["paths"] is not JsonObject)
-            throw new InvalidOperationException("Expected an OpenAPI 3 document with paths.");
+        ArgumentNullException.ThrowIfNull(host);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageName);
+        ArgumentNullException.ThrowIfNull(sourcePath);
+        ArgumentNullException.ThrowIfNull(targetPath);
+        if (source["openapi"] is not JsonValue version || !version.TryGetValue<string>(out var versionText) ||
+            !versionText.StartsWith("3.", StringComparison.Ordinal) || source["paths"] is not JsonObject)
+            throw new InvalidOperationException("Expected an OpenAPI 3 document with an 'openapi' version string and a 'paths' object. Check the downstream DocumentPath/DelegatedDocumentPath; it must return OpenAPI JSON rather than an HTML page or API response.");
+        if (source["components"] is { } sourceComponents && sourceComponents is not JsonObject)
+            throw new InvalidOperationException("Downstream OpenAPI 'components' must be a JSON object.");
         var result = (JsonObject)host.DeepClone();
         var imported = (JsonObject)source.DeepClone();
         var prefix = "linbik_" + Convert.ToHexString(Encoding.UTF8.GetBytes(packageName)) + "_";
@@ -42,13 +50,13 @@ public static class DelegatedDocumentMerger
             {
                 if (key is "$ref" or "operationRef" && value is JsonValue)
                 {
-                    var reference = value.GetValue<string>();
+                    var reference = RequireString(value, key);
                     var match = references.Keys.OrderByDescending(x => x.Length)
                         .FirstOrDefault(x => reference == x || reference.StartsWith(x + "/", StringComparison.Ordinal));
                     if (match is null) throw new InvalidOperationException($"Unsupported OpenAPI reference: {reference}");
                     obj[key] = references[match] + reference[match.Length..];
                 }
-                else if (key == "operationId" && value is JsonValue) obj[key] = prefix + value.GetValue<string>();
+                else if (key == "operationId" && value is JsonValue) obj[key] = prefix + RequireString(value, key);
                 else if (key == "security" && value is JsonArray security)
                 {
                     foreach (var requirement in security.OfType<JsonObject>())
@@ -59,18 +67,17 @@ public static class DelegatedDocumentMerger
                 {
                     foreach (var (name, target) in mapping.ToList())
                     {
-                        var reference = target!.GetValue<string>();
+                        var reference = RequireString(target, "discriminator.mapping." + name);
                         mapping[name] = references.TryGetValue(reference, out var renamed) ? renamed
                             : reference.StartsWith('#') || reference.Contains('/')
-                                ? throw new InvalidOperationException("Unsupported discriminator reference.") : prefix + reference;
+                                ? throw new InvalidOperationException($"Unsupported discriminator reference in mapping '{name}'. Use a local component reference or schema name.") : prefix + reference;
                     }
                 }
                 else Rewrite(value);
             }
         }
         Rewrite(imported);
-        result["paths"] ??= new JsonObject();
-        var paths = (JsonObject)result["paths"]!;
+        var paths = GetOrCreateObject(result, "paths", "host.paths");
         foreach (var (path, item) in (JsonObject)imported["paths"]!)
         {
             if (!path.StartsWith('/') || item is not JsonObject pathItem)
@@ -90,21 +97,35 @@ public static class DelegatedDocumentMerger
         }
         if (imported["components"] is JsonObject components)
         {
-            result["components"] ??= new JsonObject();
-            var destination = (JsonObject)result["components"]!;
+            var destination = GetOrCreateObject(result, "components", "host.components");
             foreach (var (category, entries) in components)
             {
                 if (entries is not JsonObject objects) continue;
-                destination[category] ??= new JsonObject();
-                var target = (JsonObject)destination[category]!;
+                var target = GetOrCreateObject(destination, category, "host.components." + category);
                 foreach (var (name, value) in objects)
                 {
-                    if (target.ContainsKey(prefix + name)) throw new InvalidOperationException("OpenAPI component collision.");
+                    if (target.ContainsKey(prefix + name)) throw new InvalidOperationException($"OpenAPI component collision at components/{category}/{prefix + name}. Use unique integration package names or remove the conflicting host component.");
                     target[prefix + name] = value?.DeepClone();
                 }
             }
         }
         return result;
+    }
+
+    private static JsonObject GetOrCreateObject(JsonObject owner, string property, string path)
+    {
+        if (owner[property] is JsonObject existing) return existing;
+        if (owner[property] is not null)
+            throw new InvalidOperationException($"OpenAPI '{path}' must be a JSON object. Correct the document shape before merging delegated operations.");
+        var created = new JsonObject();
+        owner[property] = created;
+        return created;
+    }
+
+    private static string RequireString(JsonNode? node, string path)
+    {
+        if (node is JsonValue value && value.TryGetValue<string>(out var text)) return text;
+        throw new InvalidOperationException($"OpenAPI '{path}' must be a non-null JSON string. Correct the downstream document before merging delegated operations.");
     }
 
     private static string Escape(string value) => value.Replace("~", "~0").Replace("/", "~1");

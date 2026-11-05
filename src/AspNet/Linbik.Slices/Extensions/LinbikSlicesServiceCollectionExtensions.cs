@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Linbik.Slices;
 
@@ -24,6 +25,7 @@ public static class LinbikSlicesServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddScoped<ILinbikSender, LinbikSender>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LinbikSliceStartupValidator>());
 
         // İstek başına bir kez çözülen çağıran kimliği (Linbik-* header'larından). Servis kendi
         // AddHttpContextAccessor()'ını çağırmayı unutsa bile TryAdd sayesinde burada garanti edilir.

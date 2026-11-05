@@ -61,6 +61,24 @@ internal static class LinbikSliceConstants
         helpLinkUri: HelpBase + "linbik004",
         description: "[LFlow] Linbik-Flow header'ına (Gateway) güvenir; [LAuthorizeFlow] gerçek authentication scheme'ini doğrular; [LFlowPublic] hiç kontrol yapmaz. Aynı slice'ta ikisi birden hangi mekanizmanın geçerli olduğunu belirsizleştirir.");
 
+    public static readonly DiagnosticDescriptor UnsupportedMethod = new(
+        "LINBIK005", "Unsupported slice HTTP method",
+        "Slice '{0}' uses Method = '{1}', which cannot be mapped. Use GET, HEAD, DELETE, POST, PUT or PATCH; for example [LinbikSlice(\"/api/orders\", Method = \"POST\")]. No POST fallback is generated.",
+        "Linbik.Slices", DiagnosticSeverity.Error, true, helpLinkUri: HelpBase + "linbik005");
+
+    public static readonly DiagnosticDescriptor IgnoredBodyBinding = new(
+        "LINBIK006", "Property binding attribute is ignored on a JSON body",
+        "Slice '{0}' uses {1}: Request is bound as one JSON body, so [{2}] on '{3}' does not bind that property from another source. Remove the attribute and read route/header/query values through IHttpContextAccessor.HttpContext.Request (for example Request.RouteValues[\"id\"]), keeping the body contract separate.",
+        "Linbik.Slices", DiagnosticSeverity.Warning, true, helpLinkUri: HelpBase + "linbik006");
+
+    public static readonly DiagnosticDescriptor InvalidFlow = new(
+        "LINBIK007", "Unknown slice flow",
+        "Slice '{0}' declares unknown flow value '{1}'. Use LinbikFlow.Self, LinbikFlow.Delegated or LinbikFlow.Application; for example [LAuthorizeFlow(LinbikFlow.Self)]. Use [LFlowPublic] for anonymous access.",
+        "Linbik.Slices", DiagnosticSeverity.Error, true, helpLinkUri: HelpBase + "linbik007");
+
+    public static bool IsSupportedMethod(string? method) =>
+        method is not null && (method.ToUpperInvariant() is "GET" or "HEAD" or "DELETE" or "POST" or "PUT" or "PATCH");
+
     public static ImmutableArray<DiagnosticDescriptor> All =>
-        ImmutableArray.Create(MissingFlow, MissingRequestOrHandler, NoSlicesFound, ConflictingFlowDeclaration);
+        ImmutableArray.Create(MissingFlow, MissingRequestOrHandler, NoSlicesFound, ConflictingFlowDeclaration, UnsupportedMethod, IgnoredBodyBinding, InvalidFlow);
 }

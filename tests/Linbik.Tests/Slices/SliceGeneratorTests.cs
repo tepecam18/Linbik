@@ -83,7 +83,7 @@ public sealed class SliceGeneratorTests
     [Theory]
     [InlineData("GET", "MapGet", true)]
     [InlineData("DELETE", "MapDelete", true)]
-    [InlineData("HEAD", null, true)]
+    [InlineData("HEAD", "MapMethods", true)]
     [InlineData("POST", "MapPost", false)]
     [InlineData("PUT", "MapPut", false)]
     [InlineData("PATCH", "MapPatch", false)]
@@ -95,6 +95,7 @@ public sealed class SliceGeneratorTests
         Assert.NotNull(run.Generated);
         Assert.Contains(bodyless ? "[global::Microsoft.AspNetCore.Http.AsParameters]" : "[global::Microsoft.AspNetCore.Mvc.FromBody]", run.Generated);
         Assert.DoesNotContain(bodyless ? "Mvc.FromBody" : "Http.AsParameters", run.Generated);
+        if (method == "HEAD") Assert.Contains("new[] { \"HEAD\" }", run.Generated);
         if (mapMethod is not null)
             Assert.Contains($"app.{mapMethod}(\"/demo\"", run.Generated);
     }

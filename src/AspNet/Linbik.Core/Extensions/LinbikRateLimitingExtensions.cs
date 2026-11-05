@@ -125,7 +125,7 @@ public static class LinbikRateLimitingExtensions
                 var retryAfterSeconds = 0;
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
                 {
-                    retryAfterSeconds = (int)retry.TotalSeconds;
+                    retryAfterSeconds = (int)Math.Clamp(Math.Ceiling(retry.TotalSeconds), 0d, int.MaxValue);
                     context.HttpContext.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
                 }
 

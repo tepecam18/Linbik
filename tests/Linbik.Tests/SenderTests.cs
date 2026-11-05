@@ -34,6 +34,32 @@ public sealed class SenderTests
         Assert.NotNull(result.Error);
     }
 
+    [Fact]
+    public async Task MissingHandlerNamesTheContractAndRegistrationFix()
+    {
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LinbikSender(services).Send<string>(new DualRequest()));
+        Assert.Contains(nameof(DualRequest), error.Message);
+        Assert.Contains("AddLinbikSlices", error.Message);
+        Assert.Contains("AddScoped", error.Message);
+    }
+
+    [Fact]
+    public async Task HandlerConstructionFailureIsNotMisreportedAsMissingRegistration()
+    {
+        var expected = new InvalidOperationException("handler dependency failed");
+        using var services = new ServiceCollection()
+            .AddSingleton<ILinbikHandler<DualRequest, string>>(_ => throw expected).BuildServiceProvider();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LinbikSender(services).Send<string>(new DualRequest()));
+        Assert.Same(expected, error);
+    }
+
+    [Fact]
+    public void NullProviderFailsAtConstruction()
+        => Assert.Throws<ArgumentNullException>(() => new LinbikSender(null!));
+
     public sealed class DualRequest : ILinbikRequest<string>, ILinbikRequest<int>;
     public sealed class TextHandler : ILinbikHandler<DualRequest, string>
     {

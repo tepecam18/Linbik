@@ -66,23 +66,33 @@ internal static class AppSettingsManager
     {
         var root = await ReadRootAsync(filePath) ?? new JsonObject();
 
-        var linbikSection = root["Linbik"]?.DeepClone() as JsonObject ?? new JsonObject();
+        if (root["Linbik"] is { } section && section is not JsonObject)
+            throw new InvalidOperationException($"'{filePath}': Linbik must be a JSON object, for example \"Linbik\": {{}}. No settings were written.");
+        var linbikSection = root["Linbik"]?.DeepClone().AsObject() ?? new JsonObject();
         linbikSection["LinbikUrl"] = linbikUrl;
         linbikSection["Name"] ??= "Web App";
         linbikSection["ServiceId"] = serviceId;
         linbikSection["ApiKey"] = apiKey;
 
-        var clients = linbikSection["Clients"] as JsonArray ?? new JsonArray();
-        var clientConfig = clients.OfType<JsonObject>()
-            .FirstOrDefault(client => client["ClientId"]?.GetValue<string>() == clientId);
+        if (linbikSection["Clients"] is { } configuredClients && configuredClients is not JsonArray)
+            throw new InvalidOperationException($"'{filePath}': Linbik:Clients must be a JSON array, for example \"Clients\": [{{\"ClientId\":\"web\"}}]. No settings were written.");
+        var clients = linbikSection["Clients"]?.AsArray() ?? new JsonArray();
+        JsonObject? clientConfig = null;
+        foreach (var (node, index) in clients.Select((node, index) => (node, index)))
+        {
+            if (node is not JsonObject client)
+                throw new InvalidOperationException($"'{filePath}': Linbik:Clients:{index} must be a JSON object with a ClientId. No settings were written.");
+            var configuredId = ReadString(client, "ClientId", $"{filePath}: Linbik:Clients:{index}");
+            if (configuredId == clientId && clientConfig is null) clientConfig = client;
+        }
         if (clientConfig is null)
         {
             clientConfig = new JsonObject { ["ClientId"] = clientId };
             clients.Add(clientConfig);
         }
 
-        clientConfig["BaseUrl"] = baseUrl ?? clientConfig["BaseUrl"]?.GetValue<string>() ?? "https://localhost:5001";
-        clientConfig["RedirectUrl"] = redirectUrl ?? clientConfig["RedirectUrl"]?.GetValue<string>() ?? "/api/linbik/callback";
+        clientConfig["BaseUrl"] = baseUrl ?? ReadString(clientConfig, "BaseUrl", $"{filePath}: Linbik:Clients") ?? "https://localhost:5001";
+        clientConfig["RedirectUrl"] = redirectUrl ?? ReadString(clientConfig, "RedirectUrl", $"{filePath}: Linbik:Clients") ?? "/api/linbik/callback";
         clientConfig["ClientType"] ??= "Web";
         if (linbikSection["Clients"] is not JsonArray)
             linbikSection["Clients"] = clients;
@@ -104,6 +114,8 @@ internal static class AppSettingsManager
         if (linbikNode == null)
             return null;
 
+        if (linbikNode is not JsonObject)
+            throw new InvalidOperationException($"'{filePath}': Linbik must be a JSON object. Correct the section before reading its configuration.");
         var options = linbikNode.Deserialize<LinbikOptions>(ReadOptions) ?? new LinbikOptions();
 
         return new LinbikAppSettingsSnapshot
@@ -114,13 +126,22 @@ internal static class AppSettingsManager
         };
     }
 
-    private static async Task<JsonNode?> ReadRootAsync(string filePath)
+    private static string? ReadString(JsonObject owner, string property, string path)
+    {
+        if (owner[property] is null) return null;
+        if (owner[property] is JsonValue value && value.TryGetValue<string>(out var text)) return text;
+        throw new InvalidOperationException($"'{path}:{property}' must be a JSON string. No settings were written.");
+    }
+
+    private static async Task<JsonObject?> ReadRootAsync(string filePath)
     {
         if (!File.Exists(filePath))
             return null;
 
         var json = await File.ReadAllTextAsync(filePath);
-        return JsonNode.Parse(json, documentOptions: DocumentOptions);
+        if (JsonNode.Parse(json, documentOptions: DocumentOptions) is not JsonObject root)
+            throw new InvalidOperationException($"'{filePath}' must contain a JSON object at the root, for example {{\"Linbik\": {{}}}}. No settings were written.");
+        return root;
     }
 }
 

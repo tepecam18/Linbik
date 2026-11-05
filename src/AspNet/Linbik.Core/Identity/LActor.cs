@@ -56,6 +56,7 @@ public abstract record LActor
     /// </summary>
     public static LActor FromGatewayContext(LGatewayAuthContext ctx)
     {
+        ArgumentNullException.ThrowIfNull(ctx);
         string? DisplayNameClaim() => FirstClaim(ctx, "name", "username", "preferred_username", "preferred-username", "displayname", "display-name");
 
         return ctx.Flow?.Trim() switch
@@ -96,15 +97,19 @@ public static class LActorExtensions
     private static string? ValidId(string? id, string missing) => string.IsNullOrWhiteSpace(id) || id == missing ? null : id;
     /// <summary>Yazan/işlem yapan tarafın tekil kimliği + bunun bir uygulama olup olmadığı.
     /// <see cref="LActor.Anonymous"/> için çağrılamaz (önce ayrıca ele alınmalı).</summary>
-    public static (string Id, bool IsApp) Identity(this LActor actor) => actor switch
+    public static (string Id, bool IsApp) Identity(this LActor actor)
     {
-        LActor.AsUser u => (u.UserId, false),
-        LActor.AsDelegated d => (d.UserId, false),
-        LActor.AsApplication a => (a.AppId, true),
-        LActor.Anonymous => throw new InvalidOperationException(
-            "Anonymous actor'ın kimliği yok; çağırmadan önce 'actor is LActor.Anonymous' kontrolü yapın."),
-        _ => throw new NotSupportedException(actor.GetType().Name),
-    };
+        ArgumentNullException.ThrowIfNull(actor);
+        return actor switch
+        {
+            LActor.AsUser u => (u.UserId, false),
+            LActor.AsDelegated d => (d.UserId, false),
+            LActor.AsApplication a => (a.AppId, true),
+            LActor.Anonymous => throw new InvalidOperationException(
+                "Anonymous actor'ın kimliği yok; çağırmadan önce 'actor is LActor.Anonymous' kontrolü yapın."),
+            _ => throw new NotSupportedException($"Unsupported LActor type '{actor.GetType().FullName}'. Use AsUser, AsDelegated or AsApplication, and handle Anonymous before calling Identity()."),
+        };
+    }
 
     /// <summary>Aktörle ilişkili uygulama kimliği (Delegated/Application); diğerlerinde <c>null</c>.</summary>
     public static string? AppIdOrNull(this LActor actor) => actor switch

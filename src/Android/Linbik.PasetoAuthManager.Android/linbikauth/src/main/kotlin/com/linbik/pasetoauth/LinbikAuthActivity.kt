@@ -280,9 +280,9 @@ internal class LinbikAuthActivity : ComponentActivity() {
         is java.net.SocketTimeoutException ->
             "Sunucu yanıt vermiyor (Zaman aşımı)."
         is IllegalStateException ->
-            e.message ?: "Beklenmeyen bir sunucu hatası oluştu."
+            e.message?.takeIf { it.isNotBlank() } ?: "Beklenmeyen bir sunucu hatası oluştu."
         else ->
-            e.message ?: "Bir ağ hatası oluştu."
+            e.message?.takeIf { it.isNotBlank() } ?: "Bir ağ hatası oluştu."
     }
 
     private fun finishSuccess(userId: String, username: String, displayName: String, integrations: List<String>) {

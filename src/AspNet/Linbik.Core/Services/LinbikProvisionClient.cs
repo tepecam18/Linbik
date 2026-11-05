@@ -202,8 +202,8 @@ public sealed class LinbikProvisionClient(
             return;
 
         var serviceId = cached?.ServiceId ?? opts.ServiceId;
-        if (!Guid.TryParse(serviceId, out var id))
-            throw new InvalidOperationException("A valid ServiceId is required to recover validation keys.");
+        if (!Guid.TryParse(serviceId, out var id) || id == Guid.Empty)
+            throw new InvalidOperationException("Linbik:ServiceId (or the cached provisioning ServiceId) must be a non-empty UUID from your Linbik service registration before validation keys can be recovered. ServiceId is not a ClientId or IntegrationApp.Id.");
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/dev/{id}/validation-key");
         request.Headers.Add("apiKey", cached?.ApiKey ?? opts.ApiKey);
         using var response = await httpClientFactory.CreateClient("LinbikAuthClient").SendAsync(request, cancellationToken);
@@ -211,7 +211,7 @@ public sealed class LinbikProvisionClient(
         var result = await response.Content.ReadFromJsonAsync<ProvisionApiResponse>(_jsonOptions, cancellationToken);
         var data = result?.Data;
         if (string.IsNullOrWhiteSpace(data?.PublicKey) || string.IsNullOrWhiteSpace(data.PackageName))
-            throw new InvalidOperationException("Linbik did not return validation material.");
+            throw new InvalidOperationException("The validation-key response did not contain both PublicKey and PackageName. Verify the ServiceId and API key for this service, or configure Linbik:PublicKey and Linbik:PackageName from its registration. Do not include API keys in error reports.");
         if (cached != null)
         {
             cached.PublicKey = data.PublicKey;

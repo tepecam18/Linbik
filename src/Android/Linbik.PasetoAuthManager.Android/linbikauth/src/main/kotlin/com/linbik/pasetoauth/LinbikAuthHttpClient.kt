@@ -36,7 +36,7 @@ internal class LinbikAuthHttpClient(
 
             if (!response.isSuccessful) {
                 val errorMsg = try {
-                    JSONObject(bodyText).optJSONObject("friendlyMessage")?.optString("message")
+                    JSONObject(bodyText).optJSONObject("friendlyMessage")?.optString("message")?.takeIf { it.isNotBlank() }
                 } catch (e: Exception) {
                     null
                 } ?: "Sunucu hatası (${response.code})."
@@ -59,7 +59,7 @@ internal class LinbikAuthHttpClient(
             try {
                 JSONObject(bodyText)
             } catch (e: Exception) {
-                throw IllegalStateException("Sunucu geçersiz bir yanıt döndü (JSON bekleniyordu).")
+                throw IllegalStateException("Sunucu geçersiz bir yanıt döndü (JSON bekleniyordu).", e)
             }
         }
     }

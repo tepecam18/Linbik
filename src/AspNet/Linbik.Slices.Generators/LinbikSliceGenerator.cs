@@ -52,8 +52,8 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
         string? description = null;
         foreach (var named in sliceAttr.NamedArguments)
         {
-            if (named.Key == "Method" && named.Value.Value is string m && !string.IsNullOrWhiteSpace(m))
-                method = m;
+            if (named.Key == "Method")
+                method = named.Value.Value as string ?? string.Empty;
             else if (named.Key == "Tag" && named.Value.Value is string t && !string.IsNullOrWhiteSpace(t))
                 tag = t;
             else if (named.Key == "Summary" && named.Value.Value is string s && !string.IsNullOrWhiteSpace(s))
@@ -68,6 +68,16 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
         var hasPublic = attributes.Any(a => FullName(a.AttributeClass) == LinbikSliceConstants.FlowPublicAttribute);
         var flowAttr = attributes.FirstOrDefault(a => FullName(a.AttributeClass) == LinbikSliceConstants.FlowAttribute);
         var authorizeFlowAttr = attributes.FirstOrDefault(a => FullName(a.AttributeClass) == LinbikSliceConstants.AuthorizeFlowAttribute);
+
+        string? invalidFlowValue = null;
+        foreach (var declaration in attributes.Where(a => FullName(a.AttributeClass) == LinbikSliceConstants.FlowAttribute ||
+                     FullName(a.AttributeClass) == LinbikSliceConstants.AuthorizeFlowAttribute))
+        foreach (var argument in declaration.ConstructorArguments)
+        {
+            if (argument.Kind != TypedConstantKind.Array || argument.IsNull) continue;
+            foreach (var value in argument.Values)
+                if (EnumConstantName(value) is null) invalidFlowValue = value.Value?.ToString() ?? "null";
+        }
 
         string flowArgs;
         var isAuthorizeFlow = authorizeFlowAttr is not null;
@@ -128,6 +138,7 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
             HandlerFqn: handlerFqn,
             ValidatorFqn: validatorFqn,
             Valid: valid,
+            InvalidFlowValue: invalidFlowValue,
             Location: location);
     }
 
@@ -159,7 +170,7 @@ public sealed class LinbikSliceGenerator : IIncrementalGenerator
     }
 
     private static string[] ExtractFlowNames(AttributeData attr) =>
-        attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Kind == TypedConstantKind.Array
+        attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Kind == TypedConstantKind.Array && !attr.ConstructorArguments[0].IsNull
             ? attr.ConstructorArguments[0].Values
                 .Select(EnumConstantName)
                 .Where(s => !string.IsNullOrWhiteSpace(s))

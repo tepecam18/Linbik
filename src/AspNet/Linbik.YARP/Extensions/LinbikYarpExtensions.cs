@@ -40,7 +40,7 @@ public static class LinbikYarpExtensions
                 var options = sp.GetRequiredService<IOptions<YARPOptions>>().Value;
                 if (!options.IntegrationServices.TryGetValue(packageName, out var config))
                     throw new InvalidOperationException(
-                        $"Integration service '{packageName}' is not configured in YARPOptions.IntegrationServices.");
+                        $"Integration service '{packageName}' is not configured. Add Linbik:YARP:IntegrationServices:{packageName} with TargetBaseUrl and SourcePath before registering or resolving this application client.");
                 client.BaseAddress = new Uri(config.TargetBaseUrl.TrimEnd('/') + "/");
                 client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
             })
@@ -647,7 +647,7 @@ public static class LinbikYarpExtensions
             // Verify ITokenProvider is registered
             _ = services.GetService<ITokenProvider>()
                 ?? throw new InvalidOperationException(
-                    "ITokenProvider is not registered. Call services.AddLinbikYarp() or builder.AddLinbikYarp() in Program.cs.");
+                    "ITokenProvider is not registered. Register the YARP module before builder.Build(), for example builder.Services.AddLinbik(...).AddLinbikYarp(...). AddLinbikYarp extends ILinbikBuilder, not IServiceCollection.");
         }
     }
 }

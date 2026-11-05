@@ -21,6 +21,12 @@ public sealed class PasetoKeyRing : IPasetoKeyRing
     {
         ArgumentNullException.ThrowIfNull(options);
         _opts = options.Value;
+        if (_opts.Keys is null || _opts.Keys.Any(k => k is null || string.IsNullOrWhiteSpace(k.KeyId)))
+            throw new InvalidOperationException("Linbik:PasetoKeyRing:Keys must be an array of key objects with non-empty KeyId values. Do not include private key material in error reports.");
+        if (_opts.Keys.Select(k => k.KeyId).Distinct(StringComparer.Ordinal).Count() != _opts.Keys.Count)
+            throw new InvalidOperationException("Linbik:PasetoKeyRing:Keys contains duplicate KeyId values. Give every key a unique KeyId and set ActiveKeyId to the signing key's ID.");
+        if (_opts.OverlapWindow < TimeSpan.Zero || _opts.OverlapWindow > DateTime.MaxValue - DateTime.UtcNow)
+            throw new InvalidOperationException("Linbik:PasetoKeyRing:OverlapWindow must be non-negative and fit within the supported DateTime range. Example: 24:00:00.");
         _keys = _opts.Keys.ToDictionary(k => k.KeyId, StringComparer.Ordinal);
         _activeKeyId = _opts.ActiveKeyId;
     }
@@ -37,7 +43,7 @@ public sealed class PasetoKeyRing : IPasetoKeyRing
 
                 throw new InvalidOperationException(
                     $"Active PASETO key '{_activeKeyId}' not found in key ring. " +
-                    "Configure 'Linbik:PasetoKeyRing:Keys' in appsettings.json.");
+                    "Set 'Linbik:PasetoKeyRing:ActiveKeyId' to an existing KeyId in 'Linbik:PasetoKeyRing:Keys', or rotate a key before signing.");
             }
         }
     }
@@ -61,6 +67,7 @@ public sealed class PasetoKeyRing : IPasetoKeyRing
     /// <inheritdoc/>
     public Task RotateAsync(PasetoKey newKey, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(newKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(newKey.KeyId);
 

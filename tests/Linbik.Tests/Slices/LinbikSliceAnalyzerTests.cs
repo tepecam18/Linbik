@@ -134,10 +134,10 @@ public sealed class LinbikSliceAnalyzerTests
     }
 
     [Fact]
-    public void AnalyzerSupportsOnlyTheFlowDiagnostics()
+    public void AnalyzerSupportsFlowAndBindingDiagnostics()
     {
         var supported = new LinbikSliceAnalyzer().SupportedDiagnostics.Select(d => d.Id);
 
-        Assert.Equal(["LINBIK001", "LINBIK004"], supported.OrderBy(id => id, StringComparer.Ordinal));
+        Assert.Equal(["LINBIK001", "LINBIK004", "LINBIK005", "LINBIK006", "LINBIK007"], supported.OrderBy(id => id, StringComparer.Ordinal));
     }
 }

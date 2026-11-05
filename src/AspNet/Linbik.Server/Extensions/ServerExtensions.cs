@@ -134,7 +134,7 @@ public static class ServerExtensions
             // Verify IntegrationTokenValidator is registered
             _ = services.GetService<IntegrationTokenValidator>()
                 ?? throw new InvalidOperationException(
-                    "IntegrationTokenValidator is not registered. Call services.AddLinbikServer() or builder.AddLinbikServer() in Program.cs.");
+                    "IntegrationTokenValidator is not registered. Register the Server module before builder.Build(), for example builder.Services.AddLinbik(...).AddLinbikServer(...). AddLinbikServer extends ILinbikBuilder, not IServiceCollection.");
         }
     }
 }

@@ -50,6 +50,26 @@ public sealed class AppSettingsTests : IDisposable
         Assert.Equal("service", (await AppSettingsManager.ReadConfigAsync(path))!.Options.ServiceId);
     }
 
+    [Theory]
+    [InlineData("[]", "root")]
+    [InlineData("null", "root")]
+    [InlineData("{\"Linbik\":42}", "Linbik")]
+    [InlineData("{\"Linbik\":{\"Clients\":{}}}", "Clients")]
+    [InlineData("{\"Linbik\":{\"Clients\":[null]}}", "Clients:0")]
+    [InlineData("{\"Linbik\":{\"Clients\":[{\"ClientId\":42}]}}", "ClientId")]
+    [InlineData("{\"Linbik\":{\"Clients\":[{\"ClientId\":\"client\",\"BaseUrl\":42}]}}", "BaseUrl")]
+    public async Task InvalidConfigShapeIsExplainedWithoutOverwritingTheFile(string json, string expectedField)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "appsettings.json");
+        await File.WriteAllTextAsync(path, json);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            AppSettingsManager.WriteConfigAsync(path, "https://example.com", "service", "client", "test-secret"));
+        Assert.Contains(expectedField, error.Message);
+        Assert.DoesNotContain("test-secret", error.Message);
+        Assert.Equal(json, await File.ReadAllTextAsync(path));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);

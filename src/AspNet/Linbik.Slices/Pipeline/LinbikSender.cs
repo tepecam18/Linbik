@@ -12,6 +12,7 @@ namespace Linbik.Slices.Pipeline;
 /// </summary>
 public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSender
 {
+    private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
     /// <inheritdoc />
     public ValueTask<Result<TResponse>> Send<TResponse>(
@@ -27,7 +28,7 @@ public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSend
                 return (RequestWrapper<TResponse>)Activator.CreateInstance(wrapperType)!;
             });
 
-        return wrapper.Handle(request, serviceProvider, cancellationToken);
+        return wrapper.Handle(request, _serviceProvider, cancellationToken);
     }
 
     private abstract class RequestWrapper<TResponse>
@@ -58,7 +59,8 @@ public sealed class LinbikSender(IServiceProvider serviceProvider) : ILinbikSend
                 }
             }
 
-            var handler = serviceProvider.GetRequiredService<ILinbikHandler<TRequest, TResponse>>();
+            var handler = serviceProvider.GetService<ILinbikHandler<TRequest, TResponse>>()
+                ?? throw new InvalidOperationException($"No ILinbikHandler<{typeof(TRequest).FullName}, {typeof(TResponse).FullName}> is registered for this request. Call builder.Services.AddLinbikSlices() before builder.Build(), or register the exact request/response handler with services.AddScoped<ILinbikHandler<TRequest, TResponse>, YourHandler>().");
             return await handler.HandleAsync(typedRequest, cancellationToken);
         }
     }

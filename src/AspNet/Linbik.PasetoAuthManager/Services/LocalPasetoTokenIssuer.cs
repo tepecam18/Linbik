@@ -35,8 +35,15 @@ internal static class LocalPasetoTokenIssuer
             new(ClaimName, tokenResponse.DisplayName ?? tokenResponse.Username),
         ];
 
-        // Compute expiration minutes from expiry timestamp (clamped to a sane minimum)
-        var expirationMinutes = Math.Max(1, (int)Math.Ceiling((accessTokenExpiry - DateTime.UtcNow).TotalMinutes));
+        // Reject an expired or unrepresentable lifetime before narrowing to int.
+        // Otherwise a large double-to-int cast can turn into a one-minute token.
+        var lifetimeMinutes = (accessTokenExpiry - DateTime.UtcNow).TotalMinutes;
+        if (lifetimeMinutes <= 0 || lifetimeMinutes > int.MaxValue)
+        {
+            logger.LogError("Cannot issue PASETO access token: accessTokenExpiry must be in the future and its lifetime must fit the helper's integer-minute range.");
+            return null;
+        }
+        var expirationMinutes = Math.Max(1, (int)Math.Ceiling(lifetimeMinutes));
 
         try
         {

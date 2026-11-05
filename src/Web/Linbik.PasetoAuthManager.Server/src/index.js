@@ -17,11 +17,17 @@ const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test
 const uuid = value => typeof value === 'string' && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value) && !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value);
 const same = (a, b) => validId(a) && validId(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-function safeUrl(value, allowHttp) {
-  const url = new URL(value);
+function safeUrl(value, allowHttp, optionName) {
+  let url;
+  try {
+    if (typeof value !== 'string') throw new TypeError();
+    url = new URL(value);
+  } catch {
+    throw new TypeError(`${optionName} must be an absolute HTTPS URL, for example https://app.example.com. Do not include credentials.`);
+  }
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !(allowHttp && local && url.protocol === 'http:'))) {
-    throw new TypeError('Use HTTPS URLs without credentials/query/fragment; development HTTP must be explicitly enabled on loopback.');
+    throw new TypeError(`${optionName} must use HTTPS without credentials/query/fragment; set allowInsecureHttp: true only for loopback development HTTP.`);
   }
   return url;
 }
@@ -36,11 +42,14 @@ function safeReturnPath(path) {
 /** Configure once on the server. Request state lives only in createRequest(). */
 export function createLinbikAuth(options) {
   options = { ...options };
-  const api = safeUrl(options.apiBaseUrl ?? 'https://api.linbik.com', options.allowInsecureHttp);
-  const origin = safeUrl(options.publicOrigin, options.allowInsecureHttp);
+  if (options.allowInsecureHttp != null && typeof options.allowInsecureHttp !== 'boolean') throw new TypeError('allowInsecureHttp must be a boolean. Use true only for loopback development HTTP; the string "false" is not a boolean.');
+  const api = safeUrl(options.apiBaseUrl ?? 'https://api.linbik.com', options.allowInsecureHttp, 'apiBaseUrl');
+  const origin = safeUrl(options.publicOrigin, options.allowInsecureHttp, 'publicOrigin');
   if (origin.pathname !== '/') throw new TypeError('publicOrigin must be an origin without a path.');
-  if (!options.apiKey || /[\r\n]/.test(options.apiKey) || !uuid(options.serviceId) || !uuid(options.clientId)) throw new TypeError('apiKey, serviceId and clientId are required.');
-  if (!/^k4\.local\.[A-Za-z0-9_-]{43}$/.test(options.sessionKey ?? '')) throw new TypeError('sessionKey must be a generated k4.local PASERK key.');
+  if (typeof options.apiKey !== 'string' || !options.apiKey.trim() || /[\r\n]/.test(options.apiKey)) throw new TypeError('apiKey must be a non-empty string without CR/LF. Keep it in server-side configuration.');
+  if (!uuid(options.serviceId)) throw new TypeError('serviceId must be the non-empty Linbik service UUID, not a package name or integration ID.');
+  if (!uuid(options.clientId)) throw new TypeError('clientId must be the non-empty Linbik client UUID configured for this application.');
+  if (typeof options.sessionKey !== 'string' || !/^k4\.local\.[A-Za-z0-9_-]{43}$/.test(options.sessionKey)) throw new TypeError('sessionKey must be a generated k4.local PASERK key.');
   const store = options.store;
   for (const method of ['get', 'set', 'delete', 'withLock']) if (typeof store?.[method] !== 'function') throw new TypeError(`Session store requires ${method}.`);
   const secure = origin.protocol === 'https:';
@@ -50,9 +59,11 @@ export function createLinbikAuth(options) {
   const audience = origin.origin;
   const accessTtl = options.accessTtlSeconds ?? 900;
   const refreshTtl = options.refreshTtlSeconds ?? 1209600;
-  if (!Number.isInteger(accessTtl) || accessTtl < 1 || !Number.isInteger(refreshTtl) || refreshTtl < accessTtl) throw new TypeError('Invalid session lifetimes.');
-  const allowedOrigins = new Set([api.origin, ...(options.authorizationOrigins ?? []).map(value => safeUrl(value, options.allowInsecureHttp).origin)]);
+  if (!Number.isSafeInteger(accessTtl) || accessTtl < 1 || !Number.isSafeInteger(refreshTtl) || refreshTtl < accessTtl || Date.now() + refreshTtl * 1000 > 8640000000000000) throw new TypeError('accessTtlSeconds and refreshTtlSeconds must be positive safe integers; refreshTtlSeconds must be >= accessTtlSeconds and both expiries must fit a JavaScript Date. Example: accessTtlSeconds: 900, refreshTtlSeconds: 1209600.');
+  if (options.authorizationOrigins != null && !Array.isArray(options.authorizationOrigins)) throw new TypeError('authorizationOrigins must be an array of HTTPS origin strings, for example ["https://identity.example.com"].');
+  const allowedOrigins = new Set([api.origin, ...(options.authorizationOrigins ?? []).map(value => safeUrl(value, options.allowInsecureHttp, 'authorizationOrigins entry').origin)]);
   const transport = options.fetch ?? globalThis.fetch;
+  if (typeof transport !== 'function') throw new TypeError('fetch must be a function. Supply options.fetch or use a runtime with globalThis.fetch.');
 
   async function post(path, body, extraHeaders = {}) {
     let response;
@@ -93,8 +104,9 @@ export function createLinbikAuth(options) {
     if (values.get('origin') !== origin.origin || values.get('x-linbik-request') !== '1') throw new LinbikServerError('Invalid request origin.', 403);
   }
 
-  function createRequest({ cookieHeader = '', onSetCookie }) {
-    if (typeof onSetCookie !== 'function') throw new TypeError('onSetCookie is required.');
+  function createRequest({ cookieHeader = '', onSetCookie } = {}) {
+    if (typeof onSetCookie !== 'function') throw new TypeError('onSetCookie must be a function that forwards cookies to the current response.');
+    if (typeof cookieHeader !== 'string') throw new TypeError('cookieHeader must be the incoming Cookie header string, or an empty string.');
     const cookies = new Map(cookieHeader.split(';').map(value => { const i = value.indexOf('='); return [value.slice(0, i).trim(), value.slice(i + 1).trim()]; }));
     function writeCookie(name, value, expiry = 0) {
       if (value) cookies.set(name, value); else cookies.delete(name);
