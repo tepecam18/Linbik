@@ -99,9 +99,13 @@ public class LocalRefreshEndpointTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CallbackRefreshAndLogoutUseLocalStore(bool paseto)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(false, "")]
+    [InlineData(true, "")]
+    [InlineData(false, ".example.com")]
+    [InlineData(true, ".example.com")]
+    public async Task CallbackRefreshAndLogoutUseLocalStore(bool paseto, string? cookieDomain)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -111,6 +115,7 @@ public class LocalRefreshEndpointTests
             o.EnableHeartbeat = false;
             o.ServiceId = Guid.NewGuid().ToString();
             o.ApiKey = "test-only-unused-key";
+            o.CookieDomain = cookieDomain;
         });
         if (paseto) linbik.AddLinbikPasetoAuth(o => o.PkceEnabled = false);
         else linbik.AddLinbikJwtAuth(o => o.PkceEnabled = false);
@@ -123,21 +128,33 @@ public class LocalRefreshEndpointTests
         else app.UseLinbikJwtAuth();
         await app.StartAsync();
         using var client = app.GetTestClient();
+        client.BaseAddress = new Uri("https://auth.example.com:8443");
+        var expectedDomain = string.IsNullOrEmpty(cookieDomain) ? "auth.example.com" : cookieDomain;
         using var login = await client.GetAsync("/api/Linbik/callback?code=test-code");
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        Assert.All(login.Headers.GetValues("Set-Cookie"), c => Assert.Contains($"domain={expectedDomain}", c));
         var cookie = RefreshCookie(login);
         Assert.Contains("linbik-local-", cookie);
         using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Linbik/refresh");
         refreshRequest.Headers.Add("Cookie", cookie);
         using var refresh = await client.SendAsync(refreshRequest);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+        Assert.All(refresh.Headers.GetValues("Set-Cookie"), c => Assert.Contains($"domain={expectedDomain}", c));
         var rotated = RefreshCookie(refresh);
         Assert.NotEqual(cookie, rotated);
         Assert.Contains(refresh.Headers.GetValues("Set-Cookie"), c => c.StartsWith(LinbikDefaults.AuthTokenCookie + "="));
         using var logoutRequest = new HttpRequestMessage(HttpMethod.Get, "/api/Linbik/logout");
-        logoutRequest.Headers.Add("Cookie", rotated);
+        logoutRequest.Headers.Add("Cookie", rotated + "; integration_test-service=integration-token");
         using var logout = await client.SendAsync(logoutRequest);
         Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+        var deletedCookies = logout.Headers.GetValues("Set-Cookie").ToArray();
+        Assert.All(deletedCookies, c =>
+        {
+            Assert.Contains($"domain={expectedDomain}", c);
+            Assert.Contains("expires=Thu, 01 Jan 1970", c);
+        });
+        foreach (var name in new[] { LinbikDefaults.AuthTokenCookie, LinbikDefaults.RefreshTokenCookie, LinbikDefaults.UsernameCookie, "integration_test-service" })
+            Assert.Contains(deletedCookies, c => c.StartsWith(name + "=;"));
         using var rejectedRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Linbik/refresh");
         rejectedRequest.Headers.Add("Cookie", rotated);
         using var rejected = await client.SendAsync(rejectedRequest);

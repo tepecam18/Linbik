@@ -19,6 +19,14 @@ public static class LinbikOpenApiExtensions
     {
         ArgumentNullException.ThrowIfNull(options);
         options.AddOperationTransformer<LFlowOpenApiOperationTransformer>();
+        options.AddOperationTransformer<LinbikRouteOpenApiOperationTransformer>();
+        options.AddSchemaTransformer((schema, context, _) =>
+        {
+            var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+            if (type == typeof(decimal))
+                schema.Format = "decimal";
+            return Task.CompletedTask;
+        });
 
         var schemaId = options.CreateSchemaReferenceId;
         options.CreateSchemaReferenceId = typeInfo =>

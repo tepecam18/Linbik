@@ -249,6 +249,10 @@ Marks a class as a vertical slice. The source generator scans all types with thi
 | `Description` | — | OpenAPI operation description |
 
 > **Note:** `GET`, `DELETE`, and `HEAD` endpoints bind request properties from the **query string** (`[AsParameters]`). `POST`, `PUT`, and `PATCH` endpoints bind from the **JSON body** (`[FromBody]`).
+>
+> For `POST`, `PUT`, and `PATCH`, route placeholders are also emitted as separate named `[FromRoute]` delegate parameters, so ApiExplorer/OpenAPI can discover path parameters even when the handler reads them through `HttpContext`. They do not become body properties or get copied into `Request`. These delegate parameters use nullable strings to preserve existing route constraint, optional, default, and catch-all behavior; handlers remain responsible for interpreting route values. With `AddLinbikFlowExtension()` / `AddLinbikFlowDocuments()`, built-in `guid`, numeric, boolean, and datetime constraints also determine the OpenAPI path schema type/format. Unconstrained names such as `id` stay strings; application-specific UUID conventions belong in application transformers, which should enrich existing parameters as well as add missing ones.
+>
+> `AddLinbikFlowExtension()` (also registered by `AddLinbikFlowDocuments()`) preserves `decimal` and `decimal?` schemas with `format: decimal`. Other numeric formats and JSON serialization settings remain unchanged. Consumers with application-level route or decimal OpenAPI workarounds should reassess those transformers after upgrading.
 
 ### `[LFlowPublic]`
 

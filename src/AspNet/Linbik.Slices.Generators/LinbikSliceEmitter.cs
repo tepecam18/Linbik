@@ -88,8 +88,10 @@ internal static class LinbikSliceEmitter
             var bindingAttr = isBodylessVerb
                 ? "[global::Microsoft.AspNetCore.Http.AsParameters]"
                 : "[global::Microsoft.AspNetCore.Mvc.FromBody]";
-            sb.AppendLine($"                    static ({bindingAttr} {m.RequestFqn} request, global::Linbik.Slices.ILinbikSender sender, global::System.Threading.CancellationToken ct)");
+            var routeParameters = isBodylessVerb ? string.Empty : BodyRouteParameters(m.Pattern);
+            sb.AppendLine($"                    static ({routeParameters}{bindingAttr} {m.RequestFqn} request, global::Linbik.Slices.ILinbikSender sender, global::System.Threading.CancellationToken ct)");
             sb.AppendLine($"                        => global::Linbik.Slices.Endpoints.LinbikEndpoint.Handle<{m.RequestFqn}, {m.ResponseFqn}>(request, sender, ct));");
+            sb.AppendLine($"                __e.WithMetadata(new global::Linbik.Core.Attributes.LinbikRoutePatternMetadata(\"{Escape(m.Pattern)}\"));");
             if (m.IsAuthorizeFlow)
             {
                 // [LAuthorizeFlow]: Linbik-Flow header'ına güvenmek yerine gerçek
@@ -124,6 +126,38 @@ internal static class LinbikSliceEmitter
         sb.AppendLine("}");
 
         spc.AddSource("LinbikSlicesRegistry.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    // Route values are deliberately separate from the JSON contract. Handlers still
+    // read them from HttpContext; the delegate exposes them to ApiExplorer.
+    private static string BodyRouteParameters(string pattern)
+    {
+        var parameters = new StringBuilder();
+        var index = 0;
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            if (pattern[i] != '{') continue;
+            if (i + 1 < pattern.Length && pattern[i + 1] == '{') { i++; continue; }
+            var start = ++i;
+            while (i < pattern.Length && pattern[i] == '*') i++;
+            start = i;
+            while (i < pattern.Length && pattern[i] != ':' && pattern[i] != '?' && pattern[i] != '=' && pattern[i] != '}') i++;
+            var name = pattern.Substring(start, i - start);
+            // Skip constraints/defaults, including escaped braces in regex constraints.
+            while (i < pattern.Length)
+            {
+                if (i + 1 < pattern.Length && pattern[i] == pattern[i + 1] && (pattern[i] == '{' || pattern[i] == '}')) { i += 2; continue; }
+                if (pattern[i] == '}') break;
+                i++;
+            }
+            if (name.Length == 0) continue;
+            // Nullable strings preserve optional/default/catch-all route behavior and
+            // avoid introducing additional parsing or validation into existing handlers.
+            parameters.Append("[global::Microsoft.AspNetCore.Mvc.FromRoute(Name = \"")
+                .Append(Escape(name)).Append("\")] string? __linbikRoute")
+                .Append(index++).Append(", ");
+        }
+        return parameters.ToString();
     }
 
     private static string MapMethodFor(string method) => method switch

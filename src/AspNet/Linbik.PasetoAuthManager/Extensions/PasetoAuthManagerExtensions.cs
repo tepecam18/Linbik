@@ -277,7 +277,7 @@ public static class PasetoAuthManagerExtensions
             [FromServices] IAuditLogger auditLogger) =>
         {
             await context.RequestServices.GetRequiredService<LinbikRefreshTokenManager>().RevokeAsync(context.Request.Cookies[LinbikRefreshTokenCookie], context.RequestAborted);
-            var deleteCookieOptions = new CookieOptions { Path = "/", Domain = linbikOptions.CookieDomain, SameSite = linbikOptions.SameSite };
+            var deleteCookieOptions = new CookieOptions { Path = "/", Domain = !string.IsNullOrEmpty(linbikOptions.CookieDomain) ? linbikOptions.CookieDomain : context.Request.Host.Host, SameSite = linbikOptions.SameSite };
 
             // Get user ID from PASETO cookie (no signature validation — best-effort for audit).
             // Uses the mode-aware local reader; never mixes with Linbik API application tokens.
