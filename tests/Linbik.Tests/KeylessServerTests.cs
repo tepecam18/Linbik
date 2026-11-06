@@ -39,6 +39,8 @@ public sealed class KeylessServerTests
         builder.Services.AddSingleton<ILinbikCredentialStore>(store);
         builder.Services.AddSingleton<LinbikProvisionClient>();
         builder.Services.AddSingleton<IPasetoHelper>(helper);
+        var events = new RecordingSink();
+        builder.Services.AddSingleton<ILinbikSecurityEventSink>(events);
         builder.Services.AddHttpClient("LinbikAuthClient", c => c.BaseAddress = new Uri("https://linbik.test/"))
             .ConfigurePrimaryHttpMessageHandler(() => transport);
         new LinbikBuilder(builder.Services).AddLinbikServer();
@@ -71,8 +73,17 @@ public sealed class KeylessServerTests
                 new Claim("token_type", application ? "apps" : "user")], privateKey, audience);
             using var request = new HttpRequestMessage(HttpMethod.Get, "/callback");
             request.Headers.Authorization = new("Bearer", token);
+            events.Events.Clear();
             using var response = await client.SendAsync(request);
             Assert.Equal(expected, response.StatusCode);
+            if (expected == HttpStatusCode.Unauthorized)
+            {
+                var failure = Assert.Single(events.Events);
+                Assert.DoesNotContain(token, failure.Message);
+                Assert.DoesNotContain("Missing or unreadable", failure.Message);
+                if (audience == "service-y") Assert.Contains("audience mismatch", failure.Message);
+            }
+            else Assert.Empty(events.Events);
         }
         Assert.Single(transport.Paths);
         // A subsequent process reuses the completed cache instead of creating another service.
@@ -83,6 +94,59 @@ public sealed class KeylessServerTests
         Assert.Single(transport.Paths);
         Assert.Equal(serviceId, restartedOptions.ServiceId);
         Assert.Equal(publicKey, restartedOptions.PublicKey);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExplicitPackageNameSurvivesProvisioningAndCacheRecovery(bool cached, bool recovery)
+    {
+        var serviceId = Guid.NewGuid().ToString();
+        var store = new MemoryStore { Credentials = cached ? new LinbikCredentials
+        {
+            ServiceId = serviceId, ApiKey = "own-api-key", ClientId = Guid.NewGuid().ToString(),
+            PackageName = recovery ? "" : "service-x", PublicKey = recovery ? "" : "cached-key"
+        } : null };
+        var transport = new ProvisionTransport(serviceId, "recovered-key", recovery);
+        var services = new ServiceCollection();
+        services.AddHttpClient("LinbikAuthClient", c => c.BaseAddress = new Uri("https://linbik.test/"))
+            .ConfigurePrimaryHttpMessageHandler(() => transport);
+        using var provider = services.BuildServiceProvider();
+        var options = new LinbikOptions { KeylessMode = true, PackageName = "explicit-package" };
+        var provision = new LinbikProvisionClient(provider.GetRequiredService<IHttpClientFactory>(), store,
+            Options.Create(options), NullLogger<LinbikProvisionClient>.Instance);
+        await provision.EnsureProvisionedAsync("https://app.test", "/callback", "Default");
+        Assert.Equal("explicit-package", options.PackageName);
+        Assert.Equal("service-x", store.Credentials!.PackageName);
+        Assert.Equal(cached && !recovery ? 0 : 1, transport.Paths.Count);
+    }
+
+    [Theory]
+    [InlineData(PasetoMode.Public)]
+    [InlineData(PasetoMode.Local)]
+    public async Task ValidationDiagnosticsDistinguishFailures(PasetoMode mode)
+    {
+        var helper = new PasetoHelperService();
+        var (privateKey, publicKey) = helper.GenerateKeyPair();
+        var key = mode == PasetoMode.Local ? helper.GenerateSymmetricKey() : publicKey;
+        async Task<string> Token(int minutes = 60) => mode == PasetoMode.Local
+            ? await helper.CreateLocalTokenAsync([], key, "service-x", minutes)
+            : await helper.CreateTokenAsync([], privateKey, "service-x", minutes);
+        var token = await Token();
+        Assert.Null(await helper.GetValidationFailureAsync(token, key, "service-x", LinbikDefaults.Issuer, mode));
+        Assert.Contains("audience mismatch", await helper.GetValidationFailureAsync(token, key, "other", LinbikDefaults.Issuer, mode));
+        Assert.Contains("issuer mismatch", await helper.GetValidationFailureAsync(token, key, "service-x", "other", mode));
+        Assert.Contains("expired", await helper.GetValidationFailureAsync(await Token(-10), key, "service-x", LinbikDefaults.Issuer, mode));
+        Assert.Contains("Base64", await helper.GetValidationFailureAsync(token, "invalid!", "service-x", LinbikDefaults.Issuer, mode));
+        Assert.Contains("signature or decryption", await helper.GetValidationFailureAsync(token, helper.GenerateSymmetricKey(), "service-x", LinbikDefaults.Issuer, mode));
+    }
+
+    private sealed class RecordingSink : ILinbikSecurityEventSink
+    {
+        public List<LinbikSecurityEvent> Events { get; } = [];
+        public Task ReportAsync(LinbikSecurityEvent securityEvent, CancellationToken cancellationToken = default)
+        { Events.Add(securityEvent); return Task.CompletedTask; }
     }
 
     private sealed class ProvisionTransport(string serviceId, string publicKey, bool recovery) : HttpMessageHandler

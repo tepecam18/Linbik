@@ -13,6 +13,57 @@ namespace Linbik.Core.Services;
 /// </summary>
 public sealed class PasetoHelperService : IPasetoHelper
 {
+    /// <inheritdoc/>
+    public async Task<string?> GetValidationFailureAsync(string token, string key, string audience, string issuer, PasetoMode mode)
+    {
+        if (string.IsNullOrWhiteSpace(audience))
+            return "PASETO audience is not configured. Set Linbik:PackageName for this service.";
+        if (string.IsNullOrWhiteSpace(issuer))
+            return "PASETO issuer is not configured. Check Linbik:JwtIssuer.";
+        if (string.IsNullOrWhiteSpace(key))
+            return "PASETO validation key is missing. Check key configuration or provisioning credentials.";
+        byte[] keyBytes;
+        try { keyBytes = Convert.FromBase64String(key); }
+        catch (FormatException) { return "PASETO validation key is not valid Base64. Check the configured key or credentials cache."; }
+        if (keyBytes.Length != 32)
+            return "PASETO validation key must contain 32 bytes. Check the configured key or credentials cache.";
+        var prefix = mode == PasetoMode.Local ? "v4.local." : "v4.public.";
+        if (!token.StartsWith(prefix, StringComparison.Ordinal))
+            return "PASETO token version or purpose is incorrect for this authentication scheme.";
+        var valid = mode == PasetoMode.Local
+            ? await ValidateLocalTokenAsync(token, key, audience, issuer)
+            : await ValidateTokenAsync(token, key, audience, issuer);
+        if (valid) return null;
+
+        // Authenticate before inspecting claims: malformed or forged payloads must not
+        // be diagnosed as trusted issuer/audience/lifetime failures.
+        try
+        {
+            var builder = new PasetoBuilder().Use(ProtocolVersion.V4,
+                mode == PasetoMode.Local ? Purpose.Local : Purpose.Public);
+            if (mode == PasetoMode.Local) builder.WithSharedKey(keyBytes);
+            else builder.WithPublicKey(keyBytes);
+            var verified = builder.Decode(token, new PasetoTokenValidationParameters
+            { ValidateLifetime = false, ValidateIssuer = false, ValidateAudience = false });
+            if (!verified.IsValid)
+                return "PASETO signature or decryption failed, or the token is malformed. Check the validation key and token source.";
+            var claims = mode == PasetoMode.Local ? GetLocalTokenClaims(token, key) : GetTokenClaims(token);
+            if (claims.GetValueOrDefault("iss") != issuer)
+                return "PASETO issuer mismatch. Check Linbik:JwtIssuer and the token issuer.";
+            if (claims.GetValueOrDefault("aud") != audience)
+                return "PASETO audience mismatch. Check Linbik:PackageName (Linbik__PackageName) and the target service registration.";
+            if (claims.TryGetValue("exp", out var expiry) &&
+                DateTimeOffset.TryParse(expiry, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var expires) && expires <= DateTimeOffset.UtcNow)
+                return "PASETO token has expired. Obtain a new token and check server clocks.";
+            return "PASETO lifetime or required claims are invalid. Check exp, nbf, iat and server clocks.";
+        }
+        catch
+        {
+            return "PASETO signature or decryption failed, or the token is malformed. Check the validation key and token source.";
+        }
+    }
+
     private const int Ed25519SignatureSize = 64;
 
     /// <inheritdoc/>

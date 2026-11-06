@@ -201,3 +201,30 @@ These options did not configure the receiving PASETO validator.
 ValidateAudience and ValidateIssuer were also removed: incoming token audience and issuer
 validation are mandatory. Core token lifetime/PKCE settings keep their existing meaning;
 they do not change the lifetime of tokens issued by a remote service.
+
+## Validating the source service of an incoming application call
+
+A bearer token accepted for this target does not automatically authorize every caller to perform a particular operation. Compare the source service from the **validated** apps token with the peer UUID allowed for that operation. `IntegrationApp.Id`, a supplied HTTP header/body ID, and the target UUID in an outgoing integration response are not caller authentication.
+
+For an endpoint doing explicit validation:
+
+```csharp
+// Read trusted policy/configuration, never an ID supplied by this incoming request.
+var expectedSenderServiceId = builder.Configuration.GetValue<Guid>("Peers:TrustedServiceId");
+if (expectedSenderServiceId == Guid.Empty)
+    throw new InvalidOperationException("Peers:TrustedServiceId must be the allowed sender's Linbik service UUID.");
+
+// After builder.Build(); IntegrationTokenValidator is registered by AddLinbikServer.
+app.MapPost("/api/peer-events", (HttpContext context, IntegrationTokenValidator validator) =>
+{
+    var claims = validator.ValidateToken(context); // verifies signature, issuer, audience and expiry
+    if (claims?.TokenType != LinbikTokenType.Application ||
+        claims.RawClaims.GetValueOrDefault("token_type") != "apps")
+        return Results.Unauthorized();
+    if (claims.SourceServiceId != expectedSenderServiceId)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    return Results.Ok();
+});
+```
+
+`LinbikTokenClaims.SourceServiceId` is populated from the validated apps token's `sub`. When using the normal Application authentication scheme instead, inspect that authenticated principal's `sub` after authentication/authorization; decoding an arbitrary token with `GetTokenClaims` alone does not authenticate it. Discovery can provide the expected peer UUID, but missing (`Guid.Empty`) metadata must not disable this comparison.

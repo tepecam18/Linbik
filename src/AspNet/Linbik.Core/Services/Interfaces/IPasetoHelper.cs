@@ -8,6 +8,13 @@ namespace Linbik.Core.Services.Interfaces;
 /// </summary>
 public interface IPasetoHelper
 {
+    /// <summary>Returns a safe diagnostic reason without exposing token or key contents.</summary>
+    async Task<string?> GetValidationFailureAsync(string token, string key, string audience, string issuer, PasetoMode mode)
+        => (mode == PasetoMode.Local
+            ? await ValidateLocalTokenAsync(token, key, audience, issuer)
+            : await ValidateTokenAsync(token, key, audience, issuer))
+            ? null : "PASETO validation failed. Check the signing key, lifetime, issuer and audience.";
+
     /// <summary>
     /// Ed25519 private key ile imzalanmış bir PASETO v4.public token üretir.
     /// </summary>

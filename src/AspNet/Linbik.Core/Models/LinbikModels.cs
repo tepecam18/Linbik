@@ -219,6 +219,13 @@ public sealed class LinbikApplicationTokenResponse
 public sealed class LinbikApplicationIntegration
 {
     /// <summary>
+    /// Target Linbik service ID (not the source/calling service or an IntegrationApp ID).
+    /// Guid.Empty means an older upstream response omitted the ID and no explicit mapping was available.
+    /// This metadata is not proof of the identity of an incoming request; validate its bearer token.
+    /// </summary>
+    public Guid ServiceId { get; set; }
+
+    /// <summary>
     /// Target service display name
     /// </summary>
     public string ServiceName { get; set; } = string.Empty;
@@ -235,7 +242,8 @@ public sealed class LinbikApplicationIntegration
 
     /// <summary>
     /// PASETO access token for apps authentication
-    /// Contains: token_type=apps, source_service_id, source_package_name
+    /// Contains service identity claims (token_type=apps; sub identifies the source service).
+    /// source_service_id/source_package_name may also be supplied by the issuer.
     /// Does NOT contain user information
     /// </summary>
     public string Token { get; set; } = string.Empty;

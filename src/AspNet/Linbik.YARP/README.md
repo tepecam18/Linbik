@@ -148,6 +148,21 @@ public interface IApplicationTokenProvider
 }
 ```
 
+### Service identity: target metadata versus incoming caller
+
+`GetApplicationIntegrationAsync(packageName)` returns `LinbikApplicationIntegration.ServiceId`, the **target Linbik service UUID**, alongside `PackageName`, `ServiceUrl` and `Token`. It is not the source service ID or an application's local `IntegrationApp.Id`.
+
+```csharp
+var peer = await tokens.GetApplicationIntegrationAsync("peer-service", cancellationToken);
+if (peer is null || peer.ServiceId == Guid.Empty)
+    throw new InvalidOperationException("Target ServiceId is unavailable; update the authorization server or configure its package-to-service mapping.");
+var targetServiceId = peer.ServiceId;
+```
+
+The upstream apps-token response must include `integrations[].serviceId`. Older responses still work: a missing ID is filled from `Linbik:AppsTargetServices:<packageName>` when explicitly configured; otherwise it stays `Guid.Empty`. The SDK cannot infer a target UUID from a package name or a token's `sub`. When using `GetApplicationIntegrationByIdAsync(targetServiceId)`, a single legacy integration without an ID receives the requested target ID; responses identifying another service or multiple unidentified targets are not associated with that ID.
+
+`ServiceId` is discovery metadata, not proof of the caller of an incoming request. The receiver must validate signature, issuer, audience, expiry and application token type, then compare the validated **source** service ID to a configured/trusted peer ID. In an apps token, `sub` identifies the source service; it must not be used to fill the target `ServiceId`. See the Server README's incoming-caller example.
+
 ### IApplicationServiceClient
 
 Typed HTTP client with automatic application-token injection and `LBaseResponse<T>` format:

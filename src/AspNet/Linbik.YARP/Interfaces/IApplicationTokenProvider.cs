@@ -33,7 +33,10 @@ public interface IApplicationTokenProvider
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the full application integration details including service URL by package name
+    /// Gets the target service's integration details including ServiceId and service URL by package name.
+    /// A legacy upstream response without serviceId needs an explicit AppsTargetServices mapping;
+    /// otherwise ServiceId is Guid.Empty. Incoming caller identity must come from a validated apps token,
+    /// not from this metadata or an untrusted request header.
     /// </summary>
     /// <param name="integrationPackageName">Target integration service package name</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -53,7 +56,7 @@ public interface IApplicationTokenProvider
     /// </summary>
     /// <param name="targetServiceId">Target service ID (GUID)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Integration details including token and service URL, or null if not available</returns>
+    /// <returns>Integration details including the requested target ServiceId, token and service URL, or null if not available</returns>
     Task<LinbikApplicationIntegration?> GetApplicationIntegrationByIdAsync(
         Guid targetServiceId,
         CancellationToken cancellationToken = default);

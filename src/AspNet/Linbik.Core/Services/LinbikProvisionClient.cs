@@ -146,9 +146,8 @@ public sealed class LinbikProvisionClient(
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            logger.LogWarning("Provision failed with status {Status}: {Body}", response.StatusCode, errorBody);
-            return new LBaseResponse<LinbikCredentials>("provision_failed", $"HTTP {(int)response.StatusCode}: {errorBody}");
+            logger.LogWarning("Linbik provisioning endpoint rejected the request with HTTP {StatusCode}. Check the authority URL, provisioning availability and server logs.", (int)response.StatusCode);
+            return new LBaseResponse<LinbikCredentials>("provision_failed", $"Provisioning returned HTTP {(int)response.StatusCode}. Check the authority URL and server logs.");
         }
 
         var result = await response.Content.ReadFromJsonAsync<ProvisionApiResponse>(_jsonOptions, cancellationToken);
@@ -172,12 +171,15 @@ public sealed class LinbikProvisionClient(
         });
     }
 
-    private static void ApplyCredentials(LinbikOptions opts, LinbikCredentials credentials)
+    private void ApplyCredentials(LinbikOptions opts, LinbikCredentials credentials)
     {
         opts.ServiceId = credentials.ServiceId;
         opts.ApiKey = credentials.ApiKey;
         opts.PublicKey = credentials.PublicKey;
-        opts.PackageName = credentials.PackageName;
+        if (string.IsNullOrWhiteSpace(opts.PackageName))
+            opts.PackageName = credentials.PackageName;
+        else if (!string.Equals(opts.PackageName, credentials.PackageName, StringComparison.Ordinal))
+            logger.LogInformation("Linbik uses the explicitly configured PackageName {PackageName} instead of the credentials value. Incoming PASETO audience validation uses this configuration.", opts.PackageName);
 
         var existingClient = opts.Clients.FirstOrDefault(c => c.Name == credentials.ClientName);
 
@@ -198,7 +200,7 @@ public sealed class LinbikProvisionClient(
     private async Task EnsureValidationKeyAsync(LinbikOptions opts, LinbikCredentials? cached, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(cached?.PublicKey ?? opts.PublicKey) &&
-            !string.IsNullOrEmpty(cached?.PackageName ?? opts.PackageName))
+            (!string.IsNullOrWhiteSpace(opts.PackageName) || !string.IsNullOrWhiteSpace(cached?.PackageName)))
             return;
 
         var serviceId = cached?.ServiceId ?? opts.ServiceId;
@@ -219,7 +221,8 @@ public sealed class LinbikProvisionClient(
             await credentialStore.SaveAsync(cached, cancellationToken);
         }
         opts.PublicKey = data.PublicKey;
-        opts.PackageName = data.PackageName;
+        if (string.IsNullOrWhiteSpace(opts.PackageName))
+            opts.PackageName = data.PackageName;
     }
 
     #region Internal DTOs

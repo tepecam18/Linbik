@@ -380,3 +380,19 @@ The repository-wide .NET solution is `Linbik.slnx`. Run `dotnet build Linbik.sln
 and `dotnet test tests/Linbik.Tests/Linbik.Tests.csproj -c Release --no-build`.
 See [clean code changes and verification](docs/CLEAN_CODE.md) for the Nuxt and Android checks,
 behavior changes, and validation limits. The quality workflow runs these checks on pull requests.
+
+### PASETO audience configuration and diagnostics
+
+Set `Linbik:PackageName` in application configuration or the environment variable
+`Linbik__PackageName=your-service-package` to explicitly configure the incoming
+PASETO audience. A non-blank configured value takes precedence over
+`.linbik/credentials.json`, new provisioning responses and validation-key recovery.
+Without an explicit value, the SDK uses the provisioned package name. The cache
+continues to store the server-provided identity. A `.env` file must be loaded by
+your host or deployment tooling before configuration is built.
+
+Authentication failure messages distinguish audience/issuer mismatches, expired
+tokens, invalid validation-key configuration, wrong token version/purpose and
+signature/decryption or malformed-token failures. They include corrective guidance
+without logging token or key contents. A 401 challenge following a validation
+failure does not produce a second misleading missing-token security event.

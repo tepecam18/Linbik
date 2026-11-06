@@ -103,43 +103,33 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
             return AuthenticateResult.NoResult();
 
         // Validate PASETO token signature/encryption, lifetime, issuer and audience
-        bool isValid;
+        string? failure;
         try
         {
             var material = Options.ValidationMaterialResolver == null
                 ? (PublicKey: Options.PublicKey, Audience: Options.ExpectedAudience)
                 : await Options.ValidationMaterialResolver(Context);
-            if (Options.ValidationMaterialResolver != null && Options.Mode == PasetoMode.Public &&
-                (string.IsNullOrWhiteSpace(material.PublicKey) || string.IsNullOrWhiteSpace(material.Audience)))
-                return AuthenticateResult.Fail("Validation key or audience is unavailable.");
-            isValid = Options.Mode == PasetoMode.Local
-                ? await _pasetoHelper.ValidateLocalTokenAsync(
-                    token,
-                    Options.SharedKey,
-                    Options.ExpectedAudience,
-                    Options.ExpectedIssuer)
-                : await _pasetoHelper.ValidateTokenAsync(
-                    token,
-                    material.PublicKey,
-                    material.Audience,
-                    Options.ExpectedIssuer);
+            failure = await _pasetoHelper.GetValidationFailureAsync(token,
+                Options.Mode == PasetoMode.Local ? Options.SharedKey : material.PublicKey,
+                Options.Mode == PasetoMode.Local ? Options.ExpectedAudience : material.Audience,
+                Options.ExpectedIssuer, Options.Mode);
         }
         catch (Exception ex)
         {
-            var msg = ex.Message;
-            Logger.LogWarning(ex, "PASETO token validation threw an exception for scheme {Scheme}", Scheme.Name);
+            const string msg = "PASETO validation could not complete. Check validation configuration and provisioning connectivity.";
+            Logger.LogWarning("PASETO validation failed for scheme {Scheme}; exception type: {ExceptionType}", Scheme.Name, ex.GetType().Name);
             await ReportSecurityEventAsync(
                 isApplication: Options.RequireApplicationToken,
                 eventType: LinbikSecurityEventType.AuthenticationFailed,
                 message: msg,
                 statusCode: 401,
                 metadata: new { exception_type = ex.GetType().Name, scheme = Scheme.Name });
-            return AuthenticateResult.Fail(ex);
+            return AuthenticateResult.Fail(msg);
         }
 
-        if (!isValid)
+        if (failure is not null)
         {
-            const string msg = "PASETO token validation failed.";
+            var msg = failure;
             await ReportSecurityEventAsync(
                 isApplication: Options.RequireApplicationToken,
                 eventType: LinbikSecurityEventType.AuthenticationFailed,
@@ -194,15 +184,18 @@ internal sealed class PasetoBearerHandler : AuthenticationHandler<PasetoBearerOp
     {
         Response.StatusCode = 401;
 
-        // Only report if there was no prior AuthenticationFailed event (avoid double-reporting)
-        if (properties.GetString(".Error") is null)
+        // Reuse the cached authentication result to avoid a misleading second failure event.
+        var authentication = await HandleAuthenticateOnceAsync();
+        if (authentication.Failure is null)
         {
             await ReportSecurityEventAsync(
                 isApplication: Options.RequireApplicationToken,
                 eventType: Options.RequireApplicationToken
                     ? LinbikSecurityEventType.ApplicationJwtInvalid
                     : LinbikSecurityEventType.AuthenticationFailed,
-                message: "Authentication challenge issued (401). Missing or unreadable token.",
+                message: authentication.Succeeded
+                    ? "Authentication challenge issued (401) after successful authentication. Check endpoint authentication schemes."
+                    : "Authentication required (401). Supply a Bearer token or configure the token retriever.",
                 statusCode: 401,
                 metadata: new { scheme = Scheme.Name });
         }

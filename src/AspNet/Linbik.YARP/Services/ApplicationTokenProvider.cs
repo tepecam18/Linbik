@@ -136,6 +136,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         string integrationPackageName,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(integrationPackageName);
         // Check cache first
         if (_tokenCache.TryGetValue(integrationPackageName, out var cached))
         {
@@ -180,6 +181,8 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
         Guid targetServiceId,
         CancellationToken cancellationToken = default)
     {
+        if (targetServiceId == Guid.Empty)
+            throw new ArgumentException("targetServiceId must be a non-empty Linbik service UUID, not an IntegrationApp ID.", nameof(targetServiceId));
         // Check dynamic cache first (only possible once we've previously discovered its package name)
         if (_dynamicIdToPackageName.TryGetValue(targetServiceId, out var packageName) &&
             _dynamicTokenCache.TryGetValue(packageName, out var cached))
@@ -353,6 +356,11 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
 
             foreach (var integration in response.Integrations)
             {
+                // Older authorization servers may omit serviceId. An explicit local
+                // package-to-service mapping can supply target metadata, never caller identity.
+                if (integration.ServiceId == Guid.Empty &&
+                    _options.AppsTargetServices.TryGetValue(integration.PackageName, out var configuredServiceId))
+                    integration.ServiceId = configuredServiceId;
                 var cacheItem = new ApplicationTokenCacheItem
                 {
                     Integration = integration,
@@ -412,13 +420,19 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
 
             var response = await _authClient.GetApplicationTokensAsync(request, cancellationToken);
 
-            var integration = response?.Integrations?.FirstOrDefault();
+            var integrations = response?.Integrations;
+            var integration = integrations?.SingleOrDefault(i => i.ServiceId == targetServiceId);
+            // A legacy response can only be associated with this ID unambiguously
+            // when exactly one target was returned and that target has no ID.
+            if (integration is null && integrations is { Count: 1 } && integrations[0].ServiceId == Guid.Empty)
+                integration = integrations[0];
             if (integration == null)
             {
                 _logger.LogWarning("Application token response was null or empty for service {ServiceId}", targetServiceId);
                 return;
             }
 
+            integration.ServiceId = targetServiceId;
             var now = DateTime.UtcNow;
             // AccessTokenExpiresAt is Unix timestamp (seconds since epoch)
             var expiry = response!.AccessTokenExpiresAt > 0
@@ -432,8 +446,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
                 FetchedAt = now
             };
 
-            // The server identifies the token only by package name, so remember which
-            // service ID it corresponds to for future cache lookups by ID.
+            // Preserve the requested/returned target service ID for cache lookups by ID.
             _dynamicIdToPackageName[targetServiceId] = integration.PackageName;
             _dynamicTokenCache.AddOrUpdate(integration.PackageName, cacheItem, (_, _) => cacheItem);
 
