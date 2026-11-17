@@ -36,7 +36,7 @@ public sealed class RateLimitMiddlewareCheckTests
         using var client = app.GetTestClient();
         for (int i = 0; i < 20; i++)
         {
-            using var response = await client.GetAsync("/api/Linbik/callback");
+            using var response = await client.GetAsync("/api/linbik/callback");
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
     }

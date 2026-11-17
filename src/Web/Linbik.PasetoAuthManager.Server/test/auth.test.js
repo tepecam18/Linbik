@@ -106,7 +106,7 @@ test('concurrent refreshes rotate once and logout revokes copied cookies', async
 
 test('return paths, authorization destinations and cross-origin mutations are constrained', async () => {
   const f = fixture();
-  for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/api/Linbik/logout']) await assert.rejects(f.request().signIn(path));
+  for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/api/linbik/logout']) await assert.rejects(f.request().signIn(path));
   assert.throws(() => f.auth.assertSameOrigin({ origin: 'https://evil.test', 'x-linbik-request': '1' }), error => error.status === 403);
   assert.throws(() => f.auth.assertSameOrigin({ origin: 'https://app.test' }), error => error.status === 403);
   f.auth.assertSameOrigin({ origin: 'https://app.test', 'x-linbik-request': '1' });

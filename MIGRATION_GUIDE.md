@@ -106,7 +106,7 @@ app.UseLinbikYarp();
 
 ### Choosing JWT vs PASETO
 
-`Linbik.JwtAuthManager` (RS256/HS256) and `Linbik.PasetoAuthManager` (PASETO v4.public, Ed25519) expose the same endpoint shape (`/api/Linbik/login`, `/api/Linbik/callback`, `/api/Linbik/logout`, `/api/Linbik/refresh`) and are drop-in alternatives — pick one, not both. PASETO is the newer, actively-maintained reference implementation (e.g. its `ReturnAuthError` is fully implemented, unlike JWT's — see `PROJECT_STATUS.md` Known Issues).
+`Linbik.JwtAuthManager` (RS256/HS256) and `Linbik.PasetoAuthManager` (PASETO v4.public, Ed25519) expose the same endpoint shape (`/api/linbik/login`, `/api/linbik/callback`, `/api/linbik/logout`, `/api/linbik/refresh`) and are drop-in alternatives — pick one, not both. PASETO is the newer, actively-maintained reference implementation (e.g. its `ReturnAuthError` is fully implemented, unlike JWT's — see `PROJECT_STATUS.md` Known Issues).
 
 ## v1.2.x → v1.2.7 ("S2S" → "Application" terminology rename)
 

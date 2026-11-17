@@ -4,5 +4,5 @@ namespace Linbik.Server.Configuration;
 public sealed class ServerOptions
 {
     /// <summary>Base path for integration lifecycle webhook endpoints.</summary>
-    public string IntegrationEndpointPath { get; set; } = "/api/Linbik";
+    public string IntegrationEndpointPath { get; set; } = "/api/linbik";
 }

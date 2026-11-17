@@ -54,7 +54,7 @@ public class LocalRefreshEndpointTests
         })).RequireAuthorization("LinbikAuthorize");
         await app.StartAsync();
         using var client = app.GetTestClient();
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/Linbik/refresh");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/linbik/refresh");
         request.Headers.Add("Cookie", LinbikDefaults.RefreshTokenCookie + "=upstream-old");
         using var response = await client.SendAsync(request);
         if (invalid)
@@ -130,12 +130,25 @@ public class LocalRefreshEndpointTests
         using var client = app.GetTestClient();
         client.BaseAddress = new Uri("https://auth.example.com:8443");
         var expectedDomain = string.IsNullOrEmpty(cookieDomain) ? "auth.example.com" : cookieDomain;
-        using var login = await client.GetAsync("/api/Linbik/callback?code=test-code");
+        using var login = await client.GetAsync("/api/linbik/callback?code=test-code");
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
-        Assert.All(login.Headers.GetValues("Set-Cookie"), c => Assert.Contains($"domain={expectedDomain}", c));
+        Assert.All(login.Headers.GetValues("Set-Cookie"), c =>
+        {
+            // Recovery state is scoped to the callback host, unlike session cookies.
+            if (c.StartsWith("linbik_auth_recovery=", StringComparison.Ordinal))
+            {
+                Assert.DoesNotContain("domain=", c);
+                Assert.StartsWith("linbik_auth_recovery=;", c);
+                Assert.Contains("expires=Thu, 01 Jan 1970", c);
+            }
+            else
+            {
+                Assert.Contains($"domain={expectedDomain}", c);
+            }
+        });
         var cookie = RefreshCookie(login);
         Assert.Contains("linbik-local-", cookie);
-        using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Linbik/refresh");
+        using var refreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/linbik/refresh");
         refreshRequest.Headers.Add("Cookie", cookie);
         using var refresh = await client.SendAsync(refreshRequest);
         Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
@@ -143,7 +156,7 @@ public class LocalRefreshEndpointTests
         var rotated = RefreshCookie(refresh);
         Assert.NotEqual(cookie, rotated);
         Assert.Contains(refresh.Headers.GetValues("Set-Cookie"), c => c.StartsWith(LinbikDefaults.AuthTokenCookie + "="));
-        using var logoutRequest = new HttpRequestMessage(HttpMethod.Get, "/api/Linbik/logout");
+        using var logoutRequest = new HttpRequestMessage(HttpMethod.Get, "/api/linbik/logout");
         logoutRequest.Headers.Add("Cookie", rotated + "; integration_test-service=integration-token");
         using var logout = await client.SendAsync(logoutRequest);
         Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
@@ -155,7 +168,7 @@ public class LocalRefreshEndpointTests
         });
         foreach (var name in new[] { LinbikDefaults.AuthTokenCookie, LinbikDefaults.RefreshTokenCookie, LinbikDefaults.UsernameCookie, "integration_test-service" })
             Assert.Contains(deletedCookies, c => c.StartsWith(name + "=;"));
-        using var rejectedRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Linbik/refresh");
+        using var rejectedRequest = new HttpRequestMessage(HttpMethod.Post, "/api/linbik/refresh");
         rejectedRequest.Headers.Add("Cookie", rotated);
         using var rejected = await client.SendAsync(rejectedRequest);
         Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);

@@ -50,10 +50,10 @@ public sealed class AuthCallbackTests
         else app.UseLinbikJwtAuth();
         await app.StartAsync();
         using var client = app.GetTestClient();
-        using var response = await client.GetAsync("/api/Linbik/callback");
+        using var response = await client.GetAsync("/api/linbik/callback");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("Authorization code is required", await response.Content.ReadAsStringAsync());
-        using var limitedResponse = await client.GetAsync("/api/Linbik/callback");
+        using var limitedResponse = await client.GetAsync("/api/linbik/callback");
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
     }
 
@@ -84,7 +84,7 @@ public sealed class AuthCallbackTests
         else app.UseLinbikJwtAuth();
         await app.StartAsync();
         using var client = app.GetTestClient();
-        using var response = await client.GetAsync("/api/Linbik/callback");
+        using var response = await client.GetAsync("/api/linbik/callback");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("Authorization code is required", await response.Content.ReadAsStringAsync());
     }
@@ -118,10 +118,10 @@ public sealed class AuthCallbackTests
         var cookie = context.Response.Headers.SetCookie.ToString().Split(';')[0];
         using var client = app.GetTestClient();
         client.DefaultRequestHeaders.Add("Cookie", cookie);
-        using var forged = await client.GetAsync("/api/Linbik/callback?error=authorization_expired&state=wrong");
+        using var forged = await client.GetAsync("/api/linbik/callback?error=authorization_expired&state=wrong");
         Assert.Equal(HttpStatusCode.BadRequest, forged.StatusCode);
         Assert.Empty(forged.Headers.TryGetValues("Set-Cookie", out var badCookies) ? badCookies : []);
-        using var response = await client.GetAsync("/api/Linbik/callback?error=authorization_expired&state=" + state);
+        using var response = await client.GetAsync("/api/linbik/callback?error=authorization_expired&state=" + state);
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.StartsWith("/?tab=home&error=", response.Headers.Location!.OriginalString);
         Assert.Contains("error_code=authorization_expired", response.Headers.Location.OriginalString);

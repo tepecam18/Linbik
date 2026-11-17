@@ -18,7 +18,7 @@ namespace Linbik.Server.Extensions;
 /// These must match the paths used by Linbik.App's IntegrationNotificationService.
 /// 
 /// Full endpoint = {BaseUrl}{IntegrationPath}{SubPath}
-/// Default IntegrationPath = "/api/Linbik"
+/// Default IntegrationPath = "/api/linbik"
 /// </summary>
 public static class LinbikIntegrationEndpoints
 {
@@ -47,7 +47,7 @@ public static class LinbikIntegrationEndpoints
 /// builder.Services.AddLinbikIntegrationHandler&lt;MyIntegrationHandler&gt;();
 /// 
 /// var app = builder.Build();
-/// app.MapLinbikIntegrationEndpoints(); // defaults to /api/Linbik
+/// app.MapLinbikIntegrationEndpoints(); // defaults to /api/linbik
 /// // or
 /// app.MapLinbikIntegrationEndpoints("/custom/path");
 /// </code>
@@ -130,7 +130,7 @@ public static class IntegrationEndpointExtensions
     /// All endpoints require LinbikApplication authentication with the "Linbik" role claim by default.
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
-    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
+    /// <param name="basePath">Base path for integration endpoints (default: /api/linbik)</param>
     /// <returns>A route group builder for further configuration</returns>
     public static RouteGroupBuilder MapLinbikIntegrationEndpoints(
         this IEndpointRouteBuilder endpoints,
@@ -182,7 +182,7 @@ public static class IntegrationEndpointExtensions
     /// </code>
     /// </summary>
     /// <param name="endpoints">The endpoint route builder</param>
-    /// <param name="basePath">Base path for integration endpoints (default: /api/Linbik)</param>
+    /// <param name="basePath">Base path for integration endpoints (default: /api/linbik)</param>
     /// <param name="configureAuthorization">
     /// Verilirse default header kontrolü (Linbik-Flow + Linbik-role) uygulanmaz; bunun yerine
     /// bu delegate route group üzerinde çağrılarak yetkilendirmeyi tamamen override eder.
@@ -250,7 +250,7 @@ public static class IntegrationEndpointExtensions
     /// </summary>
     public static RouteGroupBuilder MapLinbikIntegrationEndpointsAnonymous(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/Linbik")
+        string basePath = "/api/linbik")
     {
         return endpoints.MapLinbikIntegrationRoutes(basePath);
     }
