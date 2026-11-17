@@ -73,7 +73,7 @@ public static class PasetoAuthManagerExtensions
             [FromQuery] string? name,
             [FromQuery] string? returnPath) =>
         {
-            if (linbikOptions.KeylessMode)
+            if (linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly)
             {
                 var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
                 if (provisionClient != null)
@@ -85,7 +85,7 @@ public static class PasetoAuthManagerExtensions
 
             if (string.IsNullOrEmpty(name))
             {
-                if (linbikOptions.KeylessMode && linbikOptions.Clients.Count > 0)
+                if ((linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly) && linbikOptions.Clients.Count > 0)
                 {
                     name = linbikOptions.Clients[0].Name;
                 }
@@ -106,7 +106,8 @@ public static class PasetoAuthManagerExtensions
                 ClientId = Guid.Parse(clientConfig.ClientId),
                 ExtraData = new Dictionary<string, string>
                 {
-                    { "returnPath", returnPath ?? string.Empty }
+                    { "returnPath", returnPath ?? string.Empty },
+                    { "state", AuthorizationRecovery.Save(context, clientConfig.Name) }
                 }
             };
 
@@ -151,6 +152,9 @@ public static class PasetoAuthManagerExtensions
 
             try
             {
+                var failure = AuthorizationRecovery.HandleError(context, linbikOptions);
+                if (failure is not null) return failure;
+
                 var code = context.Request.Query["code"].FirstOrDefault();
                 if (string.IsNullOrEmpty(code))
                 {
@@ -159,7 +163,14 @@ public static class PasetoAuthManagerExtensions
                     return ReturnAuthError(clientConfig, redirectPath, "Authorization code is required");
                 }
 
-                if (linbikOptions.KeylessMode && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
+                if (linbikOptions.CredentialFileOnly)
+                {
+                    var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
+                    if (provisionClient != null)
+                        await provisionClient.EnsureProvisionedAsync(string.Empty, string.Empty, null, context.RequestAborted);
+                }
+
+                if ((linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly) && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
                 {
                     logger.LogWarning("Login callback received before Keyless Mode provisioning completed.");
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Keyless Mode provisioning not complete", false);
@@ -260,6 +271,7 @@ public static class PasetoAuthManagerExtensions
                     DisplayName = tokenResponse.DisplayName ?? tokenResponse.Username,
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
+                AuthorizationRecovery.Clear(context);
                 return ReturnAuthSuccess(context, clientConfig, redirectPath, responseData);
             }
             catch (Exception ex)

@@ -8,7 +8,7 @@ Kütüphane, **RFC 8252 (OAuth 2.0 for Native Apps)** standartlarını temel al�
 
 ### 1. LinbikAuthActivity
 Giriş akışının kalbidir. Şu adımları yönetir:
-- **Backend Handshake:** `/api/Linbik/login` üzerinden `redirectPath` ve PKCE verilerini alır.
+- **Backend Handshake:** `/api/linbik/login` üzerinden `redirectPath` ve PKCE verilerini alır.
 - **Custom Tabs:** Kullanıcıyı güvenli bir şekilde tarayıcıya yönlendirir.
 - **Callback Handling:** Deep link (`onNewIntent`) üzerinden gelen `code` değerini yakalar ve backend'e onay için gönderir.
 

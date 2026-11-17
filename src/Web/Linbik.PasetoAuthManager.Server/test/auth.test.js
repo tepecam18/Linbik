@@ -132,3 +132,44 @@ test('logout also revokes an access-only session and cancels a pending login', a
   await f.request().signOut();
   await assert.rejects(callback.callback('one-time-code'), /already used/);
 });
+
+
+test('expired login returns safely without token exchange; bad state and replay cannot consume a pending login', async () => {
+  const f = fixture();
+  await f.login();
+  await f.request().signIn('/protected');
+  const initiate = f.calls.filter(([path]) => path.endsWith('/initiate')).at(-1);
+  const { state } = JSON.parse(initiate[1].body).extraData;
+  const { createHash } = await import('node:crypto');
+  const key = 'flow:' + createHash('sha256').update(f.jar.get(f.auth.cookieNames.flow)).digest('base64url');
+  const transaction = await f.store.get(key);
+  transaction.loginExpiresAt = Date.now() - 1;
+  await f.store.set(key, transaction);
+  const calls = f.calls.length;
+  await assert.rejects(f.request().callbackError('authorization_expired', 'wrong-state'), /invalid/);
+  assert.ok(await f.store.get(key), 'Bad state must leave the pending login intact');
+  const copied = f.request();
+  assert.deepEqual(await f.request().callbackError('authorization_expired', state), {
+    returnPath: '/protected', error: 'authorization_expired'
+  });
+  assert.equal(f.calls.length, calls, 'Failure callback never exchanges a code');
+  assert.equal((await f.request().getSession()).username, 'alice', 'Existing login must survive');
+  assert.equal(await f.store.get(key), null);
+  await assert.rejects(copied.callbackError('authorization_expired', state), /already used/);
+  await f.request().signIn('/protected');
+  const newState = JSON.parse(f.calls.at(-1)[1].body).extraData.state;
+  assert.notEqual(newState, state);
+  assert.equal((await f.request().callback('one-time-code')).returnPath, '/protected');
+});
+
+test('retained recovery metadata cannot extend successful authorization lifetime', async () => {
+  const f = fixture();
+  await f.request().signIn('/');
+  const { createHash } = await import('node:crypto');
+  const key = 'flow:' + createHash('sha256').update(f.jar.get(f.auth.cookieNames.flow)).digest('base64url');
+  const transaction = await f.store.get(key);
+  transaction.loginExpiresAt = Date.now() - 1;
+  await f.store.set(key, transaction);
+  await assert.rejects(f.request().callback('one-time-code'), /expired/);
+  assert.equal(f.calls.length, 1);
+});

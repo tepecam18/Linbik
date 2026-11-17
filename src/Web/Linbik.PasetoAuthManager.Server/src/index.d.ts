@@ -33,6 +33,8 @@ export interface LinbikServerOptions {
 export interface LinbikAuthRequest {
   signIn(returnPath?: string): Promise<string>;
   callback(code: string): Promise<{ user: LinbikUser; returnPath: string }>;
+  /** Consume a correlated failure without exchanging a code or creating a session. */
+  callbackError(error: string, state: string): Promise<{ returnPath: string; error: "authorization_expired" | "authorization_failed" }>;
   getSession(): Promise<LinbikUser | null>;
   restoreSession(): Promise<LinbikUser | null>;
   refreshToken(): Promise<LinbikUser>;

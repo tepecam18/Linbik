@@ -71,10 +71,10 @@ AddLinbikJwtAuth(opt => { });
 
 | Path | Method | Description |
 |------|--------|-------------|
-| `/api/Linbik/login` | GET | Initiate OAuth flow → exchange code → set cookies |
-| `/api/Linbik/callback` | GET | OAuth callback for code exchange |
-| `/api/Linbik/logout` | GET | Clear all auth cookies |
-| `/api/Linbik/refresh` | POST | Refresh tokens using refresh cookie |
+| `/api/linbik/login` | GET | Initiate OAuth flow → exchange code → set cookies |
+| `/api/linbik/callback` | GET | OAuth callback for code exchange |
+| `/api/linbik/logout` | GET | Clear all auth cookies |
+| `/api/linbik/refresh` | POST | Refresh tokens using refresh cookie |
 
 > ⚠️ Login/callback/logout/refresh error paths currently crash with a `NotImplementedException` instead of returning a response — see `PROJECT_STATUS.md` Known Issues. `Linbik.PasetoAuthManager`'s equivalent handler is the reference fix.
 
@@ -198,7 +198,7 @@ MIT License
 After a successful callback, an upstream Linbik refresh token is used unchanged.
 When none is returned, AuthManager creates a cryptographically random local refresh
  token and stores only its SHA-256 hash and the authenticated user's profile.
-POST the configured RefreshPath (default `/api/Linbik/refresh`) to renew either kind.
+POST the configured RefreshPath (default `/api/linbik/refresh`) to renew either kind.
 Local refresh does not call Linbik or mint integration tokens. Upstream failures never
 fall back to local sessions. Core's `IAuthService` is an upstream API helper, not
 this AuthManager refresh endpoint; do not use it to renew local sessions.
@@ -232,7 +232,7 @@ Keep those keys in application secret configuration, never source control.
 
 ## Read-only web session
 
-`UseLinbikJwtAuth()` also maps `GET /api/Linbik/session` (configurable via
+`UseLinbikJwtAuth()` also maps `GET /api/linbik/session` (configurable via
 `JwtAuthOptions.SessionPath`). It authenticates through `LinbikScheme` and returns
 `LBaseResponse` with `userId`, `username`, `displayName` and integration cookie names.
 An absent/invalid access token returns 401; the endpoint never refreshes tokens or

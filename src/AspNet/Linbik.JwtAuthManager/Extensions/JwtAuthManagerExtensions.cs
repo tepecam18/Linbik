@@ -84,7 +84,7 @@ public static class JwtAuthManagerExtensions
             [FromQuery] string? returnPath) =>
         {
             // Keyless Mode: ensure provisioned before building auth URL
-            if (linbikOptions.KeylessMode)
+            if (linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly)
             {
                 var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
                 if (provisionClient != null)
@@ -96,7 +96,7 @@ public static class JwtAuthManagerExtensions
             // clientId is required - in KeylessMode, auto-use first client
             if (string.IsNullOrEmpty(name))
             {
-                if (linbikOptions.KeylessMode && linbikOptions.Clients.Count > 0)
+                if ((linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly) && linbikOptions.Clients.Count > 0)
                 {
                     name = linbikOptions.Clients[0].Name;
                 }
@@ -119,7 +119,8 @@ public static class JwtAuthManagerExtensions
                 ClientId = Guid.Parse(clientConfig.ClientId),
                 ExtraData = new Dictionary<string, string>
                 {
-                    { "returnPath", returnPath ?? string.Empty }
+                    { "returnPath", returnPath ?? string.Empty },
+                    { "state", AuthorizationRecovery.Save(context, clientConfig.Name) }
                  }
             };
 
@@ -166,6 +167,9 @@ public static class JwtAuthManagerExtensions
 
             try
             {
+                var failure = AuthorizationRecovery.HandleError(context, linbikOptions);
+                if (failure is not null) return failure;
+
                 var code = context.Request.Query["code"].FirstOrDefault();
                 if (string.IsNullOrEmpty(code))
                 {
@@ -175,7 +179,14 @@ public static class JwtAuthManagerExtensions
                 }
 
                 // Keyless Mode guard: ensure provisioning is complete before exchanging code
-                if (linbikOptions.KeylessMode && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
+                if (linbikOptions.CredentialFileOnly)
+                {
+                    var provisionClient = context.RequestServices.GetService<LinbikProvisionClient>();
+                    if (provisionClient != null)
+                        await provisionClient.EnsureProvisionedAsync(string.Empty, string.Empty, null, context.RequestAborted);
+                }
+
+                if ((linbikOptions.KeylessMode || linbikOptions.CredentialFileOnly) && (string.IsNullOrEmpty(linbikOptions.ServiceId) || string.IsNullOrEmpty(linbikOptions.ApiKey)))
                 {
                     logger.LogWarning("Login callback received before Keyless Mode provisioning completed. ServiceId or ApiKey is empty.");
                     await auditLogger.LogAsync(AuditEventType.TokenExchangeFailed, null, "Keyless Mode provisioning not complete", false);
@@ -290,6 +301,7 @@ public static class JwtAuthManagerExtensions
                     Integrations = tokenResponse.Integrations?.Select(i => i.PackageName).ToList() ?? []
                 };
                 //  Return success based on client type
+                AuthorizationRecovery.Clear(context);
                 return ReturnAuthSuccess(context, clientConfig, redirectPath, responseData);
             }
             catch (Exception ex)

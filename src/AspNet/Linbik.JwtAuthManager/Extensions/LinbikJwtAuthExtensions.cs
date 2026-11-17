@@ -82,7 +82,7 @@ public static class LinbikJwtAuthExtensions
         services.AddOptions<JwtAuthOptions>()
             .PostConfigure<IOptions<LinbikOptions>>((jwtOpts, linbikOpts) =>
             {
-                if (linbikOpts.Value.KeylessMode && string.IsNullOrEmpty(jwtOpts.SecretKey))
+                if (linbikOpts.Value.KeylessMode && !linbikOpts.Value.CredentialFileOnly && string.IsNullOrEmpty(jwtOpts.SecretKey))
                 {
                     var keyBytes = new byte[64]; // 512 bits
                     RandomNumberGenerator.Fill(keyBytes);

@@ -28,7 +28,7 @@ class LinbikAuthHttpClientTest {
     fun logoutKeepsGetContract() = runBlocking {
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             assertEquals("GET", chain.request().method)
-            assertEquals("/api/Linbik/logout", chain.request().url.encodedPath)
+            assertEquals("/api/linbik/logout", chain.request().url.encodedPath)
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
                 .code(200).message("OK").body("".toResponseBody()).build()
         }.build()

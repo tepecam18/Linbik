@@ -46,7 +46,7 @@ test('session reads do not rotate tokens; 401 is anonymous while other failures 
   const user = { userId: 'id', username: 'alice', integrations: [] };
   let count = 0;
   const client = new LinbikPasetoAuthClient({ backendBaseUrl: 'https://backend.test', fetch: async (url, init) => {
-    assert.equal(url, 'https://backend.test/api/Linbik/session');
+    assert.equal(url, 'https://backend.test/api/linbik/session');
     assert.equal(init.method, 'GET');
     count++;
     if (count === 1) return Response.json({ isSuccess: true, data: user });

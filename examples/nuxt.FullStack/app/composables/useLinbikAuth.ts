@@ -27,7 +27,7 @@ export function useLinbikAuth() {
   }
 
   const config = useRuntimeConfig().public
-  const loginUrl = new URL('/api/Linbik/login', config.linbikWebOrigin)
+  const loginUrl = new URL('/api/linbik/login', config.linbikWebOrigin)
   if (config.linbikClientName) loginUrl.searchParams.set('name', config.linbikClientName)
   loginUrl.searchParams.set('returnPath', '/')
 

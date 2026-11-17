@@ -39,9 +39,9 @@ await auth.signOut()
 
 - `getSignInUrl(returnPath = '/')`: backend login adresini üretir; bağlantılarda kullanılabilir.
 - `signIn(returnPath = '/')`: tarayıcıyı login adresine yönlendirir. Backend client ayarı `ActionResultType: "Redirect"` olmalıdır.
-- `getSession()`: `/api/Linbik/session` üzerinden doğrulanmış kullanıcıyı okur; 401 için `null` döner. Token yenilemez. Diğer hataları çağırana iletir.
-- `refreshToken()`: `/api/Linbik/refresh` adresine POST gönderir ve `LinbikUser` döndürür. Aynı istemcide eşzamanlı yenilemeler tek isteği paylaşır.
-- `signOut()`: `/api/Linbik/logout` adresine GET gönderir; devam eden yenilemeyi bekler. Hataları çağırana iletir.
+- `getSession()`: `/api/linbik/session` üzerinden doğrulanmış kullanıcıyı okur; 401 için `null` döner. Token yenilemez. Diğer hataları çağırana iletir.
+- `refreshToken()`: `/api/linbik/refresh` adresine POST gönderir ve `LinbikUser` döndürür. Aynı istemcide eşzamanlı yenilemeler tek isteği paylaşır.
+- `signOut()`: `/api/linbik/logout` adresine GET gönderir; devam eden yenilemeyi bekler. Hataları çağırana iletir.
 - `fetch(path, init)`: backend'e çerezli istek gönderir, standart `Response` döndürür. `response.ok` kontrolü çağırana aittir. Otomatik refresh/retry yapmaz; yazma işlemleri tekrarlanmaz.
 
 `loginPath`, `sessionPath`, `refreshPath`, `logoutPath`, `logoutMethod` (varsayılan GET), standart Fetch uyumlu `fetch` ve

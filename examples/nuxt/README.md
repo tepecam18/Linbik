@@ -10,7 +10,7 @@ Framework bağımsız SDK'nin doğrudan backend kullanımı ayrıca desteklenir.
 
 ```text
 Tarayıcı → https://localhost:3000 (Caddy)
-             /api/Linbik/login, callback → ASP.NET :5096
+             /api/linbik/login, callback → ASP.NET :5096
              diğer yollar                → Nuxt :3001
                                              /api/auth/* → ASP.NET :5096
 ```
@@ -20,7 +20,7 @@ web hostunda kalır. Tarayıcı ayrı backend origin'ine istek yapmaz; bu örnek
 Backend yalnızca güvenilen proxy/sunucu tarafından erişilebilir olmalıdır.
 
 SSR'de istek başına oluşturulan SDK yalnızca Linbik çerezlerini backend'e taşır.
-`GET /api/Linbik/session` access tokenı mevcut JWT/PASETO doğrulayıcısıyla kontrol eder.
+`GET /api/linbik/session` access tokenı mevcut JWT/PASETO doğrulayıcısıyla kontrol eder.
 Geçerli oturumda refresh çağrılmaz. Oturum geçersizse ve refresh çerezi varsa bir kez
 refresh yapılır. Dönen Set-Cookie başlıkları ayrı ayrı HTML yanıtına eklenir; güncel
 çerezler aynı isteğin sonraki backend çağrılarında da kullanılır. Tarayıcıya sadece
@@ -67,7 +67,7 @@ Backend `Linbik:Clients` içindeki Web istemcinizi şu şekilde ayarlayın:
 }
 ```
 
-Linbik platformundaki callback adresi **https://localhost:3000/api/Linbik/callback**
+Linbik platformundaki callback adresi **https://localhost:3000/api/linbik/callback**
 olmalıdır; backend'in özel portunu kullanmayın. Caddy public Host ve forwarded scheme
 bilgilerini backend'e taşır. Backend `CookieDomain` ayarını boş veya public host ile
 uyumlu tutun. Proxy yalnızca login/callback yollarını ASP.NET'e açar; refresh/logout

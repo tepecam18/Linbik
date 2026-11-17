@@ -134,10 +134,10 @@ app.Run();
 
 | URL | Method | Açıklama |
 |-----|--------|----------|
-| `/api/Linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
-| `/api/Linbik/callback` | GET | Authorization code'u token ile değiştir |
-| `/api/Linbik/logout` | GET | Cookie'leri temizle ve çıkış yap |
-| `/api/Linbik/refresh` | POST | Refresh token ile yeni token'lar al |
+| `/api/linbik/login` | GET | Linbik'e yönlendir ve authorization code al |
+| `/api/linbik/callback` | GET | Authorization code'u token ile değiştir |
+| `/api/linbik/logout` | GET | Cookie'leri temizle ve çıkış yap |
+| `/api/linbik/refresh` | POST | Refresh token ile yeni token'lar al |
 
 ### Test Endpoints
 

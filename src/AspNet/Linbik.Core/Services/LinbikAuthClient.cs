@@ -16,11 +16,16 @@ namespace Linbik.Core.Services;
 public sealed class LinbikAuthClient(
     HttpClient httpClient,
     IOptions<LinbikOptions> options,
-    ILogger<LinbikAuthClient> logger) : ILinbikAuthClient
+    ILogger<LinbikAuthClient> logger,
+    LinbikProvisionClient? provisionClient = null) : ILinbikAuthClient
 {
     private readonly HttpClient _httpClient = SetupBaseAddress(httpClient, options.Value);
     private readonly LinbikOptions _options = options.Value;
     private readonly ILogger<LinbikAuthClient> _logger = logger;
+
+    private Task<bool> EnsureCredentialFileAsync(CancellationToken cancellationToken) =>
+        !_options.CredentialFileOnly ? Task.FromResult(true) :
+        provisionClient?.EnsureCredentialFileAsync(cancellationToken) ?? Task.FromResult(false);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -39,6 +44,9 @@ public sealed class LinbikAuthClient(
     /// <inheritdoc />
     public async Task<LBaseResponse<LinbikInitiateResponse>> InitiateAuthAsync(LinbikInitiateRequest request, CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return new LBaseResponse<LinbikInitiateResponse>("credentials_unavailable", "Credential file is not ready. Please retry.");
+
         if (request.ClientId == Guid.Empty)
         {
             _logger.LogWarning("InitiateAuthAsync called with empty client ID");
@@ -86,6 +94,9 @@ public sealed class LinbikAuthClient(
     /// <inheritdoc />
     public async Task<LinbikTokenResponse?> ExchangeCodeAsync(string code, CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return null;
+
         if (string.IsNullOrWhiteSpace(code))
         {
             _logger.LogWarning("ExchangeCodeAsync called with empty code");
@@ -151,6 +162,9 @@ public sealed class LinbikAuthClient(
     /// <inheritdoc />
     public async Task<LinbikTokenResponse?> RefreshTokensAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return null;
+
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
             _logger.LogWarning("RefreshTokensAsync called with empty refresh token");
@@ -227,6 +241,9 @@ public sealed class LinbikAuthClient(
         LinbikApplicationTokenRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return null;
+
         if (request.SourceServiceId == Guid.Empty)
         {
             _logger.LogWarning("GetApplicationTokensAsync called with empty source service ID");
@@ -304,6 +321,9 @@ public sealed class LinbikAuthClient(
         IEnumerable<string> targetPackageNames,
         CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return null;
+
         var packageNames = targetPackageNames.Distinct().ToList();
         if (packageNames.Count == 0)
         {
@@ -327,6 +347,9 @@ public sealed class LinbikAuthClient(
     /// <inheritdoc />
     public async Task<bool> UpdateClientRedirectUriByNameAsync(string clientName, string redirectUri, CancellationToken cancellationToken = default)
     {
+        if (!await EnsureCredentialFileAsync(cancellationToken))
+            return false;
+
         if (string.IsNullOrWhiteSpace(clientName) || string.IsNullOrWhiteSpace(redirectUri))
         {
             _logger.LogWarning("UpdateClientRedirectUriByNameAsync called with empty clientName or redirectUri");

@@ -11,11 +11,11 @@ test('Nuxt session boundary, rendering, refresh and CSRF', async () => {
     const cookie = req.headers.cookie ?? ''
     calls.push([req.url, cookie])
     res.setHeader('Content-Type', 'application/json')
-    if (req.url === '/api/Linbik/logout') {
+    if (req.url === '/api/linbik/logout') {
       res.setHeader('Set-Cookie', ['authToken=; Max-Age=0; HttpOnly; Path=/', 'linbikRefreshToken=; Max-Age=0; HttpOnly; Path=/'])
       return res.end(JSON.stringify({ isSuccess: true }))
     }
-    if (req.url === '/api/Linbik/refresh') {
+    if (req.url === '/api/linbik/refresh') {
       if (!cookie.includes('linbikRefreshToken=valid')) { res.statusCode = 401; return res.end() }
       res.setHeader('Set-Cookie', ['authToken=alice; Domain=backend.test; HttpOnly; Path=/', 'linbikRefreshToken=rotated; HttpOnly; Path=/'])
     } else if (!cookie.includes('authToken=alice') && !cookie.includes('authToken=bob')) {
@@ -54,7 +54,7 @@ test('Nuxt session boundary, rendering, refresh and CSRF', async () => {
       assert.match(pages[0], /Merhaba, alice/)
       assert.doesNotMatch(pages[0], /Merhaba, bob/)
       assert.match(pages[1], /Merhaba, bob/)
-      assert.ok(!calls.some(([path]) => path === '/api/Linbik/refresh'))
+      assert.ok(!calls.some(([path]) => path === '/api/linbik/refresh'))
       const anonymous = await request('/protected')
       assert.equal(anonymous.status, 302)
       assert.equal(anonymous.headers.get('location'), '/')

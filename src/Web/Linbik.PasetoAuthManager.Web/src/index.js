@@ -46,7 +46,7 @@ export class LinbikPasetoAuthClient {
     if (typeof returnPath !== 'string' || !returnPath.startsWith('/') || returnPath.startsWith('//') || /[\\\r\n\t]/.test(returnPath)) {
       throw new TypeError('returnPath must be an application-relative path.');
     }
-    const url = this.#url(this.#options.loginPath ?? '/api/Linbik/login');
+    const url = this.#url(this.#options.loginPath ?? '/api/linbik/login');
     if (this.#options.clientName) url.searchParams.set('name', this.#options.clientName);
     url.searchParams.set('returnPath', returnPath);
     return url.href;
@@ -83,7 +83,7 @@ export class LinbikPasetoAuthClient {
   refreshToken() {
     if (this.#logout) return Promise.reject(new Error('Sign-out is in progress.'));
     if (!this.#refresh) {
-      this.#refresh = this.#session(this.#options.refreshPath ?? '/api/Linbik/refresh', 'POST')
+      this.#refresh = this.#session(this.#options.refreshPath ?? '/api/linbik/refresh', 'POST')
         .then(validateUser)
         .finally(() => { this.#refresh = undefined; });
     }
@@ -93,7 +93,7 @@ export class LinbikPasetoAuthClient {
   /** Read the validated session without rotating tokens; anonymous sessions return null. */
   async getSession() {
     try {
-      return validateUser(await this.#session(this.#options.sessionPath ?? '/api/Linbik/session', 'GET'));
+      return validateUser(await this.#session(this.#options.sessionPath ?? '/api/linbik/session', 'GET'));
     } catch (error) {
       if (error instanceof LinbikAuthError && error.status === 401) return null;
       throw error;
@@ -105,7 +105,7 @@ export class LinbikPasetoAuthClient {
       // Ensure an in-flight refresh cannot restore cookies after logout.
       this.#logout = (async () => {
         if (this.#refresh) await this.#refresh.catch(() => {});
-        await this.#session(this.#options.logoutPath ?? '/api/Linbik/logout', this.#options.logoutMethod ?? 'GET');
+        await this.#session(this.#options.logoutPath ?? '/api/linbik/logout', this.#options.logoutMethod ?? 'GET');
       })().finally(() => { this.#logout = undefined; });
     }
     return this.#logout;

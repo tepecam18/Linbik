@@ -17,7 +17,7 @@ public sealed class ServerOptionsValidator(IOptions<Linbik.Core.Configuration.Li
 
         // PackageName is required when audience validation is enabled
         if (string.IsNullOrWhiteSpace(coreOptions?.Value.PackageName) &&
-            coreOptions?.Value.KeylessMode != true)
+            coreOptions?.Value.KeylessMode != true && coreOptions?.Value.CredentialFileOnly != true)
         {
             errors.Add("Linbik:PackageName is required for incoming token audience validation.");
         }
@@ -25,7 +25,7 @@ public sealed class ServerOptionsValidator(IOptions<Linbik.Core.Configuration.Li
         var publicKey = coreOptions?.Value.PublicKey;
         if (string.IsNullOrWhiteSpace(publicKey))
         {
-            if (coreOptions?.Value.KeylessMode != true)
+            if (coreOptions?.Value.KeylessMode != true && coreOptions?.Value.CredentialFileOnly != true)
                 errors.Add("Linbik:PublicKey is required. Server validation uses the shared LinbikOptions key.");
         }
         else

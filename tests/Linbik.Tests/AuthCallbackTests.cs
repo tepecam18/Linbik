@@ -1,5 +1,7 @@
 using System.Net;
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Linbik.Core.Configuration;
 using Linbik.Core.Extensions;
 using Linbik.Core.Services;
@@ -85,6 +87,49 @@ public sealed class AuthCallbackTests
         using var response = await client.GetAsync("/api/Linbik/callback");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("Authorization code is required", await response.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExpiredAuthorizationReturnsToConfiguredClientWithoutTokenExchange(bool paseto)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Logging.ClearProviders();
+        builder.Services.Configure<LinbikOptions>(o => o.Clients.Add(new LinbikClientConfig
+        { Name = "web", ClientId = Guid.NewGuid().ToString(), RedirectUrl = "/?tab=home#login" }));
+        builder.Services.Configure<JwtAuthOptions>(_ => { });
+        builder.Services.Configure<PasetoAuthOptions>(_ => { });
+        builder.Services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<IAuditLogger, DefaultAuditLogger>();
+        builder.Services.AddSingleton<LinbikMetrics>();
+        builder.Services.AddHttpClient<ILinbikAuthClient, LinbikAuthClient>();
+        builder.Services.AddSingleton(DispatchProxy.Create<IPasetoHelper, UnusedPasetoHelper>());
+        builder.Services.AddLinbikRateLimiting();
+        await using var app = builder.Build();
+        app.UseRouting();
+        app.UseLinbikRateLimiting();
+        if (paseto) app.UseLinbikPasetoAuth(); else app.UseLinbikJwtAuth();
+        await app.StartAsync();
+        var context = new DefaultHttpContext { RequestServices = app.Services };
+        var state = AuthorizationRecovery.Save(context, "web");
+        var cookie = context.Response.Headers.SetCookie.ToString().Split(';')[0];
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Add("Cookie", cookie);
+        using var forged = await client.GetAsync("/api/Linbik/callback?error=authorization_expired&state=wrong");
+        Assert.Equal(HttpStatusCode.BadRequest, forged.StatusCode);
+        Assert.Empty(forged.Headers.TryGetValues("Set-Cookie", out var badCookies) ? badCookies : []);
+        using var response = await client.GetAsync("/api/Linbik/callback?error=authorization_expired&state=" + state);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/?tab=home&error=", response.Headers.Location!.OriginalString);
+        Assert.Contains("error_code=authorization_expired", response.Headers.Location.OriginalString);
+        Assert.EndsWith("#login", response.Headers.Location.OriginalString);
+        var deleted = response.Headers.GetValues("Set-Cookie").ToArray();
+        Assert.Contains(deleted, c => c.StartsWith("linbik_auth_recovery=;"));
+        Assert.Contains(deleted, c => c.StartsWith("pkce_verifier=;"));
+        Assert.DoesNotContain(deleted, c => c.StartsWith("authToken="));
     }
 
     public class UnusedPasetoHelper : DispatchProxy

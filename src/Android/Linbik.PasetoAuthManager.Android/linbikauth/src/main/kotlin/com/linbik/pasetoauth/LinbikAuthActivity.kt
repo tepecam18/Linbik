@@ -205,8 +205,8 @@ internal class LinbikAuthActivity : ComponentActivity() {
             backendBaseUrl = backendBaseUrl,
             clientName = prefs.getString(EXTRA_CLIENT_NAME, null),
             returnPath = prefs.getString(EXTRA_RETURN_PATH, null),
-            loginPath = prefs.getString(EXTRA_LOGIN_PATH, null) ?: "/api/Linbik/login",
-            loginCallbackPath = prefs.getString(EXTRA_CALLBACK_PATH, null) ?: "/api/Linbik/callback",
+            loginPath = prefs.getString(EXTRA_LOGIN_PATH, null) ?: "/api/linbik/login",
+            loginCallbackPath = prefs.getString(EXTRA_CALLBACK_PATH, null) ?: "/api/linbik/callback",
         )
     }
 
@@ -354,8 +354,8 @@ internal class LinbikAuthActivity : ComponentActivity() {
                 backendBaseUrl = backendBaseUrl,
                 clientName = getStringExtra(EXTRA_CLIENT_NAME),
                 returnPath = getStringExtra(EXTRA_RETURN_PATH),
-                loginPath = getStringExtra(EXTRA_LOGIN_PATH) ?: "/api/Linbik/login",
-                loginCallbackPath = getStringExtra(EXTRA_CALLBACK_PATH) ?: "/api/Linbik/callback",
+                loginPath = getStringExtra(EXTRA_LOGIN_PATH) ?: "/api/linbik/login",
+                loginCallbackPath = getStringExtra(EXTRA_CALLBACK_PATH) ?: "/api/linbik/callback",
             )
         }
 
@@ -365,8 +365,8 @@ internal class LinbikAuthActivity : ComponentActivity() {
                 backendBaseUrl = backendBaseUrl,
                 clientName = getString(EXTRA_CLIENT_NAME),
                 returnPath = getString(EXTRA_RETURN_PATH),
-                loginPath = getString(EXTRA_LOGIN_PATH) ?: "/api/Linbik/login",
-                loginCallbackPath = getString(EXTRA_CALLBACK_PATH) ?: "/api/Linbik/callback",
+                loginPath = getString(EXTRA_LOGIN_PATH) ?: "/api/linbik/login",
+                loginCallbackPath = getString(EXTRA_CALLBACK_PATH) ?: "/api/linbik/callback",
             )
         }
 

@@ -1,4 +1,4 @@
-﻿using Linbik.Core.Builders;
+using Linbik.Core.Builders;
 using Linbik.Core.Builders.Interfaces;
 using Linbik.Core.Configuration;
 using Linbik.Core.Services;
@@ -61,6 +61,7 @@ public static class LinbikServiceCollectionExtensions
     /// </summary>
     private static IServiceCollection AddCommonAuthServices(this IServiceCollection services)
     {
+        services.AddDataProtection();
         services.AddCoreOptionsAndValidators();
         services.AddLinbikAuthHttpClient();
         services.AddAuthAndProvisioningServices();

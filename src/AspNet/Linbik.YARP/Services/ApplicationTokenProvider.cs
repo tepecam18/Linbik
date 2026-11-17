@@ -494,7 +494,7 @@ public sealed class ApplicationTokenProvider : IApplicationTokenProvider, IDispo
     /// </summary>
     private async Task EnsureKeylessProvisionedAsync(CancellationToken cancellationToken)
     {
-        if (!_options.KeylessMode || !string.IsNullOrEmpty(_options.ServiceId))
+        if (!_options.CredentialFileOnly && (!_options.KeylessMode || !string.IsNullOrEmpty(_options.ServiceId)))
             return;
 
         try

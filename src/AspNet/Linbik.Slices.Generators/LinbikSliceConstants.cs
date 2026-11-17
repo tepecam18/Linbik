@@ -19,7 +19,7 @@ internal static class LinbikSliceConstants
 
     public const string GeneratedNamespace = "Linbik.Slices.Generated";
 
-    private const string HelpBase = "https://github.com/tepecam18/Linbik/blob/main/src/AspNet/Linbik.Slices/README.md#";
+    private const string HelpBase = "https://github.com/tepecam18/linbik/blob/main/src/AspNet/Linbik.Slices/README.md#";
 
     public static readonly DiagnosticDescriptor MissingFlow = new(
         id: "LINBIK001",

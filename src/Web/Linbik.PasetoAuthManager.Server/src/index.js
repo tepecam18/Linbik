@@ -168,15 +168,15 @@ export function createLinbikAuth(options) {
     async function signIn(returnPath = '/') {
       returnPath = safeReturnPath(returnPath);
       const verifier = id();
-      const data = await post('/api/oauth/initiate', { clientId: options.clientId, codeChallenge: hash(verifier), extraData: { returnPath } });
+      const flow = id();
+      const data = await post('/api/oauth/initiate', { clientId: options.clientId, codeChallenge: hash(verifier), extraData: { returnPath, state: hash(flow) } });
       let redirect;
       try { redirect = new URL(data.redirectUrl); } catch { throw new LinbikServerError('Invalid authorization URL.', 502); }
       if (!allowedOrigins.has(redirect.origin) || redirect.username || redirect.password) throw new LinbikServerError('Untrusted authorization origin.', 502);
-      const flow = id();
-      const expiresAt = Date.now() + 300000;
+      const expiresAt = Date.now() + 1800000;
       const old = cookies.get(names.flow);
       if (validId(old)) await store.delete('flow:' + hash(old));
-      await store.set('flow:' + hash(flow), { verifier, returnPath, expiresAt });
+      await store.set('flow:' + hash(flow), { verifier, returnPath, expiresAt, loginExpiresAt: Date.now() + 300000 });
       writeCookie(names.flow, flow, expiresAt);
       return redirect.href;
     }
@@ -189,7 +189,7 @@ export function createLinbikAuth(options) {
         await store.delete('flow:' + hash(flow));
         return transaction;
       });
-      if (!transaction) throw new LinbikServerError('Login transaction expired or was already used.');
+      if (!transaction || (transaction.loginExpiresAt ?? transaction.expiresAt) <= Date.now()) throw new LinbikServerError('Login transaction expired or was already used.');
       const data = await post('/api/oauth/token', { serviceId: options.serviceId }, { Code: code });
       if (!same(hash(transaction.verifier), data.codeChallenge)) throw new LinbikServerError('PKCE verification failed.');
       const record = sessionRecord(data);
@@ -201,12 +201,26 @@ export function createLinbikAuth(options) {
       await issue(record, sid);
       return { user: record.user, returnPath: transaction.returnPath };
     }
+    async function callbackError(error, state) {
+      const flow = cookies.get(names.flow);
+      if (typeof error !== 'string' || !error || error.length > 256 || !validId(flow) || !same(hash(flow), state))
+        throw new LinbikServerError('Login transaction is missing or invalid.');
+      const transaction = await store.withLock('flow:' + hash(flow), async () => {
+        const record = await store.get('flow:' + hash(flow));
+        if (record) await store.delete('flow:' + hash(flow));
+        return record;
+      });
+      if (!transaction) throw new LinbikServerError('Login transaction expired or was already used.');
+      writeCookie(names.flow, '');
+      // Cancel only this login attempt. An existing application session remains valid.
+      return { returnPath: transaction.returnPath, error: error === 'authorization_expired' ? error : 'authorization_failed' };
+    }
     async function restoreSession() {
       const user = await getSession();
       if (user || !sessionId()) return user;
       try { return await refreshToken(); } catch (error) { if (error instanceof LinbikServerError && error.status === 401) return null; throw error; }
     }
-    return { getSession, restoreSession, refreshToken, signIn, callback, signOut };
+    return { getSession, restoreSession, refreshToken, signIn, callback, callbackError, signOut };
   }
   return { createRequest, assertSameOrigin, cookieNames: Object.freeze(names) };
 }

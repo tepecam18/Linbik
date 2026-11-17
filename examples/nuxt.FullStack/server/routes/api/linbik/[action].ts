@@ -1,5 +1,5 @@
 import { LinbikServerError, isLinbikServerError } from '@linbik/paseto-auth-server'
-import { linbikResult } from '../../utils/linbik-result'
+import { linbikResult } from '../../../utils/linbik-result'
 
 export default defineEventHandler(async event => {
   const action = getRouterParam(event, 'action')
@@ -18,6 +18,11 @@ export default defineEventHandler(async event => {
       return sendRedirect(event, await request.signIn(query.returnPath as string | undefined), 302)
     }
     if (action === 'callback') {
+      if (query.error !== undefined) {
+        if (typeof query.error !== 'string' || typeof query.state !== 'string') throw new LinbikServerError('Invalid authorization failure.')
+        const result = await request.callbackError(query.error, query.state)
+        return sendRedirect(event, `/?error=${result.error}`, 302)
+      }
       if (typeof query.code !== 'string') throw new LinbikServerError('Authorization code is required.')
       const { returnPath } = await request.callback(query.code)
       return sendRedirect(event, returnPath, 302)

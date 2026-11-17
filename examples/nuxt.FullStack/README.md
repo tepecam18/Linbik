@@ -27,7 +27,7 @@ altındadır; `public` config'e veya git'e konmaz.
 Linbik platformunda Web istemcinizin callback URL'sini şu adrese kaydedin:
 
 ```text
-https://localhost:3000/api/Linbik/callback
+https://localhost:3000/api/linbik/callback
 ```
 
 Sonra:
@@ -61,11 +61,11 @@ bu örnek tamamen statik `nuxt generate` dağıtımı için değildir.
 
 | Yol | Metot | İşlem |
 |---|---|---|
-| `/api/Linbik/login` | GET | PKCE giriş işlemi oluşturur, Linbik'e yönlendirir. |
-| `/api/Linbik/callback` | GET | Kodu değiştirir, PKCE doğrular, uygulama oturumunu açar. |
-| `/api/Linbik/session` | GET | Token yenilemeden oturumu okur. |
-| `/api/Linbik/refresh` | POST | Sunucudaki refresh tokenıyla yeniler. |
-| `/api/Linbik/logout` | POST | Yerel oturumu iptal edip çerezleri siler. |
+| `/api/linbik/login` | GET | PKCE giriş işlemi oluşturur, Linbik'e yönlendirir. |
+| `/api/linbik/callback` | GET | Kodu değiştirir, PKCE doğrular, uygulama oturumunu açar. |
+| `/api/linbik/session` | GET | Token yenilemeden oturumu okur. |
+| `/api/linbik/refresh` | POST | Sunucudaki refresh tokenıyla yeniler. |
+| `/api/linbik/logout` | POST | Yerel oturumu iptal edip çerezleri siler. |
 | `/api/protected` | GET | Nitro içinde oturum doğrulayan örnek iş API'si. |
 
 POST oturum uçları aynı Origin ve `X-Linbik-Request: 1` başlığı ister; tarayıcı eklentisi
@@ -80,7 +80,7 @@ tutamaç çerezi bulunur. Kullanıcı görünüm modeli Nuxt payload'ına aktar�
 ## Dosyalar
 
 - `server/middleware/linbik.ts`: uygulama ömürlü yönetici/depo, istek başına cookie bağlamı.
-- `server/api/Linbik/[action].ts`: Nitro giriş ve oturum uçları.
+- `server/routes/api/linbik/[action].ts`: Nitro giriş ve oturum uçları.
 - `server/api/protected.get.ts`: iş API'si örneği.
 - `app/plugins/linbik.server.ts`: SSR'de doğrudan sunucu işlemlerini çağıran SDK adaptörü.
 - `app/plugins/linbik.client.ts`: tarayıcı SDK'sı.

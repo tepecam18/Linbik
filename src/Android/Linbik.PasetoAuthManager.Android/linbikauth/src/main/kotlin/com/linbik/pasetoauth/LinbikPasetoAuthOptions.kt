@@ -22,8 +22,8 @@ data class LinbikPasetoAuthOptions(
     val backendBaseUrl: String,
     val clientName: String? = null,
     val returnPath: String? = null,
-    val loginPath: String = "/api/Linbik/login",
-    val loginCallbackPath: String = "/api/Linbik/callback",
-    val logoutPath: String = "/api/Linbik/logout",
-    val refreshPath: String = "/api/Linbik/refresh",
+    val loginPath: String = "/api/linbik/login",
+    val loginCallbackPath: String = "/api/linbik/callback",
+    val logoutPath: String = "/api/linbik/logout",
+    val refreshPath: String = "/api/linbik/refresh",
 )

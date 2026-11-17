@@ -59,7 +59,7 @@ marked with `ActionResultType: "Json"`. Token exchange is held on **your** backe
 PASETO cookie) — the app opens Linbik's authorization/consent page in **Custom Tabs**
 (per RFC 8252, not a WebView); once the user approves, Linbik redirects to a deep link
 specific to your app (`{applicationId}://oauth/callback?code=...`). The app takes this
-code and forwards it to **your own** backend's `/api/Linbik/callback` endpoint to
+code and forwards it to **your own** backend's `/api/linbik/callback` endpoint to
 complete the session.
 
 ## Backend Configuration (required prerequisite)
@@ -84,7 +84,7 @@ Your backend's `appsettings.json` must have a client under `Linbik:Clients` mark
 ```
 
 Do not try to use this library with `ActionResultType: "Redirect"` (the default/web
-clients) — `/api/Linbik/login` returns an HTML/redirect page, not JSON, and the library
+clients) — `/api/linbik/login` returns an HTML/redirect page, not JSON, and the library
 cannot parse it (it fails with a clear error message instead).
 
 **If you're using KeylessMode** (the default — a single `ClientId` auto-provisioned via
@@ -122,7 +122,7 @@ the `"Mobile"` entry in `appsettings.json`.
 ## How It Works
 
 1. The library uses its own OkHttp client (in the background, with no UI) to request
-   `{backendBaseUrl}/api/Linbik/login?name=Mobile`. The backend returns the PKCE
+   `{backendBaseUrl}/api/linbik/login?name=Mobile`. The backend returns the PKCE
    `code_verifier` as a `Set-Cookie` and returns Linbik's actual login/consent page
    address (`redirectPath`) in the JSON body.
 2. This address is opened in a **Custom Tabs** tab (NOT in a WebView — per RFC 8252;
@@ -135,7 +135,7 @@ the `"Mobile"` entry in `appsettings.json`.
    [`LinbikRedirectActivity`](linbikauth/src/main/kotlin/com/linbik/pasetoauth/LinbikRedirectActivity.kt)
    and forwarded to the already-open `LinbikAuthActivity` (`onNewIntent`). The `code`
    query parameter is extracted here.
-5. The library requests your backend's `{backendBaseUrl}/api/Linbik/callback?code=...`
+5. The library requests your backend's `{backendBaseUrl}/api/linbik/callback?code=...`
    endpoint (again with its own OkHttp client) using this same `code`. The backend
    performs PKCE verification using the cookie it wrote in step 1, completes the token
    exchange, and returns the user info (`LoginCallbackResponse`) as JSON.

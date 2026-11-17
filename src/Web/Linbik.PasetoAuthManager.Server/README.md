@@ -46,6 +46,7 @@ const user = await session.getSession()
 |---|---|
 | `signIn(returnPath)` | PKCE oluşturur, Linbik initiate çağrısı yapar, kısa ömürlü işlem çerezi yazar ve izin verilen yönlendirme URL'sini döndürür. |
 | `callback(code)` | Tek kullanımlık giriş işlemini tüketir, kodu değiştirir, dönen PKCE challenge'ını zorunlu doğrular; oturum oluşturup kullanıcı ve yerel dönüş yolunu döndürür. |
+| `callbackError(error, state)` | Hata dönüşünü başlatılan işlemle eşleştirir; geçici kaydı temizler. Kod değişimi veya yeni oturum oluşturmaz; mevcut kullanıcı oturumuna dokunmaz. |
 | `getSession()` | PASETO MAC, süre, issuer, audience, amaç ve sunucudaki oturum kaydını doğrular. Ağ isteği/yenileme yapmaz; geçersiz oturumda null döner. |
 | `restoreSession()` | Geçerli oturumu okur; gerekirse sunucuda tutulan refresh tokenıyla yeniler. 401 için null döner, altyapı hatalarını gizlemez. |
 | `refreshToken()` | Aynı oturum için kilit altında yeniler. Yakın zamanda yenilenmiş sonucu paylaşarak eşzamanlı isteklerde tokenın tekrar kullanılmasını önler. |
@@ -60,7 +61,7 @@ süzerek göndermeli ve kişisel yanıtları `private, no-store` işaretlemelidi
 
 Linbik API sözleşmesi repodaki .NET istemcisiyle aynıdır:
 
-- `POST /api/oauth/initiate`: ApiKey başlığı; clientId, codeChallenge, extraData.returnPath.
+- `POST /api/oauth/initiate`: ApiKey başlığı; clientId, codeChallenge, extraData.returnPath ve extraData.state.
 - `POST /api/oauth/token`: ApiKey ve Code başlıkları; serviceId gövdesi.
 - `POST /api/oauth/refresh`: ApiKey ve RefreshToken başlıkları; serviceId gövdesi.
 
@@ -105,3 +106,11 @@ pnpm test
 Testler PKCE eksikliği/uyuşmazlığı, callback replay, bozuk/süresi dolmuş token, yanlış
 audience/amaç, eşzamanlı refresh, logout ve yönlendirme/CSRF sınırlarını kapsar.
 PASETO uygulaması: [paseto-ts](https://github.com/auth70/paseto-ts).
+
+
+Süresi dolan girişlerde callback adaptörü `error` parametresini `code` kontrolünden
+önce ele almalıdır. `await request.callbackError(query.error, query.state)` sonrası
+kullanıcıyı herkese açık giriş/ana sayfanıza götürün ve yeniden giriş düğmesi gösterin.
+Otomatik login yönlendirmesi yapmayın. `signIn` her denemede yeni PKCE/state üretir.
+Başarılı callback süresi 5 dakikadır; yalnızca hata dönüşünü eşleştiren işlem bilgisi
+30 dakika saklanır. Eski `code` bu süre içinde de kabul edilmez.

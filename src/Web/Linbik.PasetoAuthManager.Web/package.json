@@ -4,13 +4,13 @@
   "description": "Cookie-based web client for Linbik.PasetoAuthManager",
   "license": "MIT",
   "author": "tepecam18",
-  "homepage": "https://github.com/tepecam18/Linbik/tree/main/src/Web/Linbik.PasetoAuthManager.Web#readme",
+  "homepage": "https://github.com/tepecam18/linbik/tree/main/src/Web/Linbik.PasetoAuthManager.Web#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tepecam18/Linbik.git",
     "directory": "src/Web/Linbik.PasetoAuthManager.Web"
   },
-  "bugs": "https://github.com/tepecam18/Linbik/issues",
+  "bugs": "https://github.com/tepecam18/linbik/issues",
   "keywords": ["linbik", "paseto", "oauth", "authentication", "cookie", "ssr"],
   "publishConfig": { "access": "public" },
   "type": "module",

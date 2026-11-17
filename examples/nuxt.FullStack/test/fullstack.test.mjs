@@ -8,6 +8,7 @@ import { readdir, readFile } from 'node:fs/promises'
 
 test('standalone Nitro login, callback, session, protected API, SSR/CSR and logout', async () => {
   const codes = new Map()
+  let loginState
   const calls = []
   let identityOrigin
   const identity = createServer(async (req, res) => {
@@ -20,6 +21,7 @@ test('standalone Nitro login, callback, session, protected API, SSR/CSR and logo
     if (req.url === '/api/oauth/initiate') {
       const code = String(codes.size + 1)
       codes.set(code, body.codeChallenge)
+      loginState = body.extraData.state
       data = { redirectUrl: `${identityOrigin}/approve?code=${code}` }
     } else if (req.url === '/api/oauth/token') {
       const challenge = codes.get(req.headers.code)
@@ -66,22 +68,36 @@ test('standalone Nitro login, callback, session, protected API, SSR/CSR and logo
       await delay(100)
     }
     assert.ok(ready, output)
-    assert.equal((await request('/api/Linbik/session')).status, 401)
+    assert.equal((await request('/api/linbik/session')).status, 401)
     assert.equal((await request('/api/protected')).status, 401)
-    assert.equal((await request('/api/Linbik/callback?code=unsolicited')).status, 400)
+    assert.equal((await request('/api/linbik/callback?code=unsolicited')).status, 400)
     assert.equal(calls.length, 0)
-    const login = await request('/api/Linbik/login?returnPath=%2Fprotected')
+    await request('/api/linbik/login?returnPath=%2Fprotected')
+    const expiredState = loginState
+    const invalidFailure = await request('/api/linbik/callback?error=authorization_expired&state=wrong')
+    assert.equal(invalidFailure.status, 400)
+    assert.ok(jar.has('linbik_flow'))
+    const failure = await request('/api/linbik/callback?error=authorization_expired&state=' + expiredState)
+    assert.equal(failure.status, 302)
+    assert.equal(failure.headers.get('location'), '/?error=authorization_expired')
+    assert.equal(jar.has('linbik_flow'), false)
+    assert.equal(jar.has('linbik_access'), false)
+    assert.equal(calls.filter(path => path.endsWith('/token')).length, 0)
+    const expiredPage = await request('/?error=authorization_expired')
+    if (process.env.NUXT_TEST_SSR !== 'false') assert.match(await expiredPage.text(), /Giriş işleminin süresi doldu/)
+    const login = await request('/api/linbik/login?returnPath=%2Fprotected')
+    assert.notEqual(loginState, expiredState)
     assert.equal(login.status, 302, await login.text())
     const code = new URL(login.headers.get('location')).searchParams.get('code')
     assert.ok(jar.has('linbik_flow'))
-    const callback = await request('/api/Linbik/callback?code=' + code)
+    const callback = await request('/api/linbik/callback?code=' + code)
     assert.equal(callback.status, 302, await callback.text())
     assert.equal(callback.headers.get('location'), '/protected')
     assert.equal(jar.has('linbik_flow'), false)
     assert.match(jar.get('linbik_access'), /^v4\.local\./)
     assert.ok(callback.headers.getSetCookie().every(cookie => cookie.includes('HttpOnly')))
     assert.doesNotMatch(cookieHeader(), /fixture-api-secret|fixture-upstream-refresh-secret|fixture-integration-secret/)
-    const session = await request('/api/Linbik/session')
+    const session = await request('/api/linbik/session')
     assert.equal((await session.json()).data.username, 'alice')
     const api = await request('/api/protected')
     assert.equal((await api.json()).user.username, 'alice')
@@ -93,8 +109,8 @@ test('standalone Nitro login, callback, session, protected API, SSR/CSR and logo
     assert.doesNotMatch(html, /fixture-api-secret|fixture-upstream-refresh-secret|fixture-integration-secret|k4\.local\./)
     assert.equal(calls.filter(path => path.endsWith('/token')).length, 1)
     assert.equal(calls.filter(path => path.endsWith('/refresh')).length, 0)
-    assert.equal((await request('/api/Linbik/logout')).status, 405)
-    assert.equal((await request('/api/Linbik/logout', { method: 'POST', headers: { origin: 'https://evil.test', 'x-linbik-request': '1' } })).status, 403)
+    assert.equal((await request('/api/linbik/logout')).status, 405)
+    assert.equal((await request('/api/linbik/logout', { method: 'POST', headers: { origin: 'https://evil.test', 'x-linbik-request': '1' } })).status, 403)
     // A missing/invalid access token may be restored using the server-held session.
     jar.set('linbik_access', 'expired')
     if (process.env.NUXT_TEST_SSR !== 'false') {
@@ -103,12 +119,12 @@ test('standalone Nitro login, callback, session, protected API, SSR/CSR and logo
       assert.match(await restored.text(), /Merhaba, Alice/)
       assert.match(jar.get('linbik_access'), /^v4\.local\./)
     }
-    const refresh = await request('/api/Linbik/refresh', { method: 'POST', headers: { origin, 'x-linbik-request': '1' } })
+    const refresh = await request('/api/linbik/refresh', { method: 'POST', headers: { origin, 'x-linbik-request': '1' } })
     assert.equal(refresh.status, 200)
     const copiedCookies = cookieHeader()
-    assert.equal((await request('/api/Linbik/logout', { method: 'POST', headers: { origin, 'x-linbik-request': '1' } })).status, 200)
+    assert.equal((await request('/api/linbik/logout', { method: 'POST', headers: { origin, 'x-linbik-request': '1' } })).status, 200)
     assert.equal(jar.size, 0)
-    const revoked = await request('/api/Linbik/session', { headers: { cookie: copiedCookies } }, false)
+    const revoked = await request('/api/linbik/session', { headers: { cookie: copiedCookies } }, false)
     assert.equal(revoked.status, 401)
     assert.equal((await request('/api/protected')).status, 401)
     if (process.env.NUXT_TEST_SSR !== 'false') assert.equal((await request('/protected')).status, 302)

@@ -66,6 +66,14 @@ public sealed class LinbikOptions
     public bool KeylessMode { get; set; } = true;
 
     /// <summary>
+    /// Only consume existing .linbik/credentials.json credentials. Takes precedence over
+    /// KeylessMode: never provisions, recovers keys over HTTP, or writes credentials.
+    /// Missing or incomplete files are retried on subsequent operations without restarting.
+    /// Default: false. Local JWT/PASETO signing keys must be configured separately.
+    /// </summary>
+    public bool CredentialFileOnly { get; set; }
+
+    /// <summary>
     /// application's service ID (from Linbik service registration)
     /// </summary>
     public string ServiceId { get; set; } = string.Empty;

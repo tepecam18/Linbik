@@ -67,6 +67,35 @@ app.EnsureLinbik(); // Validates all registered Linbik modules at startup
 }
 ```
 
+### Consume an existing credential file without provisioning
+
+```json
+{
+  "Linbik": {
+    "KeylessMode": false,
+    "CredentialFileOnly": true
+  }
+}
+```
+
+`CredentialFileOnly` defaults to `false`, preserving existing behavior. When enabled,
+it takes precedence over `KeylessMode` and reads `.linbik/credentials.json` relative
+to the process working directory. It never provisions a service, recovers validation
+keys over HTTP, handles claims, or writes the credential file. A separate producer
+must supply `ServiceId`, `ApiKey`, `ClientId`, `PackageName`, and a valid Ed25519
+`PublicKey` in the file.
+
+The application can start before the file exists. Missing, unreadable, malformed,
+or incomplete files are retried on subsequent login, token, or incoming bearer
+authentication operations. Operations requiring credentials remain unavailable
+until a complete file can be read; failed reads are never cached as successful
+initialization. Successfully loaded credentials are retained for the process lifetime.
+Explicit `PackageName` configuration still takes precedence over the file.
+
+If using `AddLinbikJwtAuth` or `AddLinbikPasetoAuth`, configure their local token
+signing keys separately. This mode also disables automatic local key generation;
+the credential file contains the Linbik verification public key, not local signing keys.
+
 ### Configuration Validation
 
 Options are validated at startup. If configuration is invalid, the application will fail to start with a clear error message:

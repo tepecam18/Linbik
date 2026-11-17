@@ -11,7 +11,7 @@ test('SSR-safe import, encoded login parameters, backend prefix and navigation a
   const auth = client({ clientName: 'Web & App', navigate: url => { location = url; } });
   auth.signIn('/dashboard?tab=a&b=2');
   const url = new URL(location);
-  assert.equal(url.pathname, '/service/api/Linbik/login');
+  assert.equal(url.pathname, '/service/api/linbik/login');
   assert.equal(url.searchParams.get('name'), 'Web & App');
   assert.equal(url.searchParams.get('returnPath'), '/dashboard?tab=a&b=2');
   assert.equal(client().getSignInUrl().includes('name='), false);

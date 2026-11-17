@@ -43,12 +43,12 @@ public sealed class JwtAuthOptions
     /// <summary>
     /// Login path (redirects to Linbik authorization)
     /// </summary>
-    public string LoginPath { get; set; } = "/api/Linbik/login";
+    public string LoginPath { get; set; } = "/api/linbik/login";
 
     /// <summary>
     /// Login callback path (receives authorization code)
     /// </summary>
-    public string LoginCallbackPath { get; set; } = "/api/Linbik/callback";
+    public string LoginCallbackPath { get; set; } = "/api/linbik/callback";
 
     /// <summary>
     /// When true, EnsureLinbik() will automatically update the RedirectUri
@@ -61,13 +61,13 @@ public sealed class JwtAuthOptions
     /// <summary>
     /// Logout path
     /// </summary>
-    public string LogoutPath { get; set; } = "/api/Linbik/logout";
+    public string LogoutPath { get; set; } = "/api/linbik/logout";
 
     /// <summary>
     /// Token refresh path
     /// </summary>
-    public string RefreshPath { get; set; } = "/api/Linbik/refresh";
+    public string RefreshPath { get; set; } = "/api/linbik/refresh";
 
     /// <summary>Read-only authenticated session endpoint (does not rotate tokens).</summary>
-    public string SessionPath { get; set; } = "/api/Linbik/session";
+    public string SessionPath { get; set; } = "/api/linbik/session";
 }

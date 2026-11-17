@@ -78,7 +78,7 @@ public static class LinbikPasetoAuthExtensions
         services.AddOptions<PasetoAuthOptions>()
             .PostConfigure<IOptions<LinbikOptions>>((pasetoOpts, linbikOpts) =>
             {
-                if (!linbikOpts.Value.KeylessMode)
+                if (!linbikOpts.Value.KeylessMode || linbikOpts.Value.CredentialFileOnly)
                     return;
 
                 var helper = new PasetoHelperService();

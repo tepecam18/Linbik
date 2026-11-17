@@ -134,7 +134,7 @@ public static class IntegrationEndpointExtensions
     /// <returns>A route group builder for further configuration</returns>
     public static RouteGroupBuilder MapLinbikIntegrationEndpoints(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/Linbik/")
+        string basePath = "/api/linbik/")
     {
         var group = endpoints.MapLinbikIntegrationRoutes(basePath);
 
@@ -190,7 +190,7 @@ public static class IntegrationEndpointExtensions
     /// <returns>A route group builder for further configuration</returns>
     public static RouteGroupBuilder MapLinbikIntegrationEndpointsGateway(
         this IEndpointRouteBuilder endpoints,
-        string basePath = "/api/Linbik/",
+        string basePath = "/api/linbik/",
         Action<RouteGroupBuilder>? configureAuthorization = null)
     {
         var group = endpoints.MapLinbikIntegrationRoutes(basePath);

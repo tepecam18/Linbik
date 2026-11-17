@@ -32,8 +32,8 @@ public sealed class LinbikOptionsValidator : IValidateOptions<LinbikOptions>
         }
 
         // In KeylessMode, skip ServiceId/ApiKey/ClientId validation
-        // These will be provisioned automatically at runtime
-        if (!options.KeylessMode)
+        // These will be provisioned or loaded from the credential file at runtime
+        if (!options.KeylessMode && !options.CredentialFileOnly)
         {
             ValidateStandardMode(options, errors);
         }

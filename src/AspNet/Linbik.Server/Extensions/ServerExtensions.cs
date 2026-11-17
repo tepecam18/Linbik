@@ -107,7 +107,7 @@ public static class ServerExtensions
     private static async Task<(string PublicKey, string Audience)> ResolveValidationMaterialAsync(Microsoft.AspNetCore.Http.HttpContext context)
     {
         var core = context.RequestServices.GetRequiredService<IOptions<LinbikOptions>>().Value;
-        if (!core.KeylessMode || (!string.IsNullOrWhiteSpace(core.PublicKey) && !string.IsNullOrWhiteSpace(core.PackageName)))
+        if (!core.CredentialFileOnly && (!core.KeylessMode || (!string.IsNullOrWhiteSpace(core.PublicKey) && !string.IsNullOrWhiteSpace(core.PackageName))))
             return (core.PublicKey, core.PackageName);
 
         await context.RequestServices.GetRequiredService<LinbikProvisionClient>().EnsureProvisionedAsync(

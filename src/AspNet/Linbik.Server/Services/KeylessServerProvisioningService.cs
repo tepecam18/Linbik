@@ -24,7 +24,7 @@ internal sealed class KeylessServerProvisioningService(
     public async Task StartedAsync(CancellationToken cancellationToken)
     {
         var opts = coreOptions.Value;
-        if (!opts.KeylessMode || !string.IsNullOrWhiteSpace(opts.PublicKey) && !string.IsNullOrWhiteSpace(opts.PackageName))
+        if (!opts.CredentialFileOnly && (!opts.KeylessMode || (!string.IsNullOrWhiteSpace(opts.PublicKey) && !string.IsNullOrWhiteSpace(opts.PackageName))))
             return;
         var client = opts.Clients.FirstOrDefault();
         var address = Uri.TryCreate(client?.RedirectUrl, UriKind.Absolute, out var configured) &&

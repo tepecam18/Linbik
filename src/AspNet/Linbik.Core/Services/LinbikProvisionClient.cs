@@ -21,13 +21,22 @@ public sealed class LinbikProvisionClient(
     ILogger<LinbikProvisionClient> logger)
 {
     private static readonly SemaphoreSlim _provisionLock = new(1, 1);
-    private bool _isProvisioned;
+    private volatile bool _isProvisioned;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
+
+    internal async Task<bool> EnsureCredentialFileAsync(CancellationToken cancellationToken)
+    {
+        if (!options.Value.CredentialFileOnly)
+            return true;
+
+        await EnsureProvisionedAsync(string.Empty, string.Empty, null, cancellationToken);
+        return _isProvisioned;
+    }
 
     /// <summary>
     /// Ensure the application has valid credentials.
@@ -47,6 +56,25 @@ public sealed class LinbikProvisionClient(
                 return;
 
             var opts = options.Value;
+            if (opts.CredentialFileOnly)
+            {
+                // Do not cache a miss or partially written file as a successful initialization.
+                var fileCredentials = await credentialStore.LoadAsync(cancellationToken);
+                if (fileCredentials == null ||
+                    !Guid.TryParse(fileCredentials.ServiceId, out var serviceId) || serviceId == Guid.Empty ||
+                    !Guid.TryParse(fileCredentials.ClientId, out var clientId) || clientId == Guid.Empty ||
+                    string.IsNullOrWhiteSpace(fileCredentials.ApiKey) ||
+                    string.IsNullOrWhiteSpace(fileCredentials.PackageName) ||
+                    !IsValidPublicKey(fileCredentials.PublicKey))
+                {
+                    logger.LogWarning("Linbik credential file is missing, unreadable, or incomplete. A subsequent operation will retry; no credentials will be generated.");
+                    return;
+                }
+
+                ApplyCredentials(opts, fileCredentials);
+                _isProvisioned = true;
+                return;
+            }
             if (!opts.KeylessMode)
                 return;
 
@@ -105,6 +133,9 @@ public sealed class LinbikProvisionClient(
     /// </summary>
     public async Task HandleClaimAsync(string newApiKey, CancellationToken cancellationToken = default)
     {
+        if (options.Value.CredentialFileOnly)
+            return;
+
         var cached = await credentialStore.LoadAsync(cancellationToken);
         if (cached == null)
             return;
@@ -119,6 +150,12 @@ public sealed class LinbikProvisionClient(
         options.Value.ApiKey = newApiKey;
 
         logger.LogInformation("Linbik Keyless Mode: Service successfully claimed! New permanent API key applied.");
+    }
+
+    private static bool IsValidPublicKey(string publicKey)
+    {
+        Span<byte> bytes = stackalloc byte[32];
+        return Convert.TryFromBase64String(publicKey, bytes, out var written) && written == 32;
     }
 
     private async Task<LBaseResponse<LinbikCredentials>> ProvisionAsync(string appUrl, string callbackPath, LinbikOptions opts, CancellationToken cancellationToken)
